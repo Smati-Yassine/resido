@@ -1,0 +1,132 @@
+import { ObjectId, type ClientSession } from "mongodb";
+import { getDb } from "@/lib/db/client";
+import { COLLECTIONS } from "@/lib/db/collections";
+import { fromObjectId, toObjectId } from "@/lib/db/ids";
+import { newTimestamps } from "@/lib/db/timestamps";
+import type { Lot } from "./schema";
+
+interface LotDoc {
+  _id: ObjectId;
+  organizationId: ObjectId;
+  buildingId: ObjectId | null;
+  ownerId?: ObjectId | null;
+  code: string;
+  chargeMillimes: number;
+  status: "ACTIVE" | "INACTIVE";
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+function toDomain(doc: LotDoc): Lot {
+  return {
+    id: fromObjectId(doc._id),
+    organizationId: fromObjectId(doc.organizationId),
+    buildingId: doc.buildingId ? fromObjectId(doc.buildingId) : null,
+    ownerId: doc.ownerId ? fromObjectId(doc.ownerId) : null,
+    code: doc.code,
+    chargeMillimes: doc.chargeMillimes ?? 0,
+    status: doc.status,
+    createdAt: doc.createdAt,
+    updatedAt: doc.updatedAt,
+  };
+}
+
+async function collection() {
+  const db = await getDb();
+  return db.collection<LotDoc>(COLLECTIONS.lots);
+}
+
+export class DuplicateLotCodeError extends Error {}
+
+export interface InsertLotInput {
+  buildingId: string | null;
+  ownerId: string | null;
+  code: string;
+  chargeMillimes: number;
+}
+
+export async function insertLot(organizationId: string, input: InsertLotInput, session?: ClientSession): Promise<Lot> {
+  const doc: LotDoc = {
+    _id: new ObjectId(),
+    organizationId: toObjectId(organizationId),
+    buildingId: input.buildingId ? toObjectId(input.buildingId) : null,
+    ownerId: input.ownerId ? toObjectId(input.ownerId) : null,
+    code: input.code,
+    chargeMillimes: input.chargeMillimes,
+    status: "ACTIVE",
+    ...newTimestamps(),
+  };
+  try {
+    await (await collection()).insertOne(doc, { session });
+  } catch (error) {
+    if (typeof error === "object" && error !== null && (error as { code?: unknown }).code === 11000) {
+      throw new DuplicateLotCodeError(`Lot code "${input.code}" is already in use`);
+    }
+    throw error;
+  }
+  return toDomain(doc);
+}
+
+export async function findLotById(organizationId: string, id: string): Promise<Lot | null> {
+  const doc = await (await collection()).findOne({ _id: toObjectId(id), organizationId: toObjectId(organizationId) });
+  return doc ? toDomain(doc) : null;
+}
+
+export interface ListLotsFilter {
+  buildingId?: string;
+  status?: "ACTIVE" | "INACTIVE";
+}
+
+export async function listLots(organizationId: string, filter: ListLotsFilter = {}): Promise<Lot[]> {
+  const query: Record<string, unknown> = { organizationId: toObjectId(organizationId) };
+  if (filter.buildingId) query.buildingId = toObjectId(filter.buildingId);
+  if (filter.status) query.status = filter.status;
+  const docs = await (await collection()).find(query).sort({ code: 1 }).toArray();
+  return docs.map(toDomain);
+}
+
+/** Sets (or clears, with null) the owner of one lot. */
+export async function setLotOwner(
+  organizationId: string,
+  lotId: string,
+  ownerId: string | null,
+  session?: ClientSession,
+): Promise<Lot | null> {
+  const result = await (
+    await collection()
+  ).findOneAndUpdate(
+    { _id: toObjectId(lotId), organizationId: toObjectId(organizationId) },
+    { $set: { ownerId: ownerId ? toObjectId(ownerId) : null, updatedAt: new Date() } },
+    { returnDocument: "after", session },
+  );
+  return result ? toDomain(result) : null;
+}
+
+/**
+ * Makes `lotIds` exactly the lots held by `ownerId`: listed lots are
+ * (re)assigned to it — taking them from any previous owner — and lots it
+ * held that are not listed are left without an owner.
+ */
+export async function replaceOwnerLots(
+  organizationId: string,
+  ownerId: string,
+  lotIds: string[],
+  session: ClientSession,
+): Promise<void> {
+  const org = toObjectId(organizationId);
+  const owner = toObjectId(ownerId);
+  const ids = lotIds.map(toObjectId);
+  const lots = await collection();
+  await lots.updateMany(
+    { organizationId: org, ownerId: owner, _id: { $nin: ids } },
+    { $set: { ownerId: null, updatedAt: new Date() } },
+    { session },
+  );
+  if (ids.length) {
+    await lots.updateMany(
+      { organizationId: org, _id: { $in: ids } },
+      { $set: { ownerId: owner, updatedAt: new Date() } },
+      { session },
+    );
+  }
+}

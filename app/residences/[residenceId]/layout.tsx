@@ -1,0 +1,68 @@
+import { cookies } from "next/headers";
+import { getDictionary, getPreferences } from "@/lib/i18n/server";
+import { listMembershipsForUser } from "@/lib/domain/memberships/repository";
+import { findResidencesByIds } from "@/lib/domain/residences/repository";
+import { getLotRows } from "@/lib/domain/overview/service";
+import * as lots from "@/lib/domain/lots/service";
+import { toCycleView } from "@/lib/cycle-view";
+import { defaultCycle, loadResidence } from "@/lib/workspace";
+import { SIDEBAR_COLLAPSED, SIDEBAR_COOKIE } from "@/lib/ui-prefs";
+import { CurrencyProvider } from "@/components/ui/CurrencyProvider";
+import { ResidenceShell } from "@/components/shell/ResidenceShell";
+import { ResidenceSwitcher } from "@/components/shell/ResidenceSwitcher";
+import { CycleSwitcher } from "@/components/shell/CycleSwitcher";
+import { UserMenu } from "@/components/shell/UserMenu";
+
+/** Inside a residence: the signed-in top bar with residence + cycle switchers, over a collapsible sidebar. */
+export default async function ResidenceLayout({ children, params }: LayoutProps<"/residences/[residenceId]">) {
+  const { residenceId } = await params;
+  const { user, session, residence, cycles } = await loadResidence(residenceId);
+  const { t } = await getDictionary();
+  const { theme } = await getPreferences();
+  const collapsed = (await cookies()).get(SIDEBAR_COOKIE)?.value === SIDEBAR_COLLAPSED;
+
+  const current = defaultCycle(cycles);
+  const [myResidences, lotList, rows] = await Promise.all([
+    findResidencesByIds((await listMembershipsForUser(user.userId)).map((m) => m.residenceId)),
+    lots.listLots(session, residenceId, { status: "ACTIVE" }),
+    current && current.status !== "DRAFT" ? getLotRows(session, residenceId, current.id) : Promise.resolve([]),
+  ]);
+  const residenceItems = myResidences
+    .filter((r) => r.status === "ACTIVE" || r.id === residenceId)
+    .map((r) => ({ id: r.id, name: r.name, city: r.city }));
+  const lotCount = lotList.ok ? lotList.data.length : 0;
+
+  return (
+    <ResidenceShell
+      residenceId={residenceId}
+      initialCollapsed={collapsed}
+      lotCount={lotCount}
+      // Lots still owing something in the current cycle — the Encaissements badge.
+      unpaidCount={rows.filter((r) => r.status !== "PAID").length}
+      switchers={
+        <>
+          <ResidenceSwitcher
+            current={{ id: residence.id, name: residence.name, city: residence.city }}
+            lotCount={lotCount}
+            residences={residenceItems}
+          />
+          <span className="header-divider" aria-hidden="true" />
+          <CycleSwitcher
+            residenceId={residenceId}
+            cycles={cycles.map((c) => toCycleView(c, t))}
+            defaultCycleId={current?.id ?? null}
+          />
+        </>
+      }
+      userMenu={
+        <UserMenu
+          user={{ name: user.name, email: user.email }}
+          theme={theme}
+          residences={myResidences.map((r) => ({ id: r.id, name: r.name }))}
+        />
+      }
+    >
+      <CurrencyProvider code={residence.currency}>{children}</CurrencyProvider>
+    </ResidenceShell>
+  );
+}
