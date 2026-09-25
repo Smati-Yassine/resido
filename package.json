@@ -16,6 +16,7 @@
     "normalize-slugs": "tsx scripts/normalize-slugs.ts"
   },
   "dependencies": {
+    "@react-pdf/renderer": "^4.9.0",
     "bcryptjs": "^3.0.3",
     "exceljs": "^4.4.0",
     "mongodb": "^7.6.0",

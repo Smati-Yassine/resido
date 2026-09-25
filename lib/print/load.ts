@@ -3,8 +3,15 @@ import type { AuthorizedSession } from "@/lib/rbac/permissions";
 import type { PaymentMethod } from "@/lib/domain/payments/methods";
 import * as payments from "@/lib/domain/payments/service";
 import { computeAllTreasuries } from "@/lib/domain/cycles/service";
-import { getExpenseMonths, totalsFromLotRows } from "@/lib/domain/overview/service";
-import { incomeInCycle } from "@/lib/domain/overview/finance";
+import { getExpenseMonths, progressByBloc, totalsFromLotRows } from "@/lib/domain/overview/service";
+import {
+  collectedBy,
+  incomeByMethod,
+  incomeInCycle,
+  monthlyFlows,
+  spentBy,
+  topDebtors,
+} from "@/lib/domain/overview/finance";
 import { loadProperty } from "@/lib/property/load";
 import { lotRowsFor } from "@/lib/workspace";
 
@@ -30,21 +37,43 @@ export interface PrintPayment {
   amountMillimes: number;
 }
 
+/** The previous cycle's figures at the same point — as the dashboard compares them. */
+export interface PrintBefore {
+  name: string;
+  expectedMillimes: number;
+  collectedMillimes: number;
+  outstandingMillimes: number;
+  balanceMillimes: number;
+  rate: number;
+}
+
 /**
  * Everything the printed documents show, for the cycle on screen: the lots by
  * bloc with owners, phones and how they paid; the payments; the expenses by
- * month; the treasury; the headline figures.
+ * month; the treasury; the headline figures and, for the covers, the charts'
+ * series and the previous cycle to compare with.
  */
-export async function loadPrintData(session: AuthorizedSession, residenceId: string, cycle: Cycle) {
+export async function loadPrintData(
+  session: AuthorizedSession,
+  residenceId: string,
+  cycle: Cycle,
+  previous: Cycle | null,
+) {
   const billed = cycle.status !== "DRAFT";
-  const [property, rows, paymentResult, months, treasuries] = await Promise.all([
-    loadProperty(session, residenceId, cycle),
-    billed ? lotRowsFor(session, residenceId, cycle.id) : Promise.resolve([]),
-    billed ? payments.listPaymentsForCycle(session, residenceId, cycle.id) : Promise.resolve(null),
-    billed ? getExpenseMonths(session, residenceId, cycle.id) : Promise.resolve([]),
-    computeAllTreasuries(residenceId),
-  ]);
+  const before = billed && previous && previous.status !== "DRAFT" ? previous : null;
+  const [property, rows, paymentResult, months, treasuries, previousRows, previousPayments, previousMonths] =
+    await Promise.all([
+      loadProperty(session, residenceId, cycle),
+      billed ? lotRowsFor(session, residenceId, cycle.id) : Promise.resolve([]),
+      billed ? payments.listPaymentsForCycle(session, residenceId, cycle.id) : Promise.resolve(null),
+      billed ? getExpenseMonths(session, residenceId, cycle.id) : Promise.resolve([]),
+      computeAllTreasuries(residenceId),
+      before ? lotRowsFor(session, residenceId, before.id) : Promise.resolve(null),
+      before ? payments.listPaymentsForCycle(session, residenceId, before.id) : Promise.resolve(null),
+      before ? getExpenseMonths(session, residenceId, before.id) : Promise.resolve(null),
+    ]);
   const paymentList = paymentResult?.ok ? paymentResult.data : [];
+  const treasury = treasuries.get(cycle.id)!;
 
   const phoneOf = new Map(property.ownerItems.map((o) => [o.id, o.phone]));
   const methodsOf = new Map<string, Set<PaymentMethod>>();
@@ -97,13 +126,45 @@ export async function loadPrintData(session: AuthorizedSession, residenceId: str
     // Oldest first, like a ledger.
     .sort((a, b) => a.date.getTime() - b.date.getTime());
 
+  // While a cycle runs, the previous one is cut as far into it as this one has gone.
+  const now = new Date();
+  const end = cycle.endDate ?? now;
+  const elapsed = Math.min(now.getTime(), end.getTime()) - cycle.startDate.getTime();
+  const cutoff = before && cycle.status === "OPEN" ? new Date(before.startDate.getTime() + elapsed) : null;
+  const beforeTreasury = before ? treasuries.get(before.id) : undefined;
+  let comparison: PrintBefore | null = null;
+  if (before && previousRows && previousPayments?.ok && beforeTreasury) {
+    const expected = totalsFromLotRows(previousRows).expectedMillimes;
+    const collected = collectedBy(previousPayments.data, before.id, cutoff);
+    const spent = spentBy(previousMonths?.flatMap((m) => m.items) ?? [], cutoff);
+    comparison = {
+      name: before.name,
+      expectedMillimes: expected,
+      collectedMillimes: collected,
+      outstandingMillimes: expected - collected,
+      balanceMillimes: beforeTreasury.openingBalanceMillimes + collected - spent,
+      rate: expected ? Math.round((collected / expected) * 100) : 0,
+    };
+  }
+
   return {
     byBloc,
     payments: paymentRows,
     expenseMonths: months,
-    treasury: treasuries.get(cycle.id)!,
+    treasury,
     totals: totalsFromLotRows(rows),
     property,
+    flows: monthlyFlows(
+      paymentList,
+      months.flatMap((m) => m.items),
+      cycle.id,
+      treasury.openingBalanceMillimes,
+    ),
+    methods: incomeByMethod(paymentList, cycle.id),
+    blocProgress: progressByBloc(rows),
+    debtors: topDebtors(rows, 5),
+    before: comparison,
+    toDate: !!cutoff,
   };
 }
 

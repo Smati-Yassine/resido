@@ -18,7 +18,7 @@ import { ClosedBanner, DraftCycle, NoCycle } from "@/components/workspace/CycleS
 import { PaymentButton } from "@/components/workspace/PaymentModal";
 import { ExpenseButton } from "@/components/workspace/ExpenseModal";
 import { SetupGuide } from "@/components/workspace/SetupGuide";
-import { PrintLink } from "@/components/print/PrintLink";
+import { PrintButton } from "@/components/print/PrintButton";
 import { CollectionCurve, Delta, Donut, Gauge } from "@/components/dashboard/Charts";
 import * as buildings from "@/lib/domain/buildings/service";
 export default async function DashboardPage({ params, searchParams }: PageProps<"/residences/[residenceId]">) {
@@ -129,7 +129,7 @@ export default async function DashboardPage({ params, searchParams }: PageProps<
         // A closed cycle stays correctable, so the buttons stay too.
         actions={
           <>
-            <PrintLink href={href("/print/report")} label={t.printAll} />
+            <PrintButton href={href("/print/report")} label={t.printAll} document={t.docReport} />
             {can("expenses:create") && <ExpenseButton residenceId={residenceId} variant="ghost" />}
             {can("payments:create") && (
               <PaymentButton residenceId={residenceId} lots={paymentLots(rows)} label={t.addPayment} />

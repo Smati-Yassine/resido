@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // The PDF documents read their fonts from disk at runtime; ship them with that route.
+  outputFileTracingIncludes: {
+    "/residences/[residenceId]/print/[doc]": ["./lib/print/fonts/**/*"],
+  },
   experimental: {
     // Keep a visited page for 30 s in the browser: going back to it (or to a
     // tab seen moments ago) is instant. Every save still refreshes what it

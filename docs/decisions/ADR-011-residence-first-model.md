@@ -199,15 +199,20 @@ cookies read on the server, so the page renders in the right theme with no
 flash.
 
 **Printing.** The dashboard, Finances (each tab) and Copropriété have a
-"Imprimer" button that opens `/residences/<r>/print/<doc>` in a new tab, for
-the cycle on screen: `property` (every lot by bloc with owners, phones,
-charge, paid, remaining, status and payment methods; subtotals per bloc;
+"Imprimer" button. It fetches `/residences/<r>/print/<doc>` — a route
+handler rendering a real PDF with `@react-pdf/renderer` for the cycle on
+screen — and opens it as a blob in the browser's PDF viewer (downloaded
+instead when pop-ups are blocked). Documents: `property` (every lot by bloc
+with owners, phones, charge, paid, remaining, status and methods; subtotals;
 landscape), `payments` and `expenses` (by month, subtotals, total; payments
-also by method), `finances` (treasury + both lists) and `report` (key
-figures, treasury, then the three). The pages live outside the `(workspace)`
-route group, so they have no app shell; they open the print dialog by
-themselves. Sheets use the `--paper-*` tokens, which the dark theme never
-redefines, so paper is always light.
+also by method), `finances` (a cover — treasury, waterfall, monthly flows,
+methods, largest expenses — then both lists) and `report` (a cover — the
+collection gauge, the four figures against the previous cycle, treasury,
+lots by status, monthly flows, collection by bloc, largest debtors — then
+the ledger and both lists). The PDF palette in `lib/print/pdf/theme.ts`
+mirrors the light tokens (paper is always light); the fonts are static TTF
+instances of Manrope and Fraunces in `lib/print/fonts`, traced into that
+route's function.
 
 ## Consequences
 

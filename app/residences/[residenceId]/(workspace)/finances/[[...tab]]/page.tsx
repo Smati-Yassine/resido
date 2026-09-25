@@ -15,7 +15,7 @@ import { TreasuryLedger } from "@/components/finances/TreasuryLedger";
 import { FinanceOverview, type Movement } from "@/components/finances/FinanceOverview";
 import { PaymentsTable } from "@/components/finances/PaymentsTable";
 import { ExpensesTable } from "@/components/finances/ExpensesTable";
-import { PrintLink } from "@/components/print/PrintLink";
+import { PrintButton } from "@/components/print/PrintButton";
 
 const TABS = ["overview", "payments", "expenses"] as const;
 type Tab = (typeof TABS)[number];
@@ -93,7 +93,11 @@ export default async function FinancesPage({
         // A closed cycle stays correctable, so the buttons stay too.
         actions={
           <>
-            <PrintLink href={href(`/print/${tab === "overview" ? "finances" : tab}`)} label={t.print} />
+            <PrintButton
+              href={href(`/print/${tab === "overview" ? "finances" : tab}`)}
+              label={t.print}
+              document={{ overview: t.docFinances, payments: t.docPayments, expenses: t.docExpenses }[tab]}
+            />
             {can("expenses:create") && <ExpenseButton residenceId={residenceId} variant="ghost" />}
             {can("payments:create") && <PaymentButton residenceId={residenceId} lots={lots} />}
           </>
