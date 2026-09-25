@@ -644,6 +644,10 @@ const fr = {
   closeText:
     "Le cycle suivant pourra s'ouvrir. Vous pourrez encore corriger celui-ci ; son solde devient le départ du suivant et le reste.",
   deleteCycle: "Supprimer le cycle",
+  cycleActions: "Actions du cycle",
+  colCycle: "Cycle",
+  colAction: "Action",
+  colBy: "Par",
   deleteCycleTitle: "Supprimer {name} ?",
   deleteCycleText:
     "Ses appels de charges, ses paiements et ses dépenses seront supprimés définitivement. Les autres cycles ne changent pas.",
@@ -1291,6 +1295,10 @@ const en: Dictionary = {
   closeText:
     "The next cycle can then open. You can still correct this one; its balance becomes the next one's start and stays so.",
   deleteCycle: "Delete cycle",
+  cycleActions: "Cycle actions",
+  colCycle: "Cycle",
+  colAction: "Action",
+  colBy: "By",
   deleteCycleTitle: "Delete {name}?",
   deleteCycleText: "Its charges, payments and expenses will be deleted for good. Other cycles are not affected.",
   cycleDeleted: "{name} deleted",

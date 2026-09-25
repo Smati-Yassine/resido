@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { Badge, EmptyState, Notice } from "@/components/ui/Display";
@@ -14,18 +13,12 @@ import { setResidenceCurrencyAction, updateResidenceAction } from "@/lib/actions
 import { DeleteResidenceModal } from "@/components/residences/ResidenceModals";
 import { useArchive } from "@/components/residences/useArchive";
 import { MembersPanel } from "@/components/workspace/Members";
-import {
-  CloseCycleButton,
-  DeleteCycleButton,
-  NewCycleButton,
-  OpenCycleButton,
-  ReopenCycleButton,
-} from "@/components/workspace/CycleControls";
+import { CycleMenu, NewCycleButton } from "@/components/workspace/CycleControls";
 import { CURRENCIES, CURRENCY_CODES, type CurrencyCode } from "@/lib/currency";
 import { formatAmount, percent } from "@/lib/format";
 import { fold } from "@/lib/text";
 import { interpolate, type Dictionary } from "@/lib/i18n/dictionaries";
-import type { JournalKind, ResidenceSettingsData, SettingsCycle, SettingsTab } from "@/lib/settings/residence-settings";
+import type { JournalKind, ResidenceSettingsData, SettingsTab } from "@/lib/settings/residence-settings";
 
 export const SETTINGS_NAV: { key: SettingsTab; icon: IconName; label: keyof Dictionary; desc: keyof Dictionary }[] = [
   { key: "general", icon: "settings", label: "tabGeneral", desc: "navGeneralDesc" },
@@ -69,7 +62,7 @@ export function ResidenceSettingsView({
           invitations={data.invitations}
         />
       )}
-      {tab === "journal" && <JournalSection data={data} mode={mode} />}
+      {tab === "journal" && <JournalSection data={data} />}
     </div>
   );
   if (mode === "page") return section;
@@ -174,45 +167,49 @@ function GeneralSection({
 
   return (
     <>
-      <form onSubmit={onSubmit}>
-        <Group title={t.identity} text={t.identityHelp}>
-          <input type="hidden" name="residenceId" value={residence.id} />
-          <Row title={t.name} text={t.nameHelp}>
-            <input
-              className="input"
-              name="name"
-              aria-label={t.name}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              readOnly={!manage}
-              required
-            />
-          </Row>
-          <Row title={t.city} text={t.cityHelp}>
-            <input
-              className="input"
-              name="city"
-              aria-label={t.city}
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              readOnly={!manage}
-            />
-          </Row>
-          {manage && (
-            <div className="settings-foot">
-              <button type="submit" className="btn btn-primary" disabled={!changed || pending}>
-                {t.save}
-              </button>
-            </div>
-          )}
-        </Group>
-      </form>
+      <div className="@container">
+        <div className="grid grid-cols-1 items-start gap-5 @4xl:grid-cols-2">
+          <form onSubmit={onSubmit}>
+            <Group title={t.identity} text={t.identityHelp}>
+              <input type="hidden" name="residenceId" value={residence.id} />
+              <Row title={t.name} text={t.nameHelp}>
+                <input
+                  className="input"
+                  name="name"
+                  aria-label={t.name}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  readOnly={!manage}
+                  required
+                />
+              </Row>
+              <Row title={t.city} text={t.cityHelp}>
+                <input
+                  className="input"
+                  name="city"
+                  aria-label={t.city}
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  readOnly={!manage}
+                />
+              </Row>
+              {manage && (
+                <div className="settings-foot">
+                  <button type="submit" className="btn btn-primary" disabled={!changed || pending}>
+                    {t.save}
+                  </button>
+                </div>
+              )}
+            </Group>
+          </form>
 
-      <Group title={t.currency}>
-        <Row title={t.currency} text={t.currencyHelp}>
-          <CurrencySelect residenceId={residence.id} currency={residence.currency} disabled={!manage} />
-        </Row>
-      </Group>
+          <Group title={t.currency}>
+            <Row title={t.currency} text={t.currencyHelp}>
+              <CurrencySelect residenceId={residence.id} currency={residence.currency} disabled={!manage} />
+            </Row>
+          </Group>
+        </div>
+      </div>
 
       {manage && (
         <Group title={t.dangerZone} danger>
@@ -302,71 +299,84 @@ function CurrencySelect({
 
 /* ---------- Cycles ---------- */
 
-/** What can be done with a cycle, as buttons: close, reopen, open, view, delete. */
-function CycleActions({ data, cycle }: { data: ResidenceSettingsData; cycle: SettingsCycle }) {
-  const { t } = useI18n();
-  const { residence } = data;
-  return (
-    <div className="flex flex-wrap gap-2">
-      {data.can.cycles && cycle.status === "OPEN" && cycle.closingBalanceMillimes !== null && (
-        <CloseCycleButton
-          residenceId={residence.id}
-          cycleId={cycle.id}
-          cycleName={cycle.name}
-          closingBalanceMillimes={cycle.closingBalanceMillimes}
-        />
-      )}
-      {data.can.cycles && cycle.status === "CLOSED" && (
-        <ReopenCycleButton residenceId={residence.id} cycleId={cycle.id} />
-      )}
-      {data.can.cycles && cycle.status === "DRAFT" && !data.hasOpenCycle && (
-        <OpenCycleButton residenceId={residence.id} cycleId={cycle.id} />
-      )}
-      {cycle.status !== "DRAFT" && (
-        <Link href={`${residence.base}?cycle=${cycle.slug}`} className="btn btn-ghost">
-          {t.view}
-        </Link>
-      )}
-      {data.can.cycles && <DeleteCycleButton residenceId={residence.id} cycleId={cycle.id} cycleName={cycle.name} />}
-    </div>
-  );
-}
+const CYCLE_COLS =
+  "grid-cols-[minmax(0,1fr)_auto_36px] @3xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,1fr)_36px]";
 
-/** Every cycle, newest first: its dates, what it billed and collected, its balance — and what can be done with it. */
+/** Every cycle, newest first, as a table: dates, billed, collected, collection rate, balance, and a menu of actions. */
 function CyclesSection({ data, mode }: { data: ResidenceSettingsData; mode: "page" | "modal" }) {
   const { t } = useI18n();
   const { residence } = data;
   const money = (millimes: number | null) => (millimes === null ? "—" : formatAmount(millimes, residence.currency));
+  const newCycle = mode === "modal" && data.can.cycles && (
+    <div className="flex justify-end">
+      <NewCycleButton residenceId={residence.id} />
+    </div>
+  );
+
+  if (data.cycles.length === 0) {
+    return (
+      <>
+        {newCycle}
+        <EmptyState title={t.noCycleTitle} text={t.noCycleText} />
+      </>
+    );
+  }
   return (
-    <Group
-      title={mode === "modal" ? t.cycles : undefined}
-      text={t.cyclesHelp}
-      action={mode === "modal" && data.can.cycles && <NewCycleButton residenceId={residence.id} />}
-    >
-      {data.cycles.length === 0 ? (
-        <div className="border-t border-line-soft px-6 py-8">
-          <EmptyState title={t.noCycleTitle} text={t.noCycleText} />
+    <>
+      {newCycle}
+      <section className="@container card data-table">
+        <div className={`data-head ${CYCLE_COLS}`}>
+          <span>{t.colCycle}</span>
+          <span className="hidden text-right @3xl:block">{t.expected}</span>
+          <span className="hidden text-right @3xl:block">{t.collected}</span>
+          <span>{t.kpiRate}</span>
+          <span className="hidden text-right @3xl:block">{t.endBalance}</span>
+          <span />
         </div>
-      ) : (
-        data.cycles.map((cycle) => (
-          <div key={cycle.id} className="settings-list-row">
-            <div className="flex min-w-0 flex-col gap-1">
-              <span className="flex items-center gap-2.5">
-                <span className="font-bold">{cycle.name}</span>
-                <Badge tone={cycle.badge}>{cycle.statusLabel}</Badge>
+        {data.cycles.map((cycle) => {
+          const billed = cycle.expectedMillimes !== null;
+          const rate = percent(cycle.collectedMillimes ?? 0, cycle.expectedMillimes ?? 0);
+          return (
+            <div key={cycle.id} className={`data-row ${CYCLE_COLS}`}>
+              <span className="flex min-w-0 flex-col gap-0.5">
+                <span className="flex items-center gap-2">
+                  <span className="truncate font-bold">{cycle.name}</span>
+                  <Badge tone={cycle.badge}>{cycle.statusLabel}</Badge>
+                </span>
+                <span className="truncate text-[13px] text-muted">{cycle.range}</span>
               </span>
-              <span className="text-[13px] text-muted">{cycle.range}</span>
-              <span className="text-[13px] text-muted">
-                {cycle.expectedMillimes === null
-                  ? t.cycleDraftNote
-                  : `${t.expected} ${money(cycle.expectedMillimes)} · ${t.collected} ${money(cycle.collectedMillimes)} (${percent(cycle.collectedMillimes ?? 0, cycle.expectedMillimes)} %) · ${t.endBalance} ${money(cycle.closingBalanceMillimes)}`}
+              <span className="num hidden text-right @3xl:block">{money(cycle.expectedMillimes)}</span>
+              <span className="num hidden text-right @3xl:block">{money(cycle.collectedMillimes)}</span>
+              {billed ? (
+                <span className="flex items-center gap-2.5">
+                  <span className="bar hidden h-1.5 flex-1 @3xl:block">
+                    <span
+                      className={`bar-fill block ${cycle.status === "OPEN" ? "" : "bar-fill-pos"}`}
+                      style={{ width: `${Math.min(100, rate)}%` }}
+                    />
+                  </span>
+                  <b className="num w-11 text-right text-[13px]">{rate} %</b>
+                </span>
+              ) : (
+                <span className="text-[13px] text-muted">{t.cycleDraftNote}</span>
+              )}
+              <span className="num hidden text-right font-semibold @3xl:block">
+                {money(cycle.closingBalanceMillimes)}
+              </span>
+              <span className="flex justify-end">
+                <CycleMenu
+                  residenceId={residence.id}
+                  cycle={cycle}
+                  viewHref={`${residence.base}?cycle=${cycle.slug}`}
+                  canManage={data.can.cycles}
+                  canOpen={!data.hasOpenCycle}
+                />
               </span>
             </div>
-            <CycleActions data={data} cycle={cycle} />
-          </div>
-        ))
-      )}
-    </Group>
+          );
+        })}
+      </section>
+    </>
   );
 }
 
@@ -375,9 +385,11 @@ function CyclesSection({ data, mode }: { data: ResidenceSettingsData; mode: "pag
 const KINDS: JournalKind[] = ["money", "cycles", "property", "access"];
 /** Journal entries shown at first, and added by each "show more". */
 const PAGE = 40;
+const JOURNAL_COLS =
+  "grid-cols-[96px_minmax(0,1fr)] @3xl:grid-cols-[110px_minmax(0,1fr)_minmax(0,1.5fr)_minmax(0,160px)]";
 
-/** What happened, day by day, newest first — searchable, filtered by kind. */
-function JournalSection({ data, mode }: { data: ResidenceSettingsData; mode: "page" | "modal" }) {
+/** What happened, newest first, as a table — searchable, filtered by kind, 40 rows at a time. */
+function JournalSection({ data }: { data: ResidenceSettingsData }) {
   const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<JournalKind | "all">("all");
@@ -402,15 +414,10 @@ function JournalSection({ data, mode }: { data: ResidenceSettingsData; mode: "pa
       ),
     }))
     .filter((day) => day.entries.length > 0);
-  const shown = days.reduce((n, d) => n + d.entries.length, 0);
-  // Only the first `limit` matching entries, whole days kept in order.
-  const visible = days.reduce<{ days: typeof days; left: number }>(
-    (acc, day) => {
-      const entries = day.entries.slice(0, acc.left);
-      return entries.length ? { days: [...acc.days, { ...day, entries }], left: acc.left - entries.length } : acc;
-    },
-    { days: [], left: limit },
-  ).days;
+  // One row per entry, newest first; the first `limit` of those that match.
+  const rows = days.flatMap((day) => day.entries.map((entry) => ({ ...entry, day: day.day })));
+  const shown = rows.length;
+  const visible = rows.slice(0, limit);
 
   return (
     <div className="flex flex-col gap-4">
@@ -445,36 +452,39 @@ function JournalSection({ data, mode }: { data: ResidenceSettingsData; mode: "pa
         </select>
       </div>
 
-      <Group title={mode === "modal" ? t.journal : undefined} text={t.journalHelp}>
-        {days.length === 0 ? (
-          <p className="border-t border-line-soft px-6 py-8 text-center text-sm text-muted">{t.noMatch}</p>
+      <section className="@container card data-table">
+        <div className={`data-head ${JOURNAL_COLS}`}>
+          <span>{t.colDate}</span>
+          <span>{t.colAction}</span>
+          <span className="hidden @3xl:block">{t.colDetail}</span>
+          <span className="hidden @3xl:block">{t.colBy}</span>
+        </div>
+        {visible.length === 0 ? (
+          <p className="px-6 py-8 text-center text-sm text-muted">{t.noMatch}</p>
         ) : (
-          <div className="journal-days flex flex-col">
-            {visible.map((day) => (
-              <div key={day.day} className="flex flex-col">
-                <span className="label-caps bg-surface-2 px-6 py-2.5">{day.day}</span>
-                {day.entries.map((entry) => (
-                  <div key={entry.id} className="journal-row">
-                    <span className="num text-[13px] text-muted">{entry.time}</span>
-                    <span className="flex min-w-0 flex-col">
-                      <span className="truncate text-sm font-semibold">{entry.what}</span>
-                      <span className="truncate text-[13px] text-muted">{entry.detail}</span>
-                    </span>
-                    <span className="max-w-[160px] truncate text-[13px] text-muted">{entry.who}</span>
-                  </div>
-                ))}
-              </div>
-            ))}
-            {shown > limit && (
-              <div className="flex justify-center border-t border-line-soft px-6 py-4">
-                <button type="button" className="btn btn-ghost" onClick={() => setLimit((n) => n + PAGE)}>
-                  {interpolate(t.journalMore, { count: Math.min(PAGE, shown - limit), total: shown - limit })}
-                </button>
-              </div>
-            )}
+          visible.map((entry) => (
+            <div key={entry.id} className={`data-row ${JOURNAL_COLS}`}>
+              <span className="flex flex-col">
+                <span className="num text-[13px]">{entry.day}</span>
+                <span className="num text-xs text-muted">{entry.time}</span>
+              </span>
+              <span className="flex min-w-0 flex-col">
+                <span className="truncate font-semibold">{entry.what}</span>
+                <span className="truncate text-[13px] text-muted @3xl:hidden">{entry.detail}</span>
+              </span>
+              <span className="hidden truncate text-[13px] text-ink-2 @3xl:block">{entry.detail}</span>
+              <span className="hidden truncate text-[13px] text-muted @3xl:block">{entry.who}</span>
+            </div>
+          ))
+        )}
+        {shown > limit && (
+          <div className="flex justify-center px-6 py-4">
+            <button type="button" className="btn btn-ghost" onClick={() => setLimit((n) => n + PAGE)}>
+              {interpolate(t.journalMore, { count: Math.min(PAGE, shown - limit), total: shown - limit })}
+            </button>
           </div>
         )}
-      </Group>
+      </section>
     </div>
   );
 }

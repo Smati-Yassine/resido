@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/Display";
 import { useI18n } from "@/components/ui/I18nProvider";
 import { usePopover } from "@/components/ui/usePopover";
 import type { CycleView } from "@/lib/cycle-view";
-import { isSettings, useSection, useWorkspaceHref } from "./WorkspaceNav";
+import { useSection, useWorkspaceHref } from "./WorkspaceNav";
 import { useResidenceBase } from "./ResidenceLink";
 
 /** The cycle being viewed, in the top bar; switching keeps the current section. */
@@ -44,7 +44,7 @@ export function CycleSwitcher({ cycles, defaultCycleId }: { cycles: CycleView[];
   }
   // From settings, picking a cycle goes to its dashboard; elsewhere it stays on the same page
   // (the same tab too: /finances/expenses stays /finances/expenses).
-  const targetPath = isSettings(section) ? "" : pathname.slice(base.length);
+  const targetPath = section.path === "/settings" ? "" : pathname.slice(base.length);
 
   return (
     <div ref={ref} className="relative">

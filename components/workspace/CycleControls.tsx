@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Modal } from "@/components/ui/Modal";
 import { Field } from "@/components/ui/Field";
@@ -261,5 +261,125 @@ function DeleteCycleModal({
         />
       </form>
     </Modal>
+  );
+}
+
+/**
+ * Everything that can be done with one cycle, behind a "⋯" button: view,
+ * open, close, reopen, delete. The menu is fixed-positioned (tables clip
+ * overflow); the confirmations and the forms live outside it, so closing the
+ * menu never cancels what was picked.
+ */
+export function CycleMenu({
+  residenceId,
+  cycle,
+  viewHref,
+  canManage,
+  canOpen,
+}: {
+  residenceId: string;
+  cycle: { id: string; name: string; status: "DRAFT" | "OPEN" | "CLOSED"; closingBalanceMillimes: number | null };
+  viewHref: string;
+  canManage: boolean;
+  canOpen: boolean;
+}) {
+  const { t } = useI18n();
+  const router = useRouter();
+  const [at, setAt] = useState<{ top: number; right: number } | null>(null);
+  const [dialog, setDialog] = useState<"close" | "delete" | null>(null);
+  const [onOpen] = useActionToast(openCycleAction);
+  const [onReopen] = useActionToast(reopenCycleAction);
+  const formId = (what: string) => `cycle-${what}-${cycle.id}`;
+
+  useEffect(() => {
+    if (!at) return;
+    const hide = () => setAt(null);
+    const onKey = (event: KeyboardEvent) => event.key === "Escape" && hide();
+    window.addEventListener("scroll", hide, true);
+    window.addEventListener("resize", hide);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("scroll", hide, true);
+      window.removeEventListener("resize", hide);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [at]);
+
+  const item = (label: string, onClick: () => void, danger = false, form?: string) => (
+    <button
+      type={form ? "submit" : "button"}
+      form={form}
+      className={`menu-item h-10 py-0 text-sm ${danger ? "text-danger" : ""}`}
+      role="menuitem"
+      onClick={() => {
+        onClick();
+        setAt(null);
+      }}
+    >
+      {label}
+    </button>
+  );
+
+  return (
+    <>
+      <button
+        type="button"
+        className="icon-btn h-9 w-9"
+        aria-label={t.cycleActions}
+        aria-haspopup="menu"
+        aria-expanded={!!at}
+        onClick={(event) => {
+          const box = event.currentTarget.getBoundingClientRect();
+          setAt(at ? null : { top: box.bottom + 6, right: window.innerWidth - box.right });
+        }}
+      >
+        <Icon name="more" size={18} />
+      </button>
+      {at && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setAt(null)} aria-hidden="true" />
+          <div className="popover fixed z-50 w-56" style={at} role="menu">
+            {cycle.status !== "DRAFT" && item(t.view, () => router.push(viewHref))}
+            {canManage && cycle.status === "DRAFT" && canOpen && item(t.openCycle, () => {}, false, formId("open"))}
+            {canManage &&
+              cycle.status === "OPEN" &&
+              cycle.closingBalanceMillimes !== null &&
+              item(t.closeNow, () => setDialog("close"))}
+            {canManage && cycle.status === "CLOSED" && item(t.reopenCycle, () => {}, false, formId("reopen"))}
+            {canManage && (
+              <>
+                <div className="divider my-1" />
+                {item(t.deleteCycle, () => setDialog("delete"), true)}
+              </>
+            )}
+          </div>
+        </>
+      )}
+      <form id={formId("open")} onSubmit={onOpen} hidden>
+        <input type="hidden" name="residenceId" value={residenceId} />
+        <input type="hidden" name="cycleId" value={cycle.id} />
+      </form>
+      <form id={formId("reopen")} onSubmit={onReopen} hidden>
+        <input type="hidden" name="residenceId" value={residenceId} />
+        <input type="hidden" name="cycleId" value={cycle.id} />
+      </form>
+      {dialog === "close" && cycle.closingBalanceMillimes !== null && (
+        <CloseCycleModal
+          residenceId={residenceId}
+          cycleId={cycle.id}
+          cycleName={cycle.name}
+          closingBalanceMillimes={cycle.closingBalanceMillimes}
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {dialog === "delete" && (
+        <DeleteCycleModal
+          residenceId={residenceId}
+          cycleId={cycle.id}
+          cycleName={cycle.name}
+          onClose={() => setDialog(null)}
+        />
+      )}
+    </>
   );
 }

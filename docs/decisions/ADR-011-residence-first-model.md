@@ -198,13 +198,14 @@ come from. Language (FR/EN) and theme are
 cookies read on the server, so the page renders in the right theme with no
 flash.
 
-**Settings.** The sidebar has a second group, "Paramètres", under the
-overview: Général (`/settings`), Cycles, Membres and Journal
-(`/settings/<tab>`), each its own entry (the current one is the longest
-matching path). Each is a plain page in one narrow column: a header naming
-it, then its rows — no tabs or figures, the sidebar is the navigation.
-Journal can be searched and filtered by kind, 40 entries at a time. The
-modal on the residences list shows the same sections with a side navigation.
+**Settings.** One "Paramètres" entry at the foot of the sidebar. The page is
+laid out like Finances: the header, then tabs — Général (`/settings`),
+Cycles, Membres, Journal (`/settings/<tab>`). General puts identity and
+currency side by side, then the danger zone; Cycles and Journal are tables
+(cycles with billed, collected, collection rate and balance, their actions
+behind a "⋯" menu; the journal searchable, filtered by kind, 40 rows at a
+time). The tables drop secondary columns when their container is narrow
+(container queries), as in the settings modal on the residences list.
 
 **Printing.** The dashboard, Finances (each tab) and Copropriété have a
 "Imprimer" button. It fetches `/residences/<r>/print/<doc>` — a route

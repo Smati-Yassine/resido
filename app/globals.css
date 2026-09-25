@@ -1155,39 +1155,6 @@
     background: var(--primary-soft);
     color: var(--primary);
   }
-  /* Settings pages: one readable column */
-  .settings-page {
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-    width: 100%;
-    max-width: 880px;
-  }
-  .settings-list-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px 24px;
-    padding: 16px 24px;
-    border-top: 1px solid var(--line-soft);
-  }
-  .journal-days {
-    border-top: 1px solid var(--line-soft);
-  }
-  /* A card without a heading starts with its first row: no rule above it */
-  .settings-group > .settings-list-row:first-child,
-  .settings-group > .journal-days:first-child {
-    border-top: 0;
-  }
-  .journal-row {
-    display: grid;
-    grid-template-columns: 48px minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 16px;
-    padding: 11px 24px;
-    border-top: 1px solid var(--line-soft);
-  }
   @media (max-width: 1023px) {
     .settings-layout {
       grid-template-columns: minmax(0, 1fr);

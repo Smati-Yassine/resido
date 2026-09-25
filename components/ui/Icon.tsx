@@ -1,6 +1,13 @@
 /** The app's icon set: 24×24 stroke icons drawn in currentColor. */
 const PATHS = {
   plus: <path d="M12 5v14M5 12h14" />,
+  more: (
+    <>
+      <circle cx="5" cy="12" r="1" />
+      <circle cx="12" cy="12" r="1" />
+      <circle cx="19" cy="12" r="1" />
+    </>
+  ),
   edit: <path d="M4 20h4L19 9l-4-4L4 16v4z" />,
   archive: (
     <>
