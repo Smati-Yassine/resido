@@ -14,11 +14,21 @@ export function ClosedBanner({ cycle, t }: { cycle: Cycle; t: Dictionary }) {
   );
 }
 
-export function NoCycle({ residenceId, t, canCreate }: { residenceId: string; t: Dictionary; canCreate: boolean }) {
+export function NoCycle({
+  residenceId,
+  base,
+  t,
+  canCreate,
+}: {
+  residenceId: string;
+  base: string;
+  t: Dictionary;
+  canCreate: boolean;
+}) {
   return (
     <EmptyState title={t.noCycleTitle} text={t.noCycleText}>
       <div className="mt-2 flex gap-2.5">
-        <Link href={`/residences/${residenceId}/lots`} className="btn btn-ghost">
+        <Link href={`${base}/lots`} className="btn btn-ghost">
           {t.lots}
         </Link>
         {canCreate && <NewCycleButton residenceId={residenceId} label={t.createFirstCycle} />}
@@ -27,14 +37,14 @@ export function NoCycle({ residenceId, t, canCreate }: { residenceId: string; t:
   );
 }
 
-export function DraftCycle({ residenceId, cycle, t }: { residenceId: string; cycle: Cycle; t: Dictionary }) {
+export function DraftCycle({ base, cycle, t }: { base: string; cycle: Cycle; t: Dictionary }) {
   return (
     <EmptyState title={interpolate(t.draftTitle, { name: cycle.name })} text={t.draftText}>
       <div className="mt-2 flex gap-2.5">
-        <Link href={`/residences/${residenceId}`} className="btn btn-ghost">
+        <Link href={`${base}`} className="btn btn-ghost">
           {t.viewCurrentCycle}
         </Link>
-        <Link href={`/residences/${residenceId}/cycles?cycle=${cycle.id}`} className="btn btn-primary">
+        <Link href={`${base}/cycles?cycle=${cycle.id}`} className="btn btn-primary">
           {t.cycles}
         </Link>
       </div>

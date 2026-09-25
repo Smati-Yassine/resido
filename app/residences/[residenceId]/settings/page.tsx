@@ -20,8 +20,7 @@ export default async function SettingsPage({ params, searchParams }: PageProps<"
     residence,
     cycle: viewed,
     currency,
-    can,
-  } = await loadWorkspace(params, searchParams);
+    can, base } = await loadWorkspace(params, searchParams);
   const { tab: tabParam } = await searchParams;
   const tab: Tab = TABS.includes(tabParam as Tab) ? (tabParam as Tab) : "general";
   const { t, locale } = await getDictionary();
@@ -40,7 +39,7 @@ export default async function SettingsPage({ params, searchParams }: PageProps<"
         {TABS.map((key) => (
           <Link
             key={key}
-            href={`/residences/${residenceId}/settings?tab=${key}${cycleQuery}`}
+            href={`${base}/settings?tab=${key}${cycleQuery}`}
             className="tab"
             aria-current={key === tab ? "page" : undefined}
           >

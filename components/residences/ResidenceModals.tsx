@@ -20,12 +20,11 @@ export function ResidenceFormModal({ residence, onClose }: { residence?: Residen
   const { t, locale } = useI18n();
   const router = useRouter();
   const [onSubmit, pending] = useActionToast(
-    // Both return ActionResult; only creation carries data (the new id).
-    (residence ? updateResidenceAction : createResidenceAction) as typeof createResidenceAction,
+    residence ? updateResidenceAction : createResidenceAction,
     (result) => {
       onClose();
-      const created = result.data;
-      if (created) router.push(`/residences/${created.id}`);
+      // Creating opens the new residence; editing stays on the list.
+      if (!residence && result.data) router.push(`/residences/${result.data.slug}`);
     },
   );
 

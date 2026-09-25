@@ -64,7 +64,12 @@ expenseCategories. Legacy indexes that would clash are dropped by
 public. These three are for signed-out visitors only — a signed-in user is
 redirected to `/residences` (the residence list) by the proxy. Everything
 under `/residences` (the list and `/residences/[id]/…`, the workspace)
-requires a session. Unknown URLs render one `not-found` page that uses the
+requires a session. A residence's URL uses its slug, made from its name
+(`/residences/residence-demo`, `-2`, `-3`… for duplicates, since slugs are
+global). Renaming changes the slug and keeps the old one in `oldSlugs`, so
+old links — and links made with the residence id — redirect to the current
+one. The id stays internal: forms and domain calls never use the slug.
+Unknown URLs render one `not-found` page that uses the
 signed-in frame or the public frame depending on the session.
 
 **Accounts & sharing.** A user's `sessionVersion` is copied into the login

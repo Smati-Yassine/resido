@@ -15,7 +15,7 @@ import {
 
 /** Every cycle of the residence, newest first: create, open, close, delete, or jump into one. */
 export default async function CyclesPage({ params, searchParams }: PageProps<"/residences/[residenceId]/cycles">) {
-  const { session, residenceId, cycles, currency, can } = await loadWorkspace(params, searchParams);
+  const { session, residenceId, cycles, currency, can, base } = await loadWorkspace(params, searchParams);
   const { t } = await getDictionary();
   const canManageCycles = can("cycles:manage");
 
@@ -84,7 +84,7 @@ export default async function CyclesPage({ params, searchParams }: PageProps<"/r
                       <OpenCycleButton residenceId={residenceId} cycleId={cycle.id} />
                     )}
                     {billed && (
-                      <Link href={`/residences/${residenceId}?cycle=${cycle.id}`} className="btn btn-ghost">
+                      <Link href={`${base}?cycle=${cycle.id}`} className="btn btn-ghost">
                         {t.view}
                       </Link>
                     )}

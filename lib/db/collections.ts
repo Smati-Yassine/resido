@@ -27,7 +27,7 @@ interface IndexDef {
  * Applied by scripts/ensure-indexes.ts (idempotent, safe to re-run).
  */
 const INDEXES: Record<string, IndexDef[]> = {
-  [COLLECTIONS.organizations]: [{ key: { slug: 1 }, options: { unique: true } }],
+  [COLLECTIONS.organizations]: [{ key: { slug: 1 }, options: { unique: true } }, { key: { oldSlugs: 1 } }],
   // A user is global (one account, many residences); access to a residence
   // is a membership row — see lib/domain/memberships.
   [COLLECTIONS.users]: [{ key: { email: 1 }, options: { unique: true, name: "users_email_unique" } }],

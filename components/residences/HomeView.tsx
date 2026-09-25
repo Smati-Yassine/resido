@@ -10,6 +10,8 @@ import { DeleteResidenceModal, ResidenceFormModal, type ResidenceDraft } from ".
 import { useArchive } from "./useArchive";
 
 export interface ResidenceCardView extends ResidenceDraft {
+  /** URL key: `/residences/<slug>`. */
+  slug: string;
   archived: boolean;
   lotCount: number;
   blocCount: number;
@@ -131,7 +133,7 @@ export function HomeView({ residences }: { residences: ResidenceCardView[] }) {
                     </button>
                   )
                 ) : (
-                  <Link href={`/residences/${r.id}`} className="btn btn-primary flex-1">
+                  <Link href={`/residences/${r.slug}`} className="btn btn-primary flex-1">
                     {t.open}
                   </Link>
                 )}

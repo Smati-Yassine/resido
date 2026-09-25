@@ -8,9 +8,9 @@ import { ClosedBanner, NoCycle } from "@/components/workspace/CycleState";
 import { OpeningBalanceForm } from "@/components/workspace/OpeningBalanceForm";
 
 export default async function TreasuryPage({ params, searchParams }: PageProps<"/residences/[residenceId]/treasury">) {
-  const { residenceId, cycle, currency, can } = await loadWorkspace(params, searchParams);
+  const { residenceId, cycle, currency, can, base } = await loadWorkspace(params, searchParams);
   const { t } = await getDictionary();
-  if (!cycle) return <NoCycle residenceId={residenceId} t={t} canCreate={can("cycles:manage")} />;
+  if (!cycle) return <NoCycle residenceId={residenceId} base={base} t={t} canCreate={can("cycles:manage")} />;
 
   const header = <PageHeader subtitle={t.treasurySubtitle} title={t.treasury} />;
   if (cycle.status === "DRAFT") {

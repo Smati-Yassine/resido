@@ -15,8 +15,8 @@ import { UserMenu } from "@/components/shell/UserMenu";
 
 /** Inside a residence: the signed-in top bar with residence + cycle switchers, over a collapsible sidebar. */
 export default async function ResidenceLayout({ children, params }: LayoutProps<"/residences/[residenceId]">) {
-  const { residenceId } = await params;
-  const { user, session, residence, cycles } = await loadResidence(residenceId);
+  const { residenceId: key } = await params;
+  const { user, session, residence, residenceId, base, cycles } = await loadResidence(key);
   const { t } = await getDictionary();
   const { theme } = await getPreferences();
   const collapsed = (await cookies()).get(SIDEBAR_COOKIE)?.value === SIDEBAR_COLLAPSED;
@@ -29,12 +29,12 @@ export default async function ResidenceLayout({ children, params }: LayoutProps<
   ]);
   const residenceItems = myResidences
     .filter((r) => r.status === "ACTIVE" || r.id === residenceId)
-    .map((r) => ({ id: r.id, name: r.name, city: r.city }));
+    .map((r) => ({ id: r.id, name: r.name, city: r.city, slug: r.slug }));
   const lotCount = lotList.ok ? lotList.data.length : 0;
 
   return (
     <ResidenceShell
-      residenceId={residenceId}
+      base={base}
       initialCollapsed={collapsed}
       lotCount={lotCount}
       // Lots still owing something in the current cycle — the Encaissements badge.
@@ -42,13 +42,12 @@ export default async function ResidenceLayout({ children, params }: LayoutProps<
       switchers={
         <>
           <ResidenceSwitcher
-            current={{ id: residence.id, name: residence.name, city: residence.city }}
+            current={{ id: residence.id, name: residence.name, city: residence.city, slug: residence.slug }}
             lotCount={lotCount}
             residences={residenceItems}
           />
           <span className="header-divider" aria-hidden="true" />
           <CycleSwitcher
-            residenceId={residenceId}
             cycles={cycles.map((c) => toCycleView(c, t))}
             defaultCycleId={current?.id ?? null}
           />

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Field } from "@/components/ui/Field";
 import { useI18n } from "@/components/ui/I18nProvider";
 import { useToast } from "@/components/ui/Toaster";
@@ -20,7 +20,14 @@ export function GeneralSettings({
 }) {
   const { t } = useI18n();
   const router = useRouter();
-  const [onSubmit, pending] = useActionToast(updateResidenceAction);
+  const pathname = usePathname();
+  const [onSubmit, pending] = useActionToast(updateResidenceAction, (result) => {
+    // A new name means a new slug: stay on this page, under the new URL.
+    const slug = result.data?.slug;
+    if (slug && !pathname.startsWith(`/residences/${slug}/`)) {
+      router.replace(pathname.replace(/^\/residences\/[^/]+/, `/residences/${slug}`) + window.location.search);
+    }
+  });
   const { setArchived, pending: archiving } = useArchive();
   const [confirmDelete, setConfirmDelete] = useState(false);
 

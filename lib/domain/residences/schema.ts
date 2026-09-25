@@ -27,6 +27,8 @@ export interface Residence {
   id: string;
   name: string;
   city: string;
+  /** Its URL key (`/residences/<slug>`), from the name; unique, and changes when it is renamed. */
+  slug: string;
   status: ResidenceStatus;
   /** What the residence keeps its books in — display and input precision only (lib/currency). */
   currency: CurrencyCode;

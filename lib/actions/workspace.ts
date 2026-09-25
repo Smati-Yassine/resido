@@ -25,7 +25,7 @@ async function scoped(formData: FormData) {
   const { t } = await getDictionary();
   const currency = (await findResidenceById(residenceId))?.currency ?? DEFAULT_CURRENCY;
   const done = (message: string): ActionResult => {
-    revalidatePath(`/residences/${residenceId}`, "layout");
+    revalidatePath("/residences/[residenceId]", "layout");
     return { ok: true, message };
   };
   /** Amount with the residence's currency symbol, for toast messages. */
@@ -190,7 +190,7 @@ export async function createCycleAction(
     if (!startDate) return { ok: false, message: t.errCycleStart };
     const result = await cycles.createCycle(session, residenceId, { name, startDate, endDate: endDate || undefined });
     if (!result.ok) return { ok: false, message: t.errCycleDates };
-    revalidatePath(`/residences/${residenceId}`, "layout");
+    revalidatePath("/residences/[residenceId]", "layout");
     return { ok: true, message: interpolate(t.cycleCreated, { name }), data: { id: result.data.id } };
   });
 }
@@ -273,7 +273,7 @@ export async function setLotOwnerAction(
   return guarded(t, async () => {
     const result = await lots.setLotOwner(session, residenceId, { lotId: lot.id, ownerId: owner?.id ?? null });
     if (!result.ok) return { ok: false, message: t.errGeneric };
-    revalidatePath(`/residences/${residenceId}`, "layout");
+    revalidatePath("/residences/[residenceId]", "layout");
     return {
       ok: true,
       message: owner

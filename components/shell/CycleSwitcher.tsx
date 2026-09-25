@@ -8,27 +8,27 @@ import { useI18n } from "@/components/ui/I18nProvider";
 import { usePopover } from "@/components/ui/usePopover";
 import type { CycleView } from "@/lib/cycle-view";
 import { useSection, useWorkspaceHref } from "./WorkspaceNav";
+import { useResidenceBase } from "./ResidenceLink";
 
 /** The cycle being viewed, in the top bar; switching keeps the current section. */
 export function CycleSwitcher({
-  residenceId,
   cycles,
   defaultCycleId,
 }: {
-  residenceId: string;
   cycles: CycleView[];
   defaultCycleId: string | null;
 }) {
   const { t } = useI18n();
   const { open, toggle, close, ref } = usePopover();
   const params = useSearchParams();
-  const section = useSection(residenceId);
-  const href = useWorkspaceHref(residenceId);
+  const base = useResidenceBase();
+  const section = useSection();
+  const href = useWorkspaceHref();
   const selectedId = cycles.some((c) => c.id === params.get("cycle")) ? params.get("cycle") : defaultCycleId;
   const selected = cycles.find((c) => c.id === selectedId);
 
   const manage = (
-    <Link href={`/residences/${residenceId}/cycles`} className="menu-item h-10 py-0 text-sm font-bold text-primary" onClick={close}>
+    <Link href={`${base}/cycles`} className="menu-item h-10 py-0 text-sm font-bold text-primary" onClick={close}>
       {t.manageCycles}
     </Link>
   );
@@ -36,7 +36,7 @@ export function CycleSwitcher({
   // No cycle yet: the button leads straight to the cycles page.
   if (!selected) {
     return (
-      <Link href={`/residences/${residenceId}/cycles`} className="btn btn-ghost btn-sm gap-2.5 bg-surface">
+      <Link href={`${base}/cycles`} className="btn btn-ghost btn-sm gap-2.5 bg-surface">
         <Icon name="calendar" size={16} />
         {t.noCycle}
       </Link>

@@ -12,6 +12,7 @@ import { formatAmount, todayIso } from "@/lib/format";
 import { useCurrency } from "@/components/ui/CurrencyProvider";
 import { Icon } from "@/components/ui/Icon";
 import { ModalButton } from "./ModalButton";
+import { useResidenceBase } from "@/components/shell/ResidenceLink";
 import { ModalActions } from "./ModalActions";
 
 export function NewCycleButton({ residenceId, label }: { residenceId: string; label?: string }) {
@@ -26,11 +27,12 @@ export function NewCycleButton({ residenceId, label }: { residenceId: string; la
 function NewCycleModal({ residenceId, onClose }: { residenceId: string; onClose: () => void }) {
   const { t } = useI18n();
   const router = useRouter();
+  const base = useResidenceBase();
   const [endMode, setEndMode] = useState<"fixed" | "open">("open");
   const [onSubmit, pending] = useActionToast(createCycleAction, (result) => {
     onClose();
     const created = result.data as { id: string } | undefined;
-    if (created) router.push(`/residences/${residenceId}/cycles?cycle=${created.id}`);
+    if (created) router.push(`${base}/cycles?cycle=${created.id}`);
   });
 
   return (
@@ -203,10 +205,11 @@ function DeleteCycleModal({
 }) {
   const { t } = useI18n();
   const router = useRouter();
+  const base = useResidenceBase();
   const [onSubmit, pending] = useActionToast(deleteCycleAction, () => {
     onClose();
     // The deleted cycle may be the one in the URL; drop it so the default cycle shows.
-    router.replace(`/residences/${residenceId}/cycles`);
+    router.replace(`${base}/cycles`);
   });
   return (
     <Modal title={interpolate(t.deleteCycleTitle, { name: cycleName })} width={460} onClose={onClose}>

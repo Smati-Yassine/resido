@@ -14,10 +14,10 @@ import { PaymentButton } from "@/components/workspace/PaymentModal";
 import { ExpenseButton } from "@/components/workspace/ExpenseModal";
 
 export default async function DashboardPage({ params, searchParams }: PageProps<"/residences/[residenceId]">) {
-  const { session, residenceId, cycle, currency, can } = await loadWorkspace(params, searchParams);
+  const { session, residenceId, cycle, currency, can, base } = await loadWorkspace(params, searchParams);
   const { t, locale } = await getDictionary();
-  if (!cycle) return <NoCycle residenceId={residenceId} t={t} canCreate={can("cycles:manage")} />;
-  if (cycle.status === "DRAFT") return <DraftCycle residenceId={residenceId} cycle={cycle} t={t} />;
+  if (!cycle) return <NoCycle residenceId={residenceId} base={base} t={t} canCreate={can("cycles:manage")} />;
+  if (cycle.status === "DRAFT") return <DraftCycle base={base} cycle={cycle} t={t} />;
 
   const [rows, treasury, months, ownerList] = await Promise.all([
     getLotRows(session, residenceId, cycle.id),
@@ -89,7 +89,7 @@ export default async function DashboardPage({ params, searchParams }: PageProps<
         <section className="card card-pad flex flex-col gap-[18px] xl:col-span-2">
           <div className="flex items-center justify-between">
             <h2 className="h-card">{t.lotState}</h2>
-            <Link href={`/residences/${residenceId}/lots${cycleQuery}`} className="btn btn-link">
+            <Link href={`${base}/lots${cycleQuery}`} className="btn btn-link">
               {t.seeLots}
             </Link>
           </div>
@@ -134,7 +134,7 @@ export default async function DashboardPage({ params, searchParams }: PageProps<
         <section className="card card-pad flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <h2 className="h-card">{t.treasury}</h2>
-            <Link href={`/residences/${residenceId}/treasury${cycleQuery}`} className="btn btn-link">
+            <Link href={`${base}/treasury${cycleQuery}`} className="btn btn-link">
               {t.detail}
             </Link>
           </div>
@@ -165,7 +165,7 @@ export default async function DashboardPage({ params, searchParams }: PageProps<
       <section className="card card-pad flex flex-col gap-3.5">
         <div className="flex items-center justify-between">
           <h2 className="h-card">{t.expensesByMonth}</h2>
-          <Link href={`/residences/${residenceId}/expenses${cycleQuery}`} className="btn btn-link">
+          <Link href={`${base}/expenses${cycleQuery}`} className="btn btn-link">
             {t.allExpenses} →
           </Link>
         </div>

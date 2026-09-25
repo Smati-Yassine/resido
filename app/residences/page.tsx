@@ -18,6 +18,7 @@ export default async function ResidencesPage() {
     id: c.id,
     name: c.name,
     city: c.city,
+    slug: c.slug,
     archived: c.status === "ARCHIVED",
     lotCount: c.lotCount,
     blocCount: c.blocCount,

@@ -6,6 +6,7 @@ import { Icon } from "@/components/ui/Icon";
 import { useI18n } from "@/components/ui/I18nProvider";
 import { SIDEBAR_COLLAPSED, SIDEBAR_COOKIE } from "@/lib/ui-prefs";
 import { SideNav } from "./WorkspaceNav";
+import { ResidenceBaseProvider } from "./ResidenceLink";
 
 const ONE_YEAR = 60 * 60 * 24 * 365;
 
@@ -17,7 +18,7 @@ const ONE_YEAR = 60 * 60 * 24 * 365;
  * reads, so a reload renders it as left.
  */
 export function ResidenceShell({
-  residenceId,
+  base,
   initialCollapsed,
   lotCount,
   unpaidCount,
@@ -25,7 +26,8 @@ export function ResidenceShell({
   userMenu,
   children,
 }: {
-  residenceId: string;
+  /** `/residences/<slug>` — every link inside the residence starts with it. */
+  base: string;
   initialCollapsed: boolean;
   lotCount: number;
   unpaidCount: number;
@@ -44,6 +46,7 @@ export function ResidenceShell({
   const toggleLabel = collapsed ? t.expandMenu : t.collapseMenu;
 
   return (
+    <ResidenceBaseProvider base={base}>
     <div className="shell" data-collapsed={collapsed}>
       <header className="shell-header">
         <Link href="/residences" className="shell-brand" aria-label={t.allResidences}>
@@ -57,7 +60,6 @@ export function ResidenceShell({
       <div className="flex min-h-0 flex-1">
         <aside className="side">
           <SideNav
-            residenceId={residenceId}
             lotCount={lotCount}
             unpaidCount={unpaidCount}
             footer={
@@ -78,5 +80,6 @@ export function ResidenceShell({
         <main className="scroll flex min-w-0 flex-1 flex-col gap-6 px-10 pb-12 pt-8">{children}</main>
       </div>
     </div>
+    </ResidenceBaseProvider>
   );
 }

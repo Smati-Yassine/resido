@@ -10,9 +10,9 @@ import { currencySymbol } from "@/lib/currency";
 import { field, guarded } from "./errors";
 
 export async function createResidenceAction(
-  _: ActionResult<{ id: string }> | null,
+  _: ActionResult<{ slug: string }> | null,
   formData: FormData,
-): Promise<ActionResult<{ id: string }>> {
+): Promise<ActionResult<{ slug: string }>> {
   const { t } = await getDictionary();
   const user = await requireUser();
   const result = await residences.createResidence(user.userId, {
@@ -25,11 +25,15 @@ export async function createResidenceAction(
   return {
     ok: true,
     message: interpolate(t.residenceCreated, { name: result.data.name }),
-    data: { id: result.data.id },
+    data: { slug: result.data.slug },
   };
 }
 
-export async function updateResidenceAction(_: ActionResult | null, formData: FormData): Promise<ActionResult> {
+/** Renaming changes the residence's slug; `data.slug` lets the page move to its new URL. */
+export async function updateResidenceAction(
+  _: ActionResult<{ slug: string }> | null,
+  formData: FormData,
+): Promise<ActionResult<{ slug: string }>> {
   const { t } = await getDictionary();
   const session = await requireResidenceSession(field(formData, "residenceId"));
   return guarded(t, async () => {
@@ -39,7 +43,11 @@ export async function updateResidenceAction(_: ActionResult | null, formData: Fo
     });
     if (!result.ok) return { ok: false, message: t.errResidenceName };
     revalidatePath("/", "layout");
-    return { ok: true, message: interpolate(t.residenceUpdated, { name: result.data.name }) };
+    return {
+      ok: true,
+      message: interpolate(t.residenceUpdated, { name: result.data.name }),
+      data: { slug: result.data.slug },
+    };
   });
 }
 
@@ -78,7 +86,7 @@ export async function setResidenceCurrencyAction(residenceId: string, currency: 
     if (!result.ok) {
       return { ok: false, message: result.code === "CURRENCY_PRECISION" ? t.errCurrencyPrecision : t.errGeneric };
     }
-    revalidatePath(`/residences/${residenceId}`, "layout");
+    revalidatePath("/residences/[residenceId]", "layout");
     const code = result.data.currency;
     return { ok: true, message: interpolate(t.currencySaved, { currency: `${code} (${currencySymbol(code)})` }) };
   });

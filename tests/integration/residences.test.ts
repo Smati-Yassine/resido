@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { getDb } from "@/lib/db/client";
 import { COLLECTIONS } from "@/lib/db/collections";
 import * as residences from "@/lib/domain/residences/service";
+import { findResidenceByKey, normalizeAllSlugs } from "@/lib/domain/residences/repository";
 import { findMembership } from "@/lib/domain/memberships/repository";
 import * as users from "@/lib/domain/users/service";
 import { ForbiddenError } from "@/lib/rbac/permissions";
@@ -90,5 +91,39 @@ describe("users", () => {
   it("rejects short passwords", async () => {
     const result = await users.registerUser({ name: "A", email: "a@b.tn", password: "short" });
     expect(result).toMatchObject({ ok: false, code: "VALIDATION_ERROR" });
+  });
+});
+
+describe("residence URLs (slugs)", () => {
+  it("makes a clean slug from the name, numbering duplicates", async () => {
+    const a = unwrap(await residences.createResidence(newUserId(), { name: "Résidence Les Jasmins", city: "" }));
+    const b = unwrap(await residences.createResidence(newUserId(), { name: "Résidence les jasmins!", city: "" }));
+    expect(a.slug).toBe("residence-les-jasmins");
+    expect(b.slug).toBe("residence-les-jasmins-2");
+  });
+
+  it("changes the slug on rename and keeps the old one resolving (to redirect)", async () => {
+    const userId = newUserId();
+    const r = unwrap(await residences.createResidence(userId, { name: "Les Oliviers", city: "" }));
+    const renamed = unwrap(await residences.updateResidence(adminSession(r.id, userId), r.id, { name: "Les Palmiers" }));
+    expect(renamed.slug).toBe("les-palmiers");
+
+    expect(await findResidenceByKey("les-palmiers")).toMatchObject({ canonical: true, residence: { id: r.id } });
+    expect(await findResidenceByKey("les-oliviers")).toMatchObject({ canonical: false, residence: { id: r.id } });
+    expect(await findResidenceByKey(r.id)).toMatchObject({ canonical: false, residence: { slug: "les-palmiers" } });
+    expect(await findResidenceByKey("nothing-here")).toBeNull();
+
+    // The freed slug is not handed to another residence, so old links never change target.
+    const other = unwrap(await residences.createResidence(newUserId(), { name: "Les Oliviers", city: "" }));
+    expect(other.slug).toBe("les-oliviers-2");
+  });
+
+  it("normalises legacy slugs", async () => {
+    const r = unwrap(await residences.createResidence(newUserId(), { name: "Le Lac", city: "" }));
+    const db = await getDb();
+    await db.collection(COLLECTIONS.organizations).updateOne({ slug: r.slug }, { $set: { slug: "le-lac-3f2a1c" } });
+    expect(await normalizeAllSlugs()).toEqual({ changed: 1 });
+    expect(await findResidenceByKey("le-lac")).toMatchObject({ canonical: true });
+    expect(await findResidenceByKey("le-lac-3f2a1c")).toMatchObject({ canonical: false });
   });
 });

@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { useI18n } from "@/components/ui/I18nProvider";
 import { interpolate, type Dictionary } from "@/lib/i18n/dictionaries";
+import { useResidenceBase } from "./ResidenceLink";
 
 type SectionKey = "dashboard" | "cycles" | "lots" | "owners" | "payments" | "expenses" | "treasury" | "settings";
 
@@ -30,18 +31,18 @@ const SETTINGS = S("settings", "/settings", "settings");
 export const SECTIONS: Section[] = [...GROUPS.flatMap((g) => g.sections), SETTINGS];
 
 /** Which section a pathname belongs to. */
-export function useSection(residenceId: string) {
+export function useSection() {
   const pathname = usePathname();
-  const rest = pathname.slice(`/residences/${residenceId}`.length);
+  const rest = pathname.slice(useResidenceBase().length);
   return SECTIONS.find((s) => s.path && rest.startsWith(s.path)) ?? SECTIONS[0];
 }
 
 /** A workspace link that keeps the cycle being viewed. */
-export function useWorkspaceHref(residenceId: string) {
+export function useWorkspaceHref() {
+  const base = useResidenceBase();
   const params = useSearchParams();
   const cycle = params.get("cycle");
-  return (path: string, cycleId: string | null = cycle) =>
-    `/residences/${residenceId}${path}${cycleId ? `?cycle=${cycleId}` : ""}`;
+  return (path: string, cycleId: string | null = cycle) => `${base}${path}${cycleId ? `?cycle=${cycleId}` : ""}`;
 }
 
 /**
@@ -50,19 +51,17 @@ export function useWorkspaceHref(residenceId: string) {
  * aria-label, so the icon-only strip stays readable and accessible.
  */
 export function SideNav({
-  residenceId,
   lotCount,
   unpaidCount,
   footer,
 }: {
-  residenceId: string;
   lotCount: number;
   unpaidCount: number;
   footer: React.ReactNode;
 }) {
   const { t } = useI18n();
-  const current = useSection(residenceId);
-  const href = useWorkspaceHref(residenceId);
+  const current = useSection();
+  const href = useWorkspaceHref();
 
   const item = (s: Section, extra?: React.ReactNode) => {
     const label = t[s.key] as string;

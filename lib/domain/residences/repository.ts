@@ -10,8 +10,10 @@ interface ResidenceDoc {
   _id: ObjectId;
   name: string;
   city: string;
-  /** Unique, URL-safe; kept from the organization model and generated from the name. */
+  /** Unique URL key made from the name ("les-jasmins", "les-jasmins-2"). */
   slug: string;
+  /** Slugs the residence had before a rename, so old links still resolve (and redirect). */
+  oldSlugs?: string[];
   status: ResidenceStatus;
   settings: { currency: string; timezone: string };
   createdAt: Date;
@@ -23,6 +25,7 @@ function toDomain(doc: ResidenceDoc): Residence {
     id: fromObjectId(doc._id),
     name: doc.name,
     city: doc.city ?? "",
+    slug: doc.slug,
     status: doc.status,
     currency: isCurrencyCode(doc.settings?.currency) ? doc.settings.currency : DEFAULT_CURRENCY,
     createdAt: doc.createdAt,
@@ -35,15 +38,44 @@ async function collection() {
   return db.collection<ResidenceDoc>(COLLECTIONS.organizations);
 }
 
-function slugify(name: string): string {
+/** "Résidence Les Jasmins" → "residence-les-jasmins". */
+export function slugify(name: string): string {
   const base = name
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
-    .slice(0, 40);
-  return `${base || "residence"}-${new ObjectId().toHexString().slice(-6)}`;
+    .slice(0, 60)
+    .replace(/-+$/, "");
+  return base || "residence";
+}
+
+/**
+ * The first free slug for `name`: the plain slug, else "-2", "-3"… Slugs are
+ * global (the URL holds no owner), and a slug another residence used before a
+ * rename stays reserved so its old links keep pointing to it.
+ */
+async function uniqueSlug(name: string, excludeId?: ObjectId): Promise<string> {
+  const base = slugify(name);
+  const taken = new Set<string>();
+  const docs = await (await collection())
+    .find(
+      {
+        ...(excludeId ? { _id: { $ne: excludeId } } : {}),
+        $or: [{ slug: { $regex: `^${base}(-\\d+)?$` } }, { oldSlugs: { $regex: `^${base}(-\\d+)?$` } }],
+      },
+      { projection: { slug: 1, oldSlugs: 1 } },
+    )
+    .toArray();
+  for (const doc of docs) {
+    taken.add(doc.slug);
+    for (const old of doc.oldSlugs ?? []) taken.add(old);
+  }
+  if (!taken.has(base)) return base;
+  for (let n = 2; ; n++) {
+    if (!taken.has(`${base}-${n}`)) return `${base}-${n}`;
+  }
 }
 
 export async function insertResidence(
@@ -54,13 +86,31 @@ export async function insertResidence(
     _id: new ObjectId(),
     name: input.name,
     city: input.city,
-    slug: slugify(input.name),
+    slug: await uniqueSlug(input.name),
     status: "ACTIVE",
     settings: { currency: input.currency ?? DEFAULT_CURRENCY, timezone: "Africa/Tunis" },
     ...newTimestamps(),
   };
   await (await collection()).insertOne(doc, { session });
   return toDomain(doc);
+}
+
+/**
+ * Resolves the key in a residence URL: its current slug, an old slug (renamed
+ * since) or, for links made before slugs, its id. `canonical` is false when
+ * the URL should be redirected to the current slug.
+ */
+export async function findResidenceByKey(key: string): Promise<{ residence: Residence; canonical: boolean } | null> {
+  const residences = await collection();
+  const current = await residences.findOne({ slug: key });
+  if (current) return { residence: toDomain(current), canonical: true };
+  const renamed = await residences.findOne({ oldSlugs: key });
+  if (renamed) return { residence: toDomain(renamed), canonical: false };
+  if (ObjectId.isValid(key) && /^[0-9a-f]{24}$/i.test(key)) {
+    const byId = await residences.findOne({ _id: new ObjectId(key) });
+    if (byId) return { residence: toDomain(byId), canonical: false };
+  }
+  return null;
 }
 
 export async function findResidenceById(id: string): Promise<Residence | null> {
@@ -83,14 +133,36 @@ export async function updateResidence(
   id: string,
   patch: Partial<{ name: string; city: string; status: ResidenceStatus }>,
 ): Promise<Residence | null> {
-  const result = await (
-    await collection()
-  ).findOneAndUpdate(
-    { _id: toObjectId(id) },
-    { $set: { ...patch, updatedAt: new Date() } },
-    { returnDocument: "after" },
-  );
+  const residences = await collection();
+  const _id = toObjectId(id);
+  const existing = await residences.findOne({ _id });
+  if (!existing) return null;
+  const update: { $set: Record<string, unknown>; $addToSet?: Record<string, unknown> } = {
+    $set: { ...patch, updatedAt: new Date() },
+  };
+  // A new name gets a new slug; the old one is kept so existing links redirect.
+  if (patch.name !== undefined && slugify(patch.name) !== slugify(existing.name)) {
+    update.$set.slug = await uniqueSlug(patch.name, _id);
+    update.$addToSet = { oldSlugs: existing.slug };
+  }
+  const result = await residences.findOneAndUpdate({ _id }, update, { returnDocument: "after" });
   return result ? toDomain(result) : null;
+}
+
+/** One-off normalisation: gives every residence the clean slug of its name (old slug kept for redirects). */
+export async function normalizeAllSlugs(): Promise<{ changed: number }> {
+  const residences = await collection();
+  let changed = 0;
+  for (const doc of await residences.find({}, { projection: { name: 1, slug: 1 } }).sort({ createdAt: 1 }).toArray()) {
+    const wanted = await uniqueSlug(doc.name, doc._id);
+    if (wanted === doc.slug) continue;
+    await residences.updateOne(
+      { _id: doc._id },
+      { $set: { slug: wanted }, ...(doc.slug ? { $addToSet: { oldSlugs: doc.slug } } : {}) },
+    );
+    changed += 1;
+  }
+  return { changed };
 }
 
 /**

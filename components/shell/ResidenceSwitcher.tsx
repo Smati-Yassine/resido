@@ -9,6 +9,7 @@ interface ResidenceItem {
   id: string;
   name: string;
   city: string;
+  slug: string;
 }
 
 /** The residence being worked on, in the top bar; opens the user's other residences. */
@@ -51,7 +52,7 @@ export function ResidenceSwitcher({
             <Link
               key={r.id}
               role="menuitem"
-              href={`/residences/${r.id}`}
+              href={`/residences/${r.slug}`}
               className="menu-item py-2.5"
               aria-current={r.id === current.id}
               onClick={close}

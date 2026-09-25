@@ -8,8 +8,8 @@ import * as members from "@/lib/domain/members/service";
 import type { ActionResult } from "@/lib/action-result";
 import { field, guarded } from "./errors";
 
-function refresh(residenceId: string) {
-  revalidatePath(`/residences/${residenceId}`, "layout");
+function refresh() {
+  revalidatePath("/residences/[residenceId]", "layout");
   revalidatePath("/residences");
 }
 
@@ -25,7 +25,7 @@ export async function addMemberAction(_: ActionResult | null, formData: FormData
       if (result.code === "ALREADY_MEMBER") return { ok: false, message: interpolate(t.errAlreadyMember, { email }) };
       return { ok: false, message: t.errMemberEmail };
     }
-    refresh(residenceId);
+    refresh();
     const roleLabel = (t as Record<string, string>)[`role${role}`] ?? role;
     return {
       ok: true,
@@ -47,7 +47,7 @@ export async function changeRoleAction(
   return guarded(t, async () => {
     const result = await members.changeRole(session, residenceId, member.userId, role);
     if (!result.ok) return { ok: false, message: result.code === "LAST_ADMIN" ? t.errLastAdmin : t.errGeneric };
-    refresh(residenceId);
+    refresh();
     const roleLabel = (t as Record<string, string>)[`role${result.data.role}`];
     return { ok: true, message: interpolate(t.memberRoleChanged, { name: member.name, role: roleLabel }) };
   });
@@ -62,7 +62,7 @@ export async function removeMemberAction(_: ActionResult | null, formData: FormD
   return guarded(t, async () => {
     const result = await members.removeMember(session, residenceId, userId);
     if (!result.ok) return { ok: false, message: result.code === "LAST_ADMIN" ? t.errLastAdmin : t.errGeneric };
-    refresh(residenceId);
+    refresh();
     return {
       ok: true,
       message:
@@ -77,7 +77,7 @@ export async function cancelInvitationAction(residenceId: string, invitationId: 
   return guarded(t, async () => {
     const result = await members.cancelInvitation(session, residenceId, invitationId);
     if (!result.ok) return { ok: false, message: t.errGeneric };
-    refresh(residenceId);
+    refresh();
     return { ok: true, message: t.invitationCancelled };
   });
 }

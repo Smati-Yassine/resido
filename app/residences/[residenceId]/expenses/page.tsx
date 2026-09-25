@@ -9,10 +9,10 @@ import { ClosedBanner, DraftCycle, NoCycle } from "@/components/workspace/CycleS
 import { ExpenseButton } from "@/components/workspace/ExpenseModal";
 
 export default async function ExpensesPage({ params, searchParams }: PageProps<"/residences/[residenceId]/expenses">) {
-  const { session, residenceId, cycle, currency, can } = await loadWorkspace(params, searchParams);
+  const { session, residenceId, cycle, currency, can, base } = await loadWorkspace(params, searchParams);
   const { t, locale } = await getDictionary();
-  if (!cycle) return <NoCycle residenceId={residenceId} t={t} canCreate={can("cycles:manage")} />;
-  if (cycle.status === "DRAFT") return <DraftCycle residenceId={residenceId} cycle={cycle} t={t} />;
+  if (!cycle) return <NoCycle residenceId={residenceId} base={base} t={t} canCreate={can("cycles:manage")} />;
+  if (cycle.status === "DRAFT") return <DraftCycle base={base} cycle={cycle} t={t} />;
 
   const months = await getExpenseMonths(session, residenceId, cycle.id);
   const count = months.reduce((n, m) => n + m.items.length, 0);

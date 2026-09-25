@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "seed": "tsx scripts/seed.ts",
     "ensure-indexes": "tsx scripts/ensure-indexes.ts",
-    "dev:db": "node scripts/dev-mongo.mjs"
+    "dev:db": "node scripts/dev-mongo.mjs",
+    "normalize-slugs": "tsx scripts/normalize-slugs.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

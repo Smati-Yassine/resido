@@ -11,10 +11,10 @@ import { ClosedBanner, DraftCycle, NoCycle } from "@/components/workspace/CycleS
 import { PaymentButton } from "@/components/workspace/PaymentModal";
 
 export default async function PaymentsPage({ params, searchParams }: PageProps<"/residences/[residenceId]/payments">) {
-  const { session, residenceId, cycle, currency, can } = await loadWorkspace(params, searchParams);
+  const { session, residenceId, cycle, currency, can, base } = await loadWorkspace(params, searchParams);
   const { t } = await getDictionary();
-  if (!cycle) return <NoCycle residenceId={residenceId} t={t} canCreate={can("cycles:manage")} />;
-  if (cycle.status === "DRAFT") return <DraftCycle residenceId={residenceId} cycle={cycle} t={t} />;
+  if (!cycle) return <NoCycle residenceId={residenceId} base={base} t={t} canCreate={can("cycles:manage")} />;
+  if (cycle.status === "DRAFT") return <DraftCycle base={base} cycle={cycle} t={t} />;
 
   const [rows, paymentList, ownerList] = await Promise.all([
     getLotRows(session, residenceId, cycle.id),
