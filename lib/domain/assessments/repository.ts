@@ -204,3 +204,38 @@ export async function summarizeAssessmentsForCycle(
   }
   return summary;
 }
+
+/**
+ * Changes what an assessment bills (a lot's charge corrected mid-cycle) and
+ * recomputes its status. Refused (null) if it would drop below what is
+ * already paid.
+ */
+export async function setAssessmentAmount(
+  organizationId: string,
+  assessmentId: string,
+  amountMillimes: number,
+  session: ClientSession,
+): Promise<Assessment | null> {
+  const result = await (
+    await collection()
+  ).findOneAndUpdate(
+    {
+      _id: toObjectId(assessmentId),
+      organizationId: toObjectId(organizationId),
+      paidMillimes: { $lte: amountMillimes },
+    },
+    [{ $set: { amountMillimes } }, STATUS_FROM_PAID_PIPELINE_STAGE],
+    { returnDocument: "after", session },
+  );
+  return result ? toDomain(result) : null;
+}
+
+export async function deleteAssessment(
+  organizationId: string,
+  assessmentId: string,
+  session: ClientSession,
+): Promise<void> {
+  await (
+    await collection()
+  ).deleteOne({ _id: toObjectId(assessmentId), organizationId: toObjectId(organizationId) }, { session });
+}

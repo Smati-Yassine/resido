@@ -74,7 +74,9 @@ export async function findLotById(organizationId: string, id: string): Promise<L
 
 export async function findLotsByIds(organizationId: string, ids: string[]): Promise<Lot[]> {
   if (ids.length === 0) return [];
-  const docs = await (await collection())
+  const docs = await (
+    await collection()
+  )
     .find({ organizationId: toObjectId(organizationId), _id: { $in: ids.map(toObjectId) } })
     .toArray();
   return docs.map(toDomain);
@@ -137,4 +139,42 @@ export async function replaceOwnerLots(
       { session },
     );
   }
+}
+
+export async function updateLot(
+  organizationId: string,
+  lotId: string,
+  patch: { buildingId: string; code: string; chargeMillimes: number; ownerId: string | null },
+  session: ClientSession,
+): Promise<Lot | null> {
+  try {
+    const result = await (
+      await collection()
+    ).findOneAndUpdate(
+      { _id: toObjectId(lotId), organizationId: toObjectId(organizationId) },
+      {
+        $set: {
+          buildingId: toObjectId(patch.buildingId),
+          code: patch.code,
+          chargeMillimes: patch.chargeMillimes,
+          ownerId: patch.ownerId ? toObjectId(patch.ownerId) : null,
+          updatedAt: new Date(),
+        },
+      },
+      { returnDocument: "after", session },
+    );
+    return result ? toDomain(result) : null;
+  } catch (error) {
+    if (typeof error === "object" && error !== null && (error as { code?: unknown }).code === 11000) {
+      throw new DuplicateLotCodeError(`Lot code "${patch.code}" is already in use`);
+    }
+    throw error;
+  }
+}
+
+export async function deleteLot(organizationId: string, lotId: string, session: ClientSession): Promise<boolean> {
+  const result = await (
+    await collection()
+  ).deleteOne({ _id: toObjectId(lotId), organizationId: toObjectId(organizationId) }, { session });
+  return result.deletedCount === 1;
 }

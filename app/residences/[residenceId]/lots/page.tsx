@@ -11,7 +11,7 @@ import { Badge, EmptyState, PageHeader, type BadgeTone } from "@/components/ui/D
 import { Icon } from "@/components/ui/Icon";
 import { ClosedBanner } from "@/components/workspace/CycleState";
 import { AddLotButton, NewBlocButton } from "@/components/workspace/LotModals";
-import { LotOwnerSelect } from "@/components/workspace/LotOwnerSelect";
+import { LotRowActions } from "@/components/workspace/LotRowActions";
 
 const STATUS_TONE: Record<LotPaymentStatus, BadgeTone> = { PAID: "paid", PARTIAL: "partial", UNPAID: "unpaid" };
 
@@ -29,6 +29,33 @@ export default async function LotsPage({ params, searchParams }: PageProps<"/res
   const lotList = lotResult.ok ? lotResult.data : [];
   const billed = cycle && cycle.status !== "DRAFT" ? await getLotRows(session, residenceId, cycle.id) : null;
   const blocName = new Map(blocs.map((b) => [b.id, b.name]));
+
+  // Lot changes are for roles that manage lots; the owner is changed only through Edit.
+  const canEdit = can("lots:*");
+  const blocOptions = blocs.map((b) => ({ id: b.id, name: b.name }));
+  const lotById = new Map(lotList.map((l) => [l.id, l]));
+  const billedGrid = canEdit
+    ? "grid-cols-[1fr_0.8fr_1.5fr_1.1fr_1.1fr_1.1fr_0.9fr_84px]"
+    : "grid-cols-[1fr_0.8fr_1.6fr_1.1fr_1.1fr_1.1fr_0.9fr]";
+  const plainGrid = canEdit ? "grid-cols-[1fr_0.8fr_1.6fr_1.3fr_84px]" : "grid-cols-[1fr_0.8fr_1.6fr_1.3fr]";
+  const editable = (lotId: string) => {
+    const lot = lotById.get(lotId);
+    if (!lot) return <span />;
+    return (
+      <LotRowActions
+        residenceId={residenceId}
+        blocs={blocOptions}
+        owners={ownerOptions}
+        lot={{
+          id: lot.id,
+          code: lot.code,
+          buildingId: lot.buildingId,
+          chargeMillimes: lot.chargeMillimes,
+          ownerId: lot.ownerId,
+        }}
+      />
+    );
+  };
 
   return (
     <>
@@ -78,7 +105,7 @@ export default async function LotsPage({ params, searchParams }: PageProps<"/res
 
       {billed ? (
         <div className="card data-table">
-          <div className="data-head grid-cols-[1fr_0.8fr_1.6fr_1.1fr_1.1fr_1.1fr_0.9fr]">
+          <div className={`data-head ${billedGrid}`}>
             <span>{t.colLot}</span>
             <span>{t.colBloc}</span>
             <span>{t.colOwner}</span>
@@ -86,21 +113,13 @@ export default async function LotsPage({ params, searchParams }: PageProps<"/res
             <span className="text-right">{t.colPaid}</span>
             <span className="text-right">{t.colRemaining}</span>
             <span className="text-right">{t.colStatus}</span>
+            {canEdit && <span />}
           </div>
           {billed.map((row) => (
-            <div key={row.assessmentId} className="data-row num grid-cols-[1fr_0.8fr_1.6fr_1.1fr_1.1fr_1.1fr_0.9fr]">
+            <div key={row.assessmentId} className={`data-row num ${billedGrid}`}>
               <span className="font-bold">{row.code}</span>
               <span className="text-muted">{row.blocName}</span>
-              {can("lots:*") ? (
-                <LotOwnerSelect
-                  residenceId={residenceId}
-                  lot={{ id: row.lotId, code: row.code }}
-                  ownerId={row.ownerId}
-                  owners={ownerOptions}
-                />
-              ) : (
-                <span className="text-ink-2">{row.ownerName ?? "—"}</span>
-              )}
+              <span className="truncate text-ink-2">{row.ownerName ?? "—"}</span>
               <span className="text-right">{formatMoney(row.dueMillimes, currency)}</span>
               <span className="text-pos text-right">{formatMoney(row.paidMillimes, currency)}</span>
               <span className="text-right font-semibold">
@@ -109,6 +128,7 @@ export default async function LotsPage({ params, searchParams }: PageProps<"/res
               <span className="text-right">
                 <Badge tone={STATUS_TONE[row.status]}>{t[`status${row.status}`]}</Badge>
               </span>
+              {canEdit && editable(row.lotId)}
             </div>
           ))}
         </div>
@@ -117,27 +137,22 @@ export default async function LotsPage({ params, searchParams }: PageProps<"/res
           <>
             {cycle?.status === "DRAFT" && <p className="text-muted">{t.noChargesDraft}</p>}
             <div className="card data-table">
-              <div className="data-head grid-cols-[1fr_0.8fr_1.6fr_1.3fr]">
+              <div className={`data-head ${plainGrid}`}>
                 <span>{t.colLot}</span>
                 <span>{t.colBloc}</span>
                 <span>{t.colOwner}</span>
                 <span className="text-right">{interpolate(t.annualCharge, { cur: currencySymbol(currency) })}</span>
+                {canEdit && <span />}
               </div>
               {lotList.map((lot) => (
-                <div key={lot.id} className="data-row num grid-cols-[1fr_0.8fr_1.6fr_1.3fr]">
+                <div key={lot.id} className={`data-row num ${plainGrid}`}>
                   <span className="font-bold">{lot.code}</span>
                   <span className="text-muted">{lot.buildingId ? blocName.get(lot.buildingId) : ""}</span>
-                  {can("lots:*") ? (
-                    <LotOwnerSelect
-                      residenceId={residenceId}
-                      lot={{ id: lot.id, code: lot.code }}
-                      ownerId={lot.ownerId}
-                      owners={ownerOptions}
-                    />
-                  ) : (
-                    <span className="text-ink-2">{ownerOptions.find((o) => o.id === lot.ownerId)?.name ?? "—"}</span>
-                  )}
+                  <span className="truncate text-ink-2">
+                    {ownerOptions.find((o) => o.id === lot.ownerId)?.name ?? "—"}
+                  </span>
                   <span className="text-right">{formatMoney(lot.chargeMillimes, currency)}</span>
+                  {canEdit && editable(lot.id)}
                 </div>
               ))}
             </div>

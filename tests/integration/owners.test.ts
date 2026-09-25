@@ -47,7 +47,15 @@ describe("owners", () => {
   it("assigns an owner from the lot side, and deleting the owner frees their lots", async () => {
     const { session, residence, cycle, lots: l } = await residenceWithOpenCycle();
     const owner = unwrap(await owners.createOwner(session, residence.id, { name: "Owner", lotIds: [] }));
-    unwrap(await lots.setLotOwner(session, residence.id, { lotId: l.a11.id, ownerId: owner.id }));
+    unwrap(
+      await lots.updateLot(session, residence.id, {
+        lotId: l.a11.id,
+        buildingId: l.a11.buildingId!,
+        code: "A11",
+        chargeMillimes: "1000",
+        ownerId: owner.id,
+      }),
+    );
     expect((await overview.getLotRows(session, residence.id, cycle.id))[0].ownerName).toBe("Owner");
 
     unwrap(await owners.deleteOwner(session, residence.id, owner.id));
@@ -86,7 +94,9 @@ describe("owners", () => {
 
   it("takes the payer from the units paid: their owner, or the owners' names", async () => {
     const { session, residence, cycle, lots: l, assessmentOf } = await residenceWithOpenCycle();
-    const one = unwrap(await owners.createOwner(session, residence.id, { name: "First Owner", lotIds: [l.a11.id, l.a12.id] }));
+    const one = unwrap(
+      await owners.createOwner(session, residence.id, { name: "First Owner", lotIds: [l.a11.id, l.a12.id] }),
+    );
     unwrap(await owners.createOwner(session, residence.id, { name: "Second Owner", lotIds: [l.b11.id] }));
     const pay = (codes: string[]) =>
       payments.recordPayment(session, residence.id, {

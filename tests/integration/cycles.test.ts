@@ -44,6 +44,63 @@ describe("blocs and lots", () => {
   });
 });
 
+describe("editing and deleting lots", () => {
+  it("edits code, bloc, owner and charge — the open cycle bills the new charge", async () => {
+    const { session, residence, blocB, cycle, lots: l } = await residenceWithOpenCycle();
+    const updated = unwrap(
+      await lots.updateLot(session, residence.id, {
+        lotId: l.a11.id,
+        buildingId: blocB.id,
+        code: "B99",
+        chargeMillimes: "1250",
+        ownerId: null,
+      }),
+    );
+    expect(updated).toMatchObject({ code: "B99", buildingId: blocB.id, chargeMillimes: 1_250_000 });
+    const row = (await overview.getLotRows(session, residence.id, cycle.id)).find((r) => r.lotId === l.a11.id)!;
+    expect(row).toMatchObject({ code: "B99", blocName: "Bloc B", dueMillimes: 1_250_000 });
+  });
+
+  it("refuses a charge below what the lot already paid, and a duplicate code", async () => {
+    const { session, residence, blocA, lots: l, assessmentOf } = await residenceWithOpenCycle();
+    unwrap(
+      await payments.recordPayment(session, residence.id, {
+        date: "2026-02-01",
+        method: "CASH",
+        idempotencyKey: key(),
+        allocations: [{ assessmentId: assessmentOf("A11"), amountMillimes: "800" }],
+      }),
+    );
+    const base = { lotId: l.a11.id, buildingId: blocA.id, code: "A11", ownerId: null };
+    expect(await lots.updateLot(session, residence.id, { ...base, chargeMillimes: "700" })).toMatchObject({
+      code: "CHARGE_BELOW_PAID",
+    });
+    expect(await lots.updateLot(session, residence.id, { ...base, code: "A12", chargeMillimes: "1000" })).toMatchObject({
+      code: "DUPLICATE_CODE",
+    });
+  });
+
+  it("deletes a lot only when it has no history", async () => {
+    const { session, residence, cycle, blocA, assessmentOf, lots: l } = await residenceWithOpenCycle();
+    const fresh = unwrap(await lots.createLot(session, residence.id, { buildingId: blocA.id, code: "A99", chargeMillimes: "10" }));
+    unwrap(await lots.deleteLot(session, residence.id, fresh.id));
+    expect((await overview.getLotRows(session, residence.id, cycle.id)).map((r) => r.code)).toEqual(["A11", "A12", "B11"]);
+
+    unwrap(
+      await payments.recordPayment(session, residence.id, {
+        date: "2026-02-01",
+        method: "CASH",
+        idempotencyKey: key(),
+        allocations: [{ assessmentId: assessmentOf("A11"), amountMillimes: "1" }],
+      }),
+    );
+    expect(await lots.deleteLot(session, residence.id, l.a11.id)).toMatchObject({ code: "HAS_HISTORY" });
+
+    unwrap(await cycles.closeCycle(session, residence.id, { cycleId: cycle.id }));
+    expect(await lots.deleteLot(session, residence.id, l.b11.id)).toMatchObject({ code: "HAS_HISTORY" });
+  });
+});
+
 describe("cycles", () => {
   it("opens with one assessment per lot at its annual charge", async () => {
     const { session, residence, cycle } = await residenceWithOpenCycle();

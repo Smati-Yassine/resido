@@ -66,30 +66,45 @@ export async function createBlocAction(_: ActionResult | null, formData: FormDat
   });
 }
 
+/** Adds a lot, or — with a `lotId` in the form — edits that lot (same form, same checks). */
 export async function createLotAction(_: ActionResult | null, formData: FormData): Promise<ActionResult> {
   const { residenceId, session, t, done, currency, money, example } = await scoped(formData);
   const code = field(formData, "code");
   const buildingId = field(formData, "buildingId");
   const charge = parseAmount(field(formData, "charge"), currency);
+  const lotId = field(formData, "lotId");
   return guarded(t, async () => {
     if (!code) return { ok: false, message: t.errLotCode };
     if (!buildingId) return { ok: false, message: t.errPickBloc };
     if (charge === null) return { ok: false, message: interpolate(t.errLotCharge, { example: example(1209.76) }) };
-    const result = await lots.createLot(session, residenceId, {
-      buildingId,
-      ownerId: field(formData, "ownerId") || undefined,
-      code,
-      chargeMillimes: field(formData, "charge").replace(",", "."),
-    });
+    const content = { buildingId, code, chargeMillimes: field(formData, "charge").replace(",", ".") };
+    const ownerId = field(formData, "ownerId");
+    const result = lotId
+      ? await lots.updateLot(session, residenceId, { ...content, lotId, ownerId: ownerId || null })
+      : await lots.createLot(session, residenceId, { ...content, ownerId: ownerId || undefined });
     if (!result.ok) {
       if (result.code === "DUPLICATE_CODE") return { ok: false, message: interpolate(t.errLotDuplicate, { code }) };
+      if (result.code === "CHARGE_BELOW_PAID") return { ok: false, message: t.errChargeBelowPaid };
       return {
         ok: false,
         message:
           result.code === "NOT_FOUND" ? t.errPickBloc : interpolate(t.errLotCharge, { example: example(1209.76) }),
       };
     }
-    return done(interpolate(t.lotCreated, { code, amount: money(result.data.chargeMillimes) }));
+    return done(
+      lotId
+        ? interpolate(t.lotUpdated, { code })
+        : interpolate(t.lotCreated, { code, amount: money(result.data.chargeMillimes) }),
+    );
+  });
+}
+
+export async function deleteLotAction(_: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  const { residenceId, session, t, done } = await scoped(formData);
+  return guarded(t, async () => {
+    const result = await lots.deleteLot(session, residenceId, field(formData, "lotId"));
+    if (!result.ok) return { ok: false, message: result.code === "HAS_HISTORY" ? t.errLotHasHistory : t.errGeneric };
+    return done(interpolate(t.lotDeleted, { code: result.data.code }));
   });
 }
 
@@ -309,26 +324,5 @@ export async function deleteOwnerAction(_: ActionResult | null, formData: FormDa
     const result = await owners.deleteOwner(session, residenceId, field(formData, "ownerId"));
     if (!result.ok) return { ok: false, message: t.errGeneric };
     return done(interpolate(t.ownerDeleted, { name: result.data.name }));
-  });
-}
-
-/** Called directly (not from a form) by the owner dropdown on each lot row. */
-export async function setLotOwnerAction(
-  residenceId: string,
-  lot: { id: string; code: string },
-  owner: { id: string; name: string } | null,
-): Promise<ActionResult> {
-  const session = await requireResidenceSession(residenceId);
-  const { t } = await getDictionary();
-  return guarded(t, async () => {
-    const result = await lots.setLotOwner(session, residenceId, { lotId: lot.id, ownerId: owner?.id ?? null });
-    if (!result.ok) return { ok: false, message: t.errGeneric };
-    revalidatePath("/residences/[residenceId]", "layout");
-    return {
-      ok: true,
-      message: owner
-        ? interpolate(t.lotOwnerSet, { code: lot.code, name: owner.name })
-        : interpolate(t.lotOwnerCleared, { code: lot.code }),
-    };
   });
 }

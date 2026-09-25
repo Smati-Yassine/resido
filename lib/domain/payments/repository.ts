@@ -201,3 +201,14 @@ export async function replacePaymentContent(
   );
   return result ? toDomain(result) : null;
 }
+
+/** Whether any recorded (not cancelled) payment covers this lot, in any cycle. */
+export async function lotHasPayments(organizationId: string, lotId: string): Promise<boolean> {
+  const doc = await (
+    await collection()
+  ).findOne(
+    { organizationId: toObjectId(organizationId), status: "COMPLETED", "allocations.lotId": toObjectId(lotId) },
+    { projection: { _id: 1 } },
+  );
+  return doc !== null;
+}

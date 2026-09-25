@@ -27,8 +27,12 @@ export interface Lot {
   updatedAt: Date;
 }
 
-export const setLotOwnerInputSchema = z.object({
+/** Editing replaces a lot's bloc, code, annual charge and owner (null = none). */
+export const updateLotInputSchema = z.object({
   lotId: objectIdSchema,
+  buildingId: objectIdSchema,
+  code: nonEmptyStringSchema.max(40),
+  chargeMillimes: millimesInputSchema.refine((v) => v > 0, { message: "CHARGE_NOT_POSITIVE" }),
   ownerId: objectIdSchema.nullable(),
 });
-export type SetLotOwnerInput = z.infer<typeof setLotOwnerInputSchema>;
+export type UpdateLotInput = z.input<typeof updateLotInputSchema>;

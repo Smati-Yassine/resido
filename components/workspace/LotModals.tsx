@@ -6,6 +6,8 @@ import { useI18n } from "@/components/ui/I18nProvider";
 import { useActionToast } from "@/components/ui/useActionToast";
 import { createBlocAction, createLotAction } from "@/lib/actions/workspace";
 import { ModalButton } from "./ModalButton";
+import { useCurrency } from "@/components/ui/CurrencyProvider";
+import { toInputAmount } from "@/lib/format";
 import { ModalActions } from "./ModalActions";
 
 export function NewBlocButton({ residenceId }: { residenceId: string }) {
@@ -52,28 +54,42 @@ export function AddLotButton({
   );
 }
 
-function LotModal({
+/** An existing lot, as the edit form starts from it. */
+export interface EditableLot {
+  id: string;
+  code: string;
+  buildingId: string | null;
+  chargeMillimes: number;
+  ownerId: string | null;
+}
+
+/** Adds a lot, or edits `lot` when given (code, bloc, annual charge, owner). */
+export function LotModal({
   residenceId,
   blocs,
   owners,
+  lot,
   onClose,
 }: {
   residenceId: string;
   blocs: Option[];
   owners: Option[];
+  lot?: EditableLot;
   onClose: () => void;
 }) {
   const { t } = useI18n();
+  const { code: currency } = useCurrency();
   const [onSubmit, pending] = useActionToast(createLotAction, onClose);
   return (
-    <Modal title={t.addLot} subtitle={t.lotHelp} onClose={onClose}>
+    <Modal title={lot ? t.editLot : t.addLot} subtitle={lot ? t.editLotHelp : t.lotHelp} onClose={onClose}>
       <form onSubmit={onSubmit} className="flex flex-col gap-5">
         <input type="hidden" name="residenceId" value={residenceId} />
+        {lot && <input type="hidden" name="lotId" value={lot.id} />}
         <Field label={t.lotCode}>
-          <input className="input" name="code" placeholder={t.lotCodePlaceholder} required />
+          <input className="input" name="code" defaultValue={lot?.code} placeholder={t.lotCodePlaceholder} required />
         </Field>
         <Field label={t.bloc}>
-          <select className="input" name="buildingId" defaultValue={blocs[0]?.id}>
+          <select className="input" name="buildingId" defaultValue={lot?.buildingId ?? blocs[0]?.id}>
             {blocs.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.name}
@@ -82,10 +98,14 @@ function LotModal({
           </select>
         </Field>
         <Field label={t.annualCharge}>
-          <MoneyInput name="charge" required />
+          <MoneyInput
+            name="charge"
+            defaultValue={lot ? toInputAmount(lot.chargeMillimes, currency) : undefined}
+            required
+          />
         </Field>
         <Field label={t.owner}>
-          <select className="input" name="ownerId" defaultValue="">
+          <select className="input" name="ownerId" defaultValue={lot?.ownerId ?? ""}>
             <option value="">{t.noOwner}</option>
             {owners.map((o) => (
               <option key={o.id} value={o.id}>
@@ -94,7 +114,7 @@ function LotModal({
             ))}
           </select>
         </Field>
-        <ModalActions onCancel={onClose} submitLabel={t.addLot} pending={pending} />
+        <ModalActions onCancel={onClose} submitLabel={lot ? t.saveChanges : t.addLot} pending={pending} />
       </form>
     </Modal>
   );
