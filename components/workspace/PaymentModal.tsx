@@ -56,6 +56,30 @@ export function PaymentButton({
 
 const MAX_RESULTS = 6;
 
+/** Lower case without accents, so "helene" finds "Hélène". */
+const fold = (text: string) =>
+  text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+/** One unit in the search results: code, bloc, owner and what it still owes. */
+function LotOption({ lot, onPick }: { lot: OutstandingLot; onPick: () => void }) {
+  const { t } = useI18n();
+  const { code: currency } = useCurrency();
+  return (
+    <button type="button" role="option" aria-selected="false" className="menu-item py-2.5" onClick={onPick}>
+      <span className="flex flex-col">
+        <span className="text-sm font-bold">
+          {lot.code} <span className="font-medium text-muted">· {lot.bloc}</span>
+        </span>
+        <span className="text-xs text-muted">{lot.ownerName ?? t.noOwnerYet}</span>
+      </span>
+      <span className="num text-sm font-bold">{formatAmount(lot.remainingMillimes, currency)}</span>
+    </button>
+  );
+}
+
 /**
  * Recording a payment starts from a unit: search it by code and it is added,
  * selected for its full remaining due. The payer is that unit's owner (set by
@@ -88,19 +112,30 @@ function PaymentModal({
   const siblings = allLots.filter((l) => l.ownerId && ownerIds.has(l.ownerId) && !picked.includes(l.assessmentId));
   const shown = [...pickedLots, ...siblings];
 
-  const needle = query.trim().toLowerCase();
-  const results = needle
-    ? allLots
-        .filter((l) => !shown.includes(l) && l.code.toLowerCase().includes(needle))
-        .sort(
-          (a, b) => Number(!a.code.toLowerCase().startsWith(needle)) - Number(!b.code.toLowerCase().startsWith(needle)),
-        )
+  // The search matches a unit code or an owner's name (ignoring case and accents).
+  const needle = fold(query.trim());
+  const available = allLots.filter((l) => !shown.includes(l));
+  const codeMatches = needle
+    ? available
+        .filter((l) => fold(l.code).includes(needle))
+        .sort((a, b) => Number(!fold(a.code).startsWith(needle)) - Number(!fold(b.code).startsWith(needle)))
         .slice(0, MAX_RESULTS)
     : [];
+  // An owner's name matching: every one of their unpaid units, plus a row to add them all.
+  const ownerGroups: { name: string; lots: OutstandingLot[] }[] = [];
+  if (needle) {
+    for (const lot of available) {
+      if (!lot.ownerName || !fold(lot.ownerName).includes(needle) || codeMatches.includes(lot)) continue;
+      const group = ownerGroups.find((g) => g.name === lot.ownerName);
+      if (group) group.lots.push(lot);
+      else ownerGroups.push({ name: lot.ownerName, lots: [lot] });
+    }
+  }
+  const noMatch = needle !== "" && codeMatches.length === 0 && ownerGroups.length === 0;
 
-  const add = (lot: OutstandingLot) => {
-    setPicked((current) => [...current, lot.assessmentId]);
-    setAmounts((current) => ({ ...current, [lot.assessmentId]: null }));
+  const add = (...lots: OutstandingLot[]) => {
+    setPicked((current) => [...current, ...lots.map((l) => l.assessmentId)]);
+    setAmounts((current) => ({ ...current, ...Object.fromEntries(lots.map((l) => [l.assessmentId, null])) }));
     setQuery("");
   };
 
@@ -196,36 +231,51 @@ function PaymentModal({
                   // Enter adds the best match instead of submitting the form.
                   if (e.key === "Enter") {
                     e.preventDefault();
-                    if (results[0]) add(results[0]);
+                    if (codeMatches[0]) add(codeMatches[0]);
+                    else if (ownerGroups[0]) add(...ownerGroups[0].lots);
                   }
                 }}
               />
             </span>
           </Field>
           {needle && (
-            <div className="popover absolute inset-x-0 top-[78px] z-10 flex flex-col gap-0.5" role="listbox">
-              {results.length === 0 ? (
-                <span className="px-3 py-2.5 text-sm text-muted">{t.noLotMatch}</span>
-              ) : (
-                results.map((lot) => (
-                  <button
-                    key={lot.assessmentId}
-                    type="button"
-                    role="option"
-                    aria-selected="false"
-                    className="menu-item py-2.5"
-                    onClick={() => add(lot)}
-                  >
-                    <span className="flex flex-col">
-                      <span className="text-sm font-bold">
-                        {lot.code} <span className="font-medium text-muted">· {lot.bloc}</span>
+            <div
+              className="popover scroll absolute inset-x-0 top-[78px] z-10 flex max-h-[320px] flex-col gap-0.5"
+              role="listbox"
+            >
+              {noMatch && <span className="px-3 py-2.5 text-sm text-muted">{t.noLotMatch}</span>}
+              {codeMatches.map((lot) => (
+                <LotOption key={lot.assessmentId} lot={lot} onPick={() => add(lot)} />
+              ))}
+              {ownerGroups.map((group) => (
+                <Fragment key={group.name}>
+                  {group.lots.length > 1 && (
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected="false"
+                      className="menu-item py-2.5 text-primary"
+                      onClick={() => add(...group.lots)}
+                    >
+                      <span className="flex flex-col">
+                        <span className="text-sm font-bold">
+                          {interpolate(t.allLotsOf, { name: group.name, count: group.lots.length })}
+                        </span>
+                        <span className="text-xs text-muted">{group.lots.map((l) => l.code).join(", ")}</span>
                       </span>
-                      <span className="text-xs text-muted">{lot.ownerName ?? t.noOwnerYet}</span>
-                    </span>
-                    <span className="num text-sm font-bold">{formatAmount(lot.remainingMillimes, currency)}</span>
-                  </button>
-                ))
-              )}
+                      <span className="num text-sm font-bold">
+                        {formatAmount(
+                          group.lots.reduce((sum, l) => sum + l.remainingMillimes, 0),
+                          currency,
+                        )}
+                      </span>
+                    </button>
+                  )}
+                  {group.lots.map((lot) => (
+                    <LotOption key={lot.assessmentId} lot={lot} onPick={() => add(lot)} />
+                  ))}
+                </Fragment>
+              ))}
             </div>
           )}
         </div>
