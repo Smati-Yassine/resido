@@ -1,8 +1,9 @@
-import { getDictionary } from "@/lib/i18n/server";
+import { getDictionary, getPreferences } from "@/lib/i18n/server";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
 import { formatAmount } from "@/lib/format";
 import { AuthPanel } from "@/components/public/AuthPanel";
 import { SiteFooter } from "@/components/public/SiteFooter";
+import { PublicPreferences } from "@/components/public/PublicPreferences";
 import { Gauge } from "@/components/dashboard/Charts";
 import { Icon, type IconName } from "@/components/ui/Icon";
 
@@ -13,6 +14,7 @@ import { Icon, type IconName } from "@/components/ui/Icon";
  */
 export default async function PublicHomePage() {
   const { t } = await getDictionary();
+  const { theme } = await getPreferences();
   const features: { icon: IconName; title: keyof Dictionary; text: keyof Dictionary }[] = [
     { icon: "treasury", title: "feat1Title", text: "feat1Text" },
     { icon: "income", title: "feat2Title", text: "feat2Text" },
@@ -42,9 +44,14 @@ export default async function PublicHomePage() {
           />
         </svg>
 
-        <div className="relative flex items-center gap-3">
-          <span className="brand-mark bg-ground text-night">R</span>
-          <span className="font-display text-2xl font-semibold">Résido</span>
+        <div className="relative flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span className="brand-mark bg-on-night text-night">R</span>
+            <span className="font-display text-2xl font-semibold">Résido</span>
+          </div>
+          <div className="hidden lg:block">
+            <PublicPreferences theme={theme} night />
+          </div>
         </div>
 
         <div className="relative flex max-w-[640px] flex-col gap-5">
@@ -75,9 +82,12 @@ export default async function PublicHomePage() {
       <aside className="landing-auth">
         <div className="landing-auth-inner">
           {/* On phones the form comes first: the brand goes above it. */}
-          <div className="flex items-center gap-3 lg:hidden">
-            <span className="brand-mark">R</span>
-            <span className="font-display text-[22px] font-semibold">Résido</span>
+          <div className="flex items-center justify-between gap-3 lg:hidden">
+            <span className="flex items-center gap-3">
+              <span className="brand-mark">R</span>
+              <span className="font-display text-[22px] font-semibold">Résido</span>
+            </span>
+            <PublicPreferences theme={theme} />
           </div>
           <AuthPanel />
           <p className="flex items-center gap-2 text-[13px] text-muted">

@@ -2,7 +2,6 @@ import Link from "next/link";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
 import { CONTACT_EMAIL } from "@/lib/legal";
 import { Icon, type IconName } from "@/components/ui/Icon";
-import { LanguageToggle } from "./LanguageToggle";
 
 const CONTACTS: { icon: IconName; href: string; label: (t: Dictionary) => string }[] = [
   { icon: "mail", href: `mailto:${CONTACT_EMAIL}`, label: (t) => `${t.contact} — ${CONTACT_EMAIL}` },
@@ -11,7 +10,7 @@ const CONTACTS: { icon: IconName; href: string; label: (t: Dictionary) => string
   { icon: "linkedin", href: "https://www.linkedin.com/in/smati-yassine/", label: () => "LinkedIn" },
 ];
 
-/** Footer of every signed-out page: legal links, contact icons, language. `night` sits on the dark landing panel. */
+/** Footer of every signed-out page: legal links and contact icons (language and theme sit in the top bar). `night` sits on the dark landing panel. */
 export function SiteFooter({ t, night = false }: { t: Dictionary; night?: boolean }) {
   return (
     <footer className={`site-footer ${night ? "site-footer-night" : ""}`}>
@@ -38,7 +37,6 @@ export function SiteFooter({ t, night = false }: { t: Dictionary; night?: boolea
             );
           })}
         </nav>
-        <LanguageToggle />
       </div>
     </footer>
   );
