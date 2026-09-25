@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Badge, EmptyState, StatCell, type BadgeTone } from "@/components/ui/Display";
+import { Badge, EmptyState, type BadgeTone } from "@/components/ui/Display";
 import { Icon } from "@/components/ui/Icon";
 import { useI18n } from "@/components/ui/I18nProvider";
 import { useCurrency } from "@/components/ui/CurrencyProvider";
@@ -9,7 +9,6 @@ import { FilterChips, SearchField } from "@/components/ui/Filters";
 import { LotRowActions } from "@/components/workspace/LotRowActions";
 import type { EditableLot } from "@/components/workspace/LotModals";
 import { formatAmount, formatMoney, initials, percent } from "@/lib/format";
-import { interpolate } from "@/lib/i18n/dictionaries";
 import { fold } from "@/lib/text";
 
 type Status = "PAID" | "PARTIAL" | "UNPAID";
@@ -59,8 +58,6 @@ export function LotsBoard({
 
   const sum = (list: LotItem[], pick: (i: LotItem) => number) => list.reduce((n, i) => n + pick(i), 0);
   const count = (list: LotItem[], s: Status) => list.filter((i) => i.status === s).length;
-  const expected = sum(items, (i) => i.chargeMillimes);
-  const collected = sum(items, (i) => i.paidMillimes ?? 0);
 
   const inBloc = bloc ? items.filter((i) => i.blocId === bloc) : items;
   const q = fold(query.trim());
@@ -80,37 +77,6 @@ export function LotsBoard({
 
   return (
     <>
-      <section className="card ledger" aria-label={t.lots}>
-        <StatCell
-          label={t.lots}
-          value={String(items.length)}
-          note={interpolate(t.lotsOfBlocs, { lots: items.length, blocs: blocs.length })}
-        />
-        {billed ? (
-          <>
-            <StatCell label={t.kpiExpected} value={formatMoney(expected, currency)} />
-            <StatCell
-              label={t.kpiCollected}
-              value={formatMoney(collected, currency)}
-              valueClass="text-pos"
-              note={interpolate(t.rateCollected, { rate: percent(collected, expected) })}
-            />
-            <StatCell
-              label={t.kpiOutstanding}
-              value={formatMoney(expected - collected, currency)}
-              valueClass="text-neg"
-              note={`${count(items, "PARTIAL") + count(items, "UNPAID")} ${t.lotsWord}`}
-            />
-          </>
-        ) : (
-          <>
-            <StatCell label={t.blocs} value={String(blocs.length)} />
-            <StatCell label={t.annualTotal} value={formatMoney(expected, currency)} />
-            <StatCell label={t.assignedLots} value={`${items.filter((i) => i.ownerName).length} / ${items.length}`} />
-          </>
-        )}
-      </section>
-
       <div className="grid grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-3">
         <BlocCard
           name={t.allBlocs}

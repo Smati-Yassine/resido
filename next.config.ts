@@ -26,6 +26,13 @@ const nextConfig: NextConfig = {
         destination: "/residences/:residence/finances",
         permanent: true,
       },
+      // Lots and owners became tabs of one Copropriété page.
+      { source: "/residences/:residence/lots", destination: "/residences/:residence/property/lots", permanent: true },
+      {
+        source: "/residences/:residence/owners",
+        destination: "/residences/:residence/property/owners",
+        permanent: true,
+      },
       // Cycles moved into Settings.
       {
         source: "/residences/:residence/cycles",

@@ -148,11 +148,18 @@ design system's classes.
 slug>/<page>[/<tab>]?cycle=<cycle slug>` — e.g.
 `/residences/haifa-4/finances/expenses?cycle=2025-2026`. Tabs are path
 segments (`/finances/payments`, `/finances/expenses`, `/settings/cycles`,
-`/settings/members`, `/settings/journal`). A cycle's slug comes from its
+`/settings/members`, `/settings/journal`, `/property/lots`,
+`/property/owners`). A cycle's slug comes from its
 name (a repeated name gets -2, -3… in date order) and `?cycle=` is left out
 for the residence's current cycle. Older forms — `?tab=`, a cycle id,
 `/payments`, `/expenses`, `/treasury`, `/cycles` — still work and are
 rewritten to these.
+
+**Copropriété.** Lots and owners are one page (`/property`), like Finances:
+a strip of figures (lots, owners, lots assigned, still to collect) above
+three tabs — Aperçu (blocs side by side, who owns what, the lot map), Lots,
+Propriétaires — all for the cycle on screen, from one load
+(`lib/property/load.ts`). `/lots` and `/owners` redirect to the tabs.
 
 **First steps.** Until a first cycle opens, the dashboard is a setup guide:
 blocs and lots, their owners, the year's cycle, then opening it.

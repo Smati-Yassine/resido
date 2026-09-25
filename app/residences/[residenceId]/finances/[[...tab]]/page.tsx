@@ -140,7 +140,7 @@ export default async function FinancesPage({
           hrefs={{
             payments: tabHref("payments"),
             expenses: tabHref("expenses"),
-            lots: href("/lots"),
+            lots: href("/property/lots"),
           }}
         />
       )}

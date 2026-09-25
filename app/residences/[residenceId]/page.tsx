@@ -224,7 +224,7 @@ export default async function DashboardPage({ params, searchParams }: PageProps<
         <section className="card card-pad flex flex-col gap-5">
           <div className="flex items-center justify-between">
             <h2 className="h-card">{t.lotState}</h2>
-            <Link href={href("/lots")} className="btn btn-link">
+            <Link href={href("/property/lots")} className="btn btn-link">
               {t.seeLots}
             </Link>
           </div>
@@ -299,7 +299,7 @@ export default async function DashboardPage({ params, searchParams }: PageProps<
                   {b.rows.map((r) => (
                     <Link
                       key={r.assessmentId}
-                      href={href("/lots")}
+                      href={href("/property/lots")}
                       className="lot-tile"
                       data-status={r.status}
                       title={interpolate(t.lotTileTitle, {

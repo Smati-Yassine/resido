@@ -28,7 +28,7 @@ export function NoCycle({
   return (
     <EmptyState title={t.noCycleTitle} text={t.noCycleText}>
       <div className="mt-2 flex gap-2.5">
-        <Link href={`${base}/lots`} className="btn btn-ghost">
+        <Link href={`${base}/property/lots`} className="btn btn-ghost">
           {t.lots}
         </Link>
         {canCreate && <NewCycleButton residenceId={residenceId} label={t.createFirstCycle} />}

@@ -7,7 +7,7 @@ import { useI18n } from "@/components/ui/I18nProvider";
 import { interpolate, type Dictionary } from "@/lib/i18n/dictionaries";
 import { useResidenceBase } from "./ResidenceLink";
 
-type SectionKey = "dashboard" | "finances" | "lots" | "owners" | "settings";
+type SectionKey = "dashboard" | "finances" | "property" | "settings";
 
 interface Section {
   key: SectionKey;
@@ -19,8 +19,14 @@ const S = (key: SectionKey, path: string, icon: IconName): Section => ({ key, pa
 
 /** The residence's sections, in their sidebar groups; settings sits apart at the bottom. */
 const GROUPS: { label: keyof Dictionary; sections: Section[] }[] = [
-  { label: "navOverview", sections: [S("dashboard", "", "dashboard"), S("finances", "/finances", "treasury")] },
-  { label: "navProperty", sections: [S("lots", "/lots", "lots"), S("owners", "/owners", "owners")] },
+  {
+    label: "navOverview",
+    sections: [
+      S("dashboard", "", "dashboard"),
+      S("finances", "/finances", "treasury"),
+      S("property", "/property", "lots"),
+    ],
+  },
 ];
 const SETTINGS = S("settings", "/settings", "settings");
 
@@ -87,7 +93,7 @@ export function SideNav({
             {group.sections.map((s) =>
               item(
                 s,
-                s.key === "lots" ? (
+                s.key === "property" ? (
                   <span className="side-count">{lotCount}</span>
                 ) : s.key === "finances" && unpaidCount > 0 ? (
                   <span

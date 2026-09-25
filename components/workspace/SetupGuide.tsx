@@ -42,7 +42,7 @@ export function SetupGuide({
             })
           : undefined,
       action: can.lots && (
-        <Link href={`${base}/lots`} className="btn btn-ghost btn-sm">
+        <Link href={`${base}/property/lots`} className="btn btn-ghost btn-sm">
           {t.setupGo}
         </Link>
       ),
@@ -57,7 +57,7 @@ export function SetupGuide({
             })
           : undefined,
       action: can.owners && (
-        <Link href={`${base}/owners`} className="btn btn-ghost btn-sm">
+        <Link href={`${base}/property/owners`} className="btn btn-ghost btn-sm">
           {t.setupGo}
         </Link>
       ),

@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Badge, EmptyState, StatCell } from "@/components/ui/Display";
+import { Badge, EmptyState } from "@/components/ui/Display";
 import { useI18n } from "@/components/ui/I18nProvider";
 import { useCurrency } from "@/components/ui/CurrencyProvider";
 import { FilterChips, SearchField } from "@/components/ui/Filters";
 import { OwnerRowActions, type LotChoice } from "@/components/workspace/OwnerModals";
-import { formatAmount, formatMoney, initials, percent } from "@/lib/format";
+import { formatAmount, initials, percent } from "@/lib/format";
 import { fold } from "@/lib/text";
 import { interpolate } from "@/lib/i18n/dictionaries";
 import { Icon } from "@/components/ui/Icon";
@@ -42,8 +42,6 @@ type Filter = "ALL" | "OWING" | "CLEAR";
 export function OwnersBoard({
   owners,
   unassigned,
-  lotCount,
-  totalDueMillimes,
   billed,
   residenceId,
   canManage,
@@ -51,8 +49,6 @@ export function OwnersBoard({
 }: {
   owners: OwnerItem[];
   unassigned: OwnerLot[];
-  lotCount: number;
-  totalDueMillimes: number;
   billed: boolean;
   residenceId: string;
   canManage: boolean;
@@ -65,7 +61,6 @@ export function OwnersBoard({
 
   const due = (o: OwnerItem) => o.chargedMillimes - o.paidMillimes;
   const owing = owners.filter((o) => due(o) > 0);
-  const totalDue = totalDueMillimes;
   const q = fold(query.trim());
   const shown = owners.filter(
     (o) =>
@@ -75,32 +70,6 @@ export function OwnersBoard({
 
   return (
     <>
-      <section className="card ledger" aria-label={t.owners}>
-        <StatCell label={t.owners} value={String(owners.length)} />
-        <StatCell
-          label={t.assignedLots}
-          value={`${lotCount - unassigned.length} / ${lotCount}`}
-          note={`${percent(lotCount - unassigned.length, lotCount)} %`}
-        />
-        <StatCell label={t.unassignedTitle} value={String(unassigned.length)} />
-        {billed ? (
-          <StatCell
-            label={t.totalDue}
-            value={formatMoney(totalDue, currency)}
-            valueClass={totalDue > 0 ? "text-neg" : "text-pos"}
-            note={`${owing.length} ${t.ownersOwing.toLowerCase()}`}
-          />
-        ) : (
-          <StatCell
-            label={t.annualTotal}
-            value={formatMoney(
-              owners.reduce((n, o) => n + o.chargedMillimes, 0),
-              currency,
-            )}
-          />
-        )}
-      </section>
-
       <div className="toolbar">
         <SearchField value={query} onChange={setQuery} placeholder={t.searchOwners} />
         {billed && (
