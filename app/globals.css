@@ -1102,6 +1102,8 @@
   }
   .settings-group {
     overflow: hidden;
+    /* Rows stack (title above control) when the card is narrow — see below. */
+    container-type: inline-size;
   }
   .settings-group-head {
     display: flex;
@@ -1109,15 +1111,32 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 20px 24px;
+    padding: 16px 24px;
   }
   .settings-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
     gap: 24px;
     align-items: center;
-    padding: 18px 24px;
+    padding: 14px 24px;
     border-top: 1px solid var(--line-soft);
+  }
+  .settings-group > .settings-row:first-child {
+    border-top: 0;
+  }
+  .settings-row-control {
+    display: flex;
+    min-width: 0;
+    justify-content: flex-end;
+  }
+  @container (max-width: 420px) {
+    .settings-row {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 10px;
+    }
+    .settings-row-control {
+      justify-content: flex-start;
+    }
   }
   .settings-row-title {
     display: block;
@@ -1134,7 +1153,7 @@
     display: flex;
     justify-content: flex-end;
     gap: 10px;
-    padding: 14px 24px;
+    padding: 12px 24px;
     border-top: 1px solid var(--line);
     background: var(--surface-2);
   }

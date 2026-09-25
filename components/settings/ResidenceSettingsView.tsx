@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import type { IconName } from "@/components/ui/Icon";
+import { Icon, type IconName } from "@/components/ui/Icon";
 import { Badge, EmptyState, Notice } from "@/components/ui/Display";
 import { SearchField } from "@/components/ui/Filters";
 import { useI18n } from "@/components/ui/I18nProvider";
@@ -48,7 +48,7 @@ export function ResidenceSettingsView({
 }) {
   const { t } = useI18n();
   const section = (
-    <div className="flex min-w-0 flex-col gap-5">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-5">
       {!data.can.manage && tab !== "journal" && <Notice icon="lock">{t.readOnlyNote}</Notice>}
       {tab === "general" && <GeneralSection data={data} mode={mode} onGone={onGone} />}
       {tab === "cycles" && <CyclesSection data={data} />}
@@ -75,7 +75,7 @@ export function ResidenceSettingsView({
     journal: data.journal.reduce((n, d) => n + d.entries.length, 0),
   };
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex min-h-0 flex-1 flex-col gap-5">
       <div className="flex min-h-[54px] items-end justify-between gap-4 border-b border-line">
         <nav className="tabs min-w-0 overflow-x-auto border-b-0" aria-label={t.residenceSettings}>
           {SETTINGS_NAV.map((item) => (
@@ -139,7 +139,7 @@ function Row({ title, text, children }: { title: string; text?: string; children
         <span className="settings-row-title">{title}</span>
         {text && <span className="settings-row-text">{text}</span>}
       </div>
-      <div className="flex min-w-0 justify-end">{children}</div>
+      <div className="settings-row-control">{children}</div>
     </div>
   );
 }
@@ -177,7 +177,7 @@ function GeneralSection({
   return (
     <>
       <div className="@container">
-        <div className="grid grid-cols-1 items-start gap-5 @4xl:grid-cols-2">
+        <div className="grid grid-cols-1 items-start gap-5 @xl:grid-cols-2">
           <form onSubmit={onSubmit}>
             <Group title={t.identity} text={t.identityHelp}>
               <input type="hidden" name="residenceId" value={residence.id} />
@@ -212,46 +212,48 @@ function GeneralSection({
             </Group>
           </form>
 
-          <Group title={t.currency}>
-            <Row title={t.currency} text={t.currencyHelp}>
-              <CurrencySelect residenceId={residence.id} currency={residence.currency} disabled={!manage} />
-            </Row>
-          </Group>
+          <div className="flex min-w-0 flex-col gap-5">
+            <Group>
+              <Row title={t.currency} text={t.currencyHelp}>
+                <CurrencySelect residenceId={residence.id} currency={residence.currency} disabled={!manage} />
+              </Row>
+            </Group>
+
+            {manage && (
+              <Group title={t.dangerZone} danger>
+                {residence.archived ? (
+                  <Row title={t.restoreRowTitle} text={t.restoreRowText}>
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      disabled={archiving}
+                      onClick={() => setArchived(residence.id, false)}
+                    >
+                      {t.restore}
+                    </button>
+                  </Row>
+                ) : (
+                  <Row title={t.archiveRowTitle} text={t.archiveRowText}>
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      disabled={archiving}
+                      onClick={() => setArchived(residence.id, true, leave)}
+                    >
+                      {t.archive}
+                    </button>
+                  </Row>
+                )}
+                <Row title={t.deleteRowTitle} text={t.deleteRowText}>
+                  <button type="button" className="btn btn-danger" onClick={() => setConfirmDelete(true)}>
+                    {t.delete}
+                  </button>
+                </Row>
+              </Group>
+            )}
+          </div>
         </div>
       </div>
-
-      {manage && (
-        <Group title={t.dangerZone} danger>
-          {residence.archived ? (
-            <Row title={t.restoreRowTitle} text={t.restoreRowText}>
-              <button
-                type="button"
-                className="btn btn-ghost"
-                disabled={archiving}
-                onClick={() => setArchived(residence.id, false)}
-              >
-                {t.restore}
-              </button>
-            </Row>
-          ) : (
-            <Row title={t.archiveRowTitle} text={t.archiveRowText}>
-              <button
-                type="button"
-                className="btn btn-ghost"
-                disabled={archiving}
-                onClick={() => setArchived(residence.id, true, leave)}
-              >
-                {t.archive}
-              </button>
-            </Row>
-          )}
-          <Row title={t.deleteRowTitle} text={t.deleteRowText}>
-            <button type="button" className="btn btn-danger" onClick={() => setConfirmDelete(true)}>
-              {t.delete}
-            </button>
-          </Row>
-        </Group>
-      )}
 
       {confirmDelete && (
         <DeleteResidenceModal
@@ -378,17 +380,23 @@ function CyclesSection({ data }: { data: ResidenceSettingsData }) {
 /* ---------- Journal ---------- */
 
 const KINDS: JournalKind[] = ["money", "cycles", "property", "access"];
-/** Journal entries shown at first, and added by each "show more". */
-const PAGE = 40;
+/** Every journal row is one line of this height, so a page holds exactly what fits. */
+const ROW_HEIGHT = 48;
 const JOURNAL_COLS =
-  "grid-cols-[96px_minmax(0,1fr)] @3xl:grid-cols-[110px_minmax(0,1fr)_minmax(0,1.5fr)_minmax(0,160px)]";
+  "grid-cols-[132px_minmax(0,1fr)] @3xl:grid-cols-[140px_minmax(0,1fr)_minmax(0,1.5fr)_minmax(0,150px)]";
 
-/** What happened, newest first, as a table — searchable, filtered by kind, 40 rows at a time. */
+/**
+ * What happened, newest first, as a table — searchable, filtered by kind. It
+ * fills the height it is given and pages through the entries, as many per
+ * page as fit: the page and the modal never scroll.
+ */
 function JournalSection({ data }: { data: ResidenceSettingsData }) {
   const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<JournalKind | "all">("all");
-  const [limit, setLimit] = useState(PAGE);
+  const [page, setPage] = useState(0);
+  const [perPage, setPerPage] = useState(8);
+  const bodyRef = useRef<HTMLDivElement>(null);
 
   const all = data.journal.flatMap((d) => d.entries);
   const counts = useMemo(() => {
@@ -397,33 +405,41 @@ function JournalSection({ data }: { data: ResidenceSettingsData }) {
     return byKind;
   }, [all]);
 
+  // Rows per page: as many as the table's body holds, re-measured when the window resizes.
+  useEffect(() => {
+    const body = bodyRef.current;
+    if (!body) return;
+    const observer = new ResizeObserver(() => setPerPage(Math.max(3, Math.floor(body.clientHeight / ROW_HEIGHT))));
+    observer.observe(body);
+    return () => observer.disconnect();
+  }, []);
+
   if (all.length === 0) return <EmptyState text={t.journalEmpty} />;
 
   const needle = fold(query.trim());
-  const days = data.journal
-    .map((day) => ({
-      ...day,
-      entries: day.entries.filter(
+  const rows = data.journal.flatMap((day) =>
+    day.entries
+      .filter(
         (e) =>
           (kind === "all" || e.kind === kind) && (!needle || fold(`${e.what} ${e.detail} ${e.who}`).includes(needle)),
-      ),
-    }))
-    .filter((day) => day.entries.length > 0);
-  // One row per entry, newest first; the first `limit` of those that match.
-  const rows = days.flatMap((day) => day.entries.map((entry) => ({ ...entry, day: day.day })));
-  const shown = rows.length;
-  const visible = rows.slice(0, limit);
+      )
+      .map((entry) => ({ ...entry, day: day.day })),
+  );
+  const pages = Math.max(1, Math.ceil(rows.length / perPage));
+  const current = Math.min(page, pages - 1);
+  const visible = rows.slice(current * perPage, (current + 1) * perPage);
+  const filter = (next: () => void) => {
+    next();
+    setPage(0);
+  };
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
         <div className="min-w-[240px] flex-1">
           <SearchField
             value={query}
-            onChange={(value) => {
-              setQuery(value);
-              setLimit(PAGE);
-            }}
+            onChange={(value) => filter(() => setQuery(value))}
             placeholder={t.journalSearch}
           />
         </div>
@@ -431,10 +447,7 @@ function JournalSection({ data }: { data: ResidenceSettingsData }) {
           className="input w-auto"
           aria-label={t.journalFilter}
           value={kind}
-          onChange={(event) => {
-            setKind(event.target.value as JournalKind | "all");
-            setLimit(PAGE);
-          }}
+          onChange={(event) => filter(() => setKind(event.target.value as JournalKind | "all"))}
         >
           <option value="all">
             {t.filterAll} ({counts.all})
@@ -447,38 +460,61 @@ function JournalSection({ data }: { data: ResidenceSettingsData }) {
         </select>
       </div>
 
-      <section className="@container card data-table">
+      <section className="@container card data-table flex min-h-[260px] flex-1 flex-col">
         <div className={`data-head ${JOURNAL_COLS}`}>
           <span>{t.colDate}</span>
           <span>{t.colAction}</span>
           <span className="hidden @3xl:block">{t.colDetail}</span>
           <span className="hidden @3xl:block">{t.colBy}</span>
         </div>
-        {visible.length === 0 ? (
-          <p className="px-6 py-8 text-center text-sm text-muted">{t.noMatch}</p>
-        ) : (
-          visible.map((entry) => (
-            <div key={entry.id} className={`data-row ${JOURNAL_COLS}`}>
-              <span className="flex flex-col">
-                <span className="num text-[13px]">{entry.day}</span>
-                <span className="num text-xs text-muted">{entry.time}</span>
-              </span>
-              <span className="flex min-w-0 flex-col">
-                <span className="truncate font-semibold">{entry.what}</span>
-                <span className="truncate text-[13px] text-muted @3xl:hidden">{entry.detail}</span>
-              </span>
-              <span className="hidden truncate text-[13px] text-ink-2 @3xl:block">{entry.detail}</span>
-              <span className="hidden truncate text-[13px] text-muted @3xl:block">{entry.who}</span>
-            </div>
-          ))
-        )}
-        {shown > limit && (
-          <div className="flex justify-center px-6 py-4">
-            <button type="button" className="btn btn-ghost" onClick={() => setLimit((n) => n + PAGE)}>
-              {interpolate(t.journalMore, { count: Math.min(PAGE, shown - limit), total: shown - limit })}
+        <div ref={bodyRef} className="min-h-0 flex-1 overflow-hidden">
+          {visible.length === 0 ? (
+            <p className="px-6 py-8 text-center text-sm text-muted">{t.noMatch}</p>
+          ) : (
+            visible.map((entry) => (
+              <div key={entry.id} className={`data-row h-12 py-0 ${JOURNAL_COLS}`}>
+                <span className="num truncate text-[13px]">
+                  {entry.day} <span className="text-muted">{entry.time}</span>
+                </span>
+                <span className="truncate">
+                  <span className="font-semibold">{entry.what}</span>
+                  <span className="text-[13px] text-muted @3xl:hidden"> · {entry.detail}</span>
+                </span>
+                <span className="hidden truncate text-[13px] text-ink-2 @3xl:block">{entry.detail}</span>
+                <span className="hidden truncate text-[13px] text-muted @3xl:block">{entry.who}</span>
+              </div>
+            ))
+          )}
+        </div>
+        <div className="flex h-14 shrink-0 items-center justify-between gap-3 border-t border-line px-6">
+          <span className="num text-[13px] text-muted">
+            {interpolate(t.pageRange, {
+              from: rows.length ? current * perPage + 1 : 0,
+              to: current * perPage + visible.length,
+              total: rows.length,
+            })}
+          </span>
+          <span className="flex gap-2">
+            <button
+              type="button"
+              className="icon-btn h-9 w-9"
+              aria-label={t.prevPage}
+              disabled={current === 0}
+              onClick={() => setPage(current - 1)}
+            >
+              <Icon name="chevronLeft" size={18} />
             </button>
-          </div>
-        )}
+            <button
+              type="button"
+              className="icon-btn h-9 w-9"
+              aria-label={t.nextPage}
+              disabled={current >= pages - 1}
+              onClick={() => setPage(current + 1)}
+            >
+              <Icon name="chevronRight" size={18} />
+            </button>
+          </span>
+        </div>
       </section>
     </div>
   );
