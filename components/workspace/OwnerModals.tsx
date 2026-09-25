@@ -98,7 +98,7 @@ function OwnerModal({
 
   return (
     <Modal title={owner ? t.editOwner : t.newOwner} subtitle={t.ownerHelp} size="wide" icon="owners" onClose={onClose}>
-      <form onSubmit={onSubmit} className="flex flex-col gap-5">
+      <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col gap-5">
         <input type="hidden" name="residenceId" value={residenceId} />
         {owner && <input type="hidden" name="ownerId" value={owner.id} />}
         <ViewedCycleField />
@@ -125,14 +125,14 @@ function OwnerModal({
             />
           </Field>
         </div>
-        <div className="flex flex-col gap-2">
+        <div className="flex min-h-0 flex-1 flex-col gap-2">
           <span className="text-[13px] font-semibold text-ink-2">
             {t.ownerLots} · {picked.size}
           </span>
           {lots.length === 0 ? (
             <span className="text-sm text-muted">{t.noLotsYet}</span>
           ) : (
-            <div className="scroll grid max-h-[300px] grid-cols-2 gap-2 pr-1 sm:grid-cols-3">
+            <div className="scroll grid min-h-[120px] flex-1 grid-cols-2 content-start gap-2 pr-1 sm:grid-cols-3">
               {lots.map((lot) => {
                 const on = picked.has(lot.id);
                 const elsewhere = lot.ownerId && lot.ownerId !== owner?.id ? lot.ownerName : null;

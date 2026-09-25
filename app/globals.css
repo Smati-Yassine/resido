@@ -1758,14 +1758,21 @@
     color: var(--warn-ink);
   }
   .modal-body {
+    display: flex;
     flex: 1;
+    flex-direction: column;
     min-height: 0;
     overflow-y: auto;
     padding: 22px 28px 26px;
   }
-  /* The actions end the body: they pin to its bottom as a footer bar. */
+  /* The actions end the body: they pin to its bottom as a footer bar. In a
+     fixed-height modal with little content, the form fills the body so the
+     bar still sits at the very bottom, never mid-way. */
   .modal-body:has(.modal-actions) {
     padding-bottom: 0;
+  }
+  .modal-body:has(.modal-actions) > form {
+    flex: 1 0 auto;
   }
   .modal-actions {
     position: sticky;
@@ -1774,7 +1781,7 @@
     display: flex;
     justify-content: flex-end;
     gap: 10px;
-    margin: 6px -28px 0;
+    margin: auto -28px 0;
     padding: 16px 28px 20px;
     border-top: 1px solid var(--line-soft);
     background: var(--surface-2);
@@ -1797,7 +1804,7 @@
       padding: 18px 20px 22px;
     }
     .modal-actions {
-      margin: 6px -20px 0;
+      margin: auto -20px 0;
       padding: 14px 20px 16px;
     }
   }
