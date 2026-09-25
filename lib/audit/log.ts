@@ -12,6 +12,7 @@ import { toObjectId } from "@/lib/db/ids";
  */
 export const AUDIT_ACTIONS = [
   "PAYMENT_CREATED",
+  "PAYMENT_UPDATED",
   "PAYMENT_CANCELLED",
   "PAYMENT_REVERSED",
   "EXPENSE_CREATED",

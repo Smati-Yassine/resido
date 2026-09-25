@@ -5,7 +5,7 @@ import { getDictionary } from "@/lib/i18n/server";
 import { interpolate } from "@/lib/i18n/dictionaries";
 import { formatMoney, formatMonth, percent } from "@/lib/format";
 import { cycleRange } from "@/lib/cycle-view";
-import { outstandingLots } from "@/lib/lot-rows";
+import { paymentLots } from "@/lib/lot-rows";
 import { computeCycleTreasury } from "@/lib/domain/cycles/service";
 import { getExpenseMonths, getLotRows, progressByBloc, totalsFromLotRows } from "@/lib/domain/overview/service";
 import { Bar, Kpi, PageHeader } from "@/components/ui/Display";
@@ -44,7 +44,7 @@ export default async function DashboardPage({ params, searchParams }: PageProps<
               {can("payments:create") && (
                 <PaymentButton
                   residenceId={residenceId}
-                  lots={outstandingLots(rows)}
+                  lots={paymentLots(rows)}
                  
                   label={t.addPayment}
                 />

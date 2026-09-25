@@ -169,3 +169,35 @@ export async function sumCompletedPaymentsForCycle(organizationId: string, cycle
     .toArray();
   return result[0]?.total ?? 0;
 }
+
+/** Rewrites a COMPLETED payment's content (edit). Null if it is no longer COMPLETED. */
+export async function replacePaymentContent(
+  organizationId: string,
+  paymentId: string,
+  input: Omit<InsertPaymentInput, "idempotencyKey" | "createdBy">,
+  session: ClientSession,
+): Promise<Payment | null> {
+  const result = await (
+    await collection()
+  ).findOneAndUpdate(
+    { _id: toObjectId(paymentId), organizationId: toObjectId(organizationId), status: "COMPLETED" },
+    {
+      $set: {
+        ownerId: input.ownerId ? toObjectId(input.ownerId) : null,
+        payerName: input.payerName,
+        date: input.date,
+        amountMillimes: input.amountMillimes,
+        method: input.method,
+        note: input.note,
+        allocations: input.allocations.map((a) => ({
+          assessmentId: toObjectId(a.assessmentId),
+          lotId: toObjectId(a.lotId),
+          cycleId: toObjectId(a.cycleId),
+          amountMillimes: a.amountMillimes,
+        })),
+      },
+    },
+    { returnDocument: "after", session },
+  );
+  return result ? toDomain(result) : null;
+}

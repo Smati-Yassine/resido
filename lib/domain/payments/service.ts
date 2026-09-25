@@ -5,7 +5,9 @@ import { writeAuditLog } from "@/lib/audit/log";
 import {
   createPaymentInputSchema,
   voidPaymentInputSchema,
+  updatePaymentInputSchema,
   type CreatePaymentInput,
+  type UpdatePaymentInput,
   type VoidPaymentInput,
   type Payment,
 } from "./schema";
@@ -24,6 +26,73 @@ export type Result<T> =
       code: "VALIDATION_ERROR" | "NOT_FOUND" | "CYCLE_NOT_OPEN" | "OVER_ALLOCATION" | "ALREADY_VOIDED" | "CONFLICT";
       message: string;
     };
+
+type ResolvedAllocation = { assessmentId: string; lotId: string; cycleId: string; amountMillimes: number };
+
+/**
+ * Checks every allocation's assessment exists, belongs to an OPEN cycle and
+ * would not be overpaid. `credit` is what the payment being edited already
+ * pays per assessment — that part is freed again before the new amounts
+ * apply. Best-effort, for a readable error: the $expr-guarded update in
+ * applyPaymentToAssessment is the authoritative, race-free overpay guard.
+ */
+async function resolveAllocations(
+  organizationId: string,
+  allocations: { assessmentId: string; amountMillimes: number }[],
+  credit: Map<string, number> = new Map(),
+): Promise<Result<ResolvedAllocation[]>> {
+  const resolved: ResolvedAllocation[] = [];
+  for (const allocation of allocations) {
+    const assessment = await assessmentsRepo.findAssessmentById(organizationId, allocation.assessmentId);
+    if (!assessment) {
+      return { ok: false, code: "NOT_FOUND", message: `Assessment ${allocation.assessmentId} not found` };
+    }
+    const cycle = await cyclesRepo.findCycleById(organizationId, assessment.cycleId);
+    if (!cycle || cycle.status !== "OPEN") {
+      return { ok: false, code: "CYCLE_NOT_OPEN", message: "Payments can only be recorded on the open cycle" };
+    }
+    const remaining = assessment.amountMillimes - assessment.paidMillimes + (credit.get(assessment.id) ?? 0);
+    if (allocation.amountMillimes > remaining) {
+      return {
+        ok: false,
+        code: "OVER_ALLOCATION",
+        message: `Allocation of ${allocation.amountMillimes} exceeds the remaining balance (${remaining})`,
+      };
+    }
+    resolved.push({
+      assessmentId: assessment.id,
+      lotId: assessment.lotId,
+      cycleId: assessment.cycleId,
+      amountMillimes: allocation.amountMillimes,
+    });
+  }
+  return { ok: true, data: resolved };
+}
+
+/**
+ * Who paid, unless given: the owner of the units paid. One owner → the
+ * payment is theirs; units of several owners → their names, no owner link.
+ */
+async function resolvePayer(
+  organizationId: string,
+  resolved: ResolvedAllocation[],
+  ownerId?: string,
+  givenName?: string,
+): Promise<Result<{ owner: { id: string; name: string } | null; payerName: string | null }>> {
+  if (ownerId) {
+    const owner = await ownersRepo.findOwnerById(organizationId, ownerId);
+    if (!owner) return { ok: false, code: "NOT_FOUND", message: "Owner not found" };
+    return { ok: true, data: { owner, payerName: owner.name } };
+  }
+  const lots = await lotsRepo.findLotsByIds(organizationId, [...new Set(resolved.map((a) => a.lotId))]);
+  const ownerIds = [...new Set(lots.map((l) => l.ownerId).filter((id): id is string => !!id))];
+  const owners = (await Promise.all(ownerIds.map((id) => ownersRepo.findOwnerById(organizationId, id)))).filter(
+    (o) => o !== null,
+  );
+  if (owners.length === 1) return { ok: true, data: { owner: owners[0], payerName: owners[0].name } };
+  const payerName = givenName || (owners.length > 1 ? owners.map((o) => o.name).join(", ") : null);
+  return { ok: true, data: { owner: null, payerName } };
+}
 
 /**
  * Records a payment: checks every allocation's assessment exists, belongs to
@@ -50,55 +119,16 @@ export async function recordPayment(
   const existing = await repo.findPaymentByIdempotencyKey(organizationId, input.idempotencyKey);
   if (existing) return { ok: true, data: existing };
 
-  const explicitOwner = input.ownerId ? await ownersRepo.findOwnerById(organizationId, input.ownerId) : null;
-  if (input.ownerId && !explicitOwner) return { ok: false, code: "NOT_FOUND", message: "Owner not found" };
-
-  // Best-effort pre-check for a readable error; the $expr-guarded update in
-  // applyPaymentToAssessment is the authoritative, race-free overpay guard.
-  const resolved: { assessmentId: string; lotId: string; cycleId: string; amountMillimes: number }[] = [];
-  for (const allocation of input.allocations) {
-    const assessment = await assessmentsRepo.findAssessmentById(organizationId, allocation.assessmentId);
-    if (!assessment) {
-      return { ok: false, code: "NOT_FOUND", message: `Assessment ${allocation.assessmentId} not found` };
-    }
-    const cycle = await cyclesRepo.findCycleById(organizationId, assessment.cycleId);
-    if (!cycle || cycle.status !== "OPEN") {
-      return { ok: false, code: "CYCLE_NOT_OPEN", message: "Payments can only be recorded on the open cycle" };
-    }
-    const remaining = assessment.amountMillimes - assessment.paidMillimes;
-    if (allocation.amountMillimes > remaining) {
-      return {
-        ok: false,
-        code: "OVER_ALLOCATION",
-        message: `Allocation of ${allocation.amountMillimes} exceeds the remaining balance (${remaining})`,
-      };
-    }
-    resolved.push({
-      assessmentId: assessment.id,
-      lotId: assessment.lotId,
-      cycleId: assessment.cycleId,
-      amountMillimes: allocation.amountMillimes,
-    });
-  }
-  const totalAmountMillimes = resolved.reduce((sum, a) => sum + a.amountMillimes, 0);
-
-  // Who paid, unless given: the owner of the units paid. One owner → the
-  // payment is theirs; units of several owners → their names, no owner link.
-  let owner = explicitOwner;
-  let payerName = input.payerName || null;
-  if (!owner) {
-    const lots = await lotsRepo.findLotsByIds(organizationId, [...new Set(resolved.map((a) => a.lotId))]);
-    const ownerIds = [...new Set(lots.map((l) => l.ownerId).filter((id): id is string => !!id))];
-    const lotOwners = (await Promise.all(ownerIds.map((id) => ownersRepo.findOwnerById(organizationId, id)))).filter(
-      (o) => o !== null,
-    );
-    if (lotOwners.length === 1) owner = lotOwners[0];
-    else if (lotOwners.length > 1 && !payerName) payerName = lotOwners.map((o) => o.name).join(", ");
-  }
+  const resolved = await resolveAllocations(organizationId, input.allocations);
+  if (!resolved.ok) return resolved;
+  const payer = await resolvePayer(organizationId, resolved.data, input.ownerId, input.payerName);
+  if (!payer.ok) return payer;
+  const { owner, payerName } = payer.data;
+  const totalAmountMillimes = resolved.data.reduce((sum, a) => sum + a.amountMillimes, 0);
 
   try {
     const payment = await withTransaction(async (dbSession) => {
-      for (const allocation of resolved) {
+      for (const allocation of resolved.data) {
         await assessmentsRepo.applyPaymentToAssessment(
           organizationId,
           allocation.assessmentId,
@@ -116,7 +146,7 @@ export async function recordPayment(
           method: input.method,
           note: input.note || null,
           idempotencyKey: input.idempotencyKey,
-          allocations: resolved,
+          allocations: resolved.data,
           createdBy: session.userId,
         },
         dbSession,
@@ -130,7 +160,7 @@ export async function recordPayment(
           entityId: doc.id,
           metadata: {
             amountMillimes: totalAmountMillimes,
-            allocationCount: resolved.length,
+            allocationCount: resolved.data.length,
             name: owner?.name ?? payerName,
           },
         },
@@ -162,6 +192,105 @@ export async function listPaymentsForCycle(
   return { ok: true, data: await repo.listPaymentsForCycle(organizationId, cycleId) };
 }
 
+/**
+ * Edits a payment: its date, method, note and allocations are replaced as a
+ * whole. In one transaction the old allocations are taken back off their
+ * units and the new ones applied, so no unit is ever over- or under-counted.
+ * Only while every unit involved is in the OPEN cycle.
+ */
+export async function updatePayment(
+  session: AuthorizedSession,
+  organizationId: string,
+  rawInput: UpdatePaymentInput,
+): Promise<Result<Payment>> {
+  requireOrganization(session, organizationId);
+  requirePermission(session, "payments:cancel");
+
+  const parsed = updatePaymentInputSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    return { ok: false, code: "VALIDATION_ERROR", message: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+  const input = parsed.data;
+  const payment = await repo.findPaymentById(organizationId, input.paymentId);
+  if (!payment) return { ok: false, code: "NOT_FOUND", message: "Payment not found" };
+  if (payment.status !== "COMPLETED") {
+    return { ok: false, code: "ALREADY_VOIDED", message: `Payment is already ${payment.status}` };
+  }
+  if (!(await allCyclesOpen(organizationId, payment))) {
+    return { ok: false, code: "CYCLE_NOT_OPEN", message: "Payments of a closed cycle cannot change" };
+  }
+
+  const credit = new Map(payment.allocations.map((a) => [a.assessmentId, a.amountMillimes]));
+  const resolved = await resolveAllocations(organizationId, input.allocations, credit);
+  if (!resolved.ok) return resolved;
+  const payer = await resolvePayer(organizationId, resolved.data, input.ownerId, input.payerName);
+  if (!payer.ok) return payer;
+  const totalAmountMillimes = resolved.data.reduce((sum, a) => sum + a.amountMillimes, 0);
+
+  try {
+    const updated = await withTransaction(async (dbSession) => {
+      for (const allocation of payment.allocations) {
+        await assessmentsRepo.reversePaymentFromAssessment(
+          organizationId,
+          allocation.assessmentId,
+          allocation.amountMillimes,
+          dbSession,
+        );
+      }
+      for (const allocation of resolved.data) {
+        await assessmentsRepo.applyPaymentToAssessment(
+          organizationId,
+          allocation.assessmentId,
+          allocation.amountMillimes,
+          dbSession,
+        );
+      }
+      const doc = await repo.replacePaymentContent(
+        organizationId,
+        payment.id,
+        {
+          ownerId: payer.data.owner?.id ?? null,
+          payerName: payer.data.payerName,
+          date: input.date,
+          amountMillimes: totalAmountMillimes,
+          method: input.method,
+          note: input.note || null,
+          allocations: resolved.data,
+        },
+        dbSession,
+      );
+      if (!doc) throw new Error("Payment was no longer COMPLETED");
+      await writeAuditLog(
+        {
+          organizationId,
+          actorUserId: session.userId,
+          action: "PAYMENT_UPDATED",
+          entityType: "payment",
+          entityId: payment.id,
+          metadata: { amountMillimes: totalAmountMillimes, name: payer.data.payerName },
+        },
+        dbSession,
+      );
+      return doc;
+    });
+    return { ok: true, data: updated };
+  } catch (error) {
+    if (error instanceof OverAllocationError) {
+      return { ok: false, code: "OVER_ALLOCATION", message: error.message };
+    }
+    throw error;
+  }
+}
+
+/** A closed cycle's figures are frozen: its payments can be neither edited nor deleted. */
+async function allCyclesOpen(organizationId: string, payment: Payment): Promise<boolean> {
+  for (const cycleId of new Set(payment.allocations.map((a) => a.cycleId))) {
+    const cycle = await cyclesRepo.findCycleById(organizationId, cycleId);
+    if (!cycle || cycle.status !== "OPEN") return false;
+  }
+  return true;
+}
+
 async function voidPayment(
   session: AuthorizedSession,
   organizationId: string,
@@ -180,6 +309,9 @@ async function voidPayment(
   if (!payment) return { ok: false, code: "NOT_FOUND", message: "Payment not found" };
   if (payment.status !== "COMPLETED") {
     return { ok: false, code: "ALREADY_VOIDED", message: `Payment is already ${payment.status}` };
+  }
+  if (!(await allCyclesOpen(organizationId, payment))) {
+    return { ok: false, code: "CYCLE_NOT_OPEN", message: "Payments of a closed cycle cannot change" };
   }
 
   const updated = await withTransaction(async (dbSession) => {
@@ -206,7 +338,7 @@ async function voidPayment(
         action: targetStatus === "CANCELLED" ? "PAYMENT_CANCELLED" : "PAYMENT_REVERSED",
         entityType: "payment",
         entityId: payment.id,
-        metadata: { reason: parsed.data.reason },
+        metadata: { reason: parsed.data.reason, amountMillimes: payment.amountMillimes, name: payment.payerName },
       },
       dbSession,
     );

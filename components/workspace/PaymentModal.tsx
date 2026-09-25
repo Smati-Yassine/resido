@@ -17,7 +17,7 @@ import { PAYMENT_METHODS } from "@/lib/domain/payments/schema";
 import { ModalButton } from "./ModalButton";
 import { ModalActions } from "./ModalActions";
 
-/** A lot that still owes something in the open cycle. */
+/** A unit of the open cycle and what it still owes (a paid unit owes 0). */
 export interface OutstandingLot {
   assessmentId: string;
   code: string;
@@ -35,6 +35,16 @@ function parse(raw: string, currency: CurrencyCode): number | null {
   } catch {
     return null;
   }
+}
+
+/** An existing payment, as the edit form starts from it. */
+export interface EditablePayment {
+  id: string;
+  /** "YYYY-MM-DD" */
+  date: string;
+  method: (typeof PAYMENT_METHODS)[number];
+  note: string | null;
+  allocations: { assessmentId: string; amountMillimes: number }[];
 }
 
 export function PaymentButton({
@@ -86,13 +96,16 @@ function LotOption({ lot, onPick }: { lot: OutstandingLot; onPick: () => void })
  * the server), and the owner's other unpaid units are offered right below,
  * unselected, for when they settle several at once.
  */
-function PaymentModal({
+export function PaymentModal({
   residenceId,
-  lots: allLots,
+  lots: unitLots,
+  payment,
   onClose,
 }: {
   residenceId: string;
   lots: OutstandingLot[];
+  /** Given: the form edits this payment instead of recording a new one. */
+  payment?: EditablePayment;
   onClose: () => void;
 }) {
   const { t } = useI18n();
@@ -100,10 +113,20 @@ function PaymentModal({
   const { code: currency, symbol } = useCurrency();
   const [idempotencyKey] = useState(() => crypto.randomUUID());
   const [query, setQuery] = useState("");
-  // Units found by search, in the order they were added.
-  const [picked, setPicked] = useState<string[]>([]);
+  // What each unit can still receive: its remaining due, plus — when editing —
+  // what this payment already pays on it (that part is freed on save).
+  const credit = new Map((payment?.allocations ?? []).map((a) => [a.assessmentId, a.amountMillimes]));
+  const allLots = unitLots
+    .map((l) => ({ ...l, remainingMillimes: l.remainingMillimes + (credit.get(l.assessmentId) ?? 0) }))
+    .filter((l) => l.remainingMillimes > 0);
+  // Units found by search (or already in the edited payment), in the order they were added.
+  const [picked, setPicked] = useState<string[]>(() => (payment?.allocations ?? []).map((a) => a.assessmentId));
   // Selected units and their typed amounts; no typed amount = the full remaining due.
-  const [amounts, setAmounts] = useState<Record<string, string | null>>({});
+  const [amounts, setAmounts] = useState<Record<string, string | null>>(() =>
+    Object.fromEntries(
+      (payment?.allocations ?? []).map((a) => [a.assessmentId, toInputAmount(a.amountMillimes, currency)]),
+    ),
+  );
 
   const byId = new Map(allLots.map((l) => [l.assessmentId, l]));
   const pickedLots = picked.map((id) => byId.get(id)!).filter(Boolean);
@@ -193,14 +216,15 @@ function PaymentModal({
   const [submit, pending] = useActionToast(recordPaymentAction, onClose, prepare);
 
   return (
-    <Modal title={t.newPayment} subtitle={t.payHelp} width={720} onClose={onClose}>
+    <Modal title={payment ? t.editPayment : t.newPayment} subtitle={t.payHelp} width={720} onClose={onClose}>
       <form onSubmit={submit} className="flex flex-col gap-5">
         <input type="hidden" name="residenceId" value={residenceId} />
         <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
+        {payment && <input type="hidden" name="paymentId" value={payment.id} />}
 
         <div className="grid grid-cols-2 gap-3">
           <Field label={t.method}>
-            <select className="input" name="method" defaultValue="CASH">
+            <select className="input" name="method" defaultValue={payment?.method ?? "CASH"}>
               {PAYMENT_METHODS.map((m) => (
                 <option key={m} value={m}>
                   {t[`method${m}`]}
@@ -209,7 +233,7 @@ function PaymentModal({
             </select>
           </Field>
           <Field label={t.date}>
-            <input className="input" type="date" name="date" defaultValue={todayIso()} required />
+            <input className="input" type="date" name="date" defaultValue={payment?.date ?? todayIso()} required />
           </Field>
         </div>
 
@@ -372,10 +396,17 @@ function PaymentModal({
         </div>
 
         <Field label={t.note}>
-          <textarea className="input" name="note" rows={2} maxLength={500} placeholder={t.notePlaceholder} />
+          <textarea
+            className="input"
+            name="note"
+            rows={2}
+            maxLength={500}
+            defaultValue={payment?.note ?? ""}
+            placeholder={t.notePlaceholder}
+          />
         </Field>
 
-        <ModalActions onCancel={onClose} submitLabel={t.recordPayment} pending={pending} />
+        <ModalActions onCancel={onClose} submitLabel={payment ? t.saveChanges : t.recordPayment} pending={pending} />
       </form>
     </Modal>
   );

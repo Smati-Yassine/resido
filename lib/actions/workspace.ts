@@ -93,6 +93,10 @@ export async function createLotAction(_: ActionResult | null, formData: FormData
   });
 }
 
+/**
+ * Records a new payment, or — with a `paymentId` in the form — replaces an
+ * existing one (edit). Same form, same checks; the domain does the rest.
+ */
 export async function recordPaymentAction(_: ActionResult | null, formData: FormData): Promise<ActionResult> {
   const { residenceId, session, t, done, currency, money, example } = await scoped(formData);
   return guarded(t, async () => {
@@ -113,25 +117,47 @@ export async function recordPaymentAction(_: ActionResult | null, formData: Form
       if (amount < a.remaining) partial.push(a.code);
     }
     const method = field(formData, "method") as PaymentMethod;
-    const result = await payments.recordPayment(session, residenceId, {
+    const content = {
       date: field(formData, "date"),
-      method: PAYMENT_METHODS.includes(method) ? method : "CASH",
+      method: PAYMENT_METHODS.includes(method) ? method : ("CASH" as const),
       note: field(formData, "note") || undefined,
-      idempotencyKey: field(formData, "idempotencyKey"),
       allocations: allocations.map((a) => ({
         assessmentId: a.assessmentId,
         amountMillimes: a.amount.replace(",", "."),
       })),
-    });
+    };
+    const paymentId = field(formData, "paymentId");
+    const result = paymentId
+      ? await payments.updatePayment(session, residenceId, { ...content, paymentId })
+      : await payments.recordPayment(session, residenceId, {
+          ...content,
+          idempotencyKey: field(formData, "idempotencyKey"),
+        });
     if (!result.ok) {
-      if (result.code === "CYCLE_NOT_OPEN") return { ok: false, message: t.errCycleNotOpen };
+      if (result.code === "CYCLE_NOT_OPEN")
+        return { ok: false, message: paymentId ? t.errPaymentLocked : t.errCycleNotOpen };
       if (result.code === "OVER_ALLOCATION")
         return { ok: false, message: interpolate(t.errAmount, { example: example(480) }) };
       return { ok: false, message: t.errGeneric };
     }
-    let message = interpolate(t.paymentRecorded, { amount: money(result.data.amountMillimes) });
+    let message = interpolate(paymentId ? t.paymentUpdated : t.paymentRecorded, {
+      amount: money(result.data.amountMillimes),
+    });
     if (partial.length) message += interpolate(t.paymentPartial, { lots: partial.join(", ") });
     return done(message);
+  });
+}
+
+/** Deletes a payment: its amounts become due again on its units (recorded as a cancellation). */
+export async function deletePaymentAction(_: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  const { residenceId, session, t, done, money } = await scoped(formData);
+  return guarded(t, async () => {
+    const result = await payments.cancelPayment(session, residenceId, {
+      paymentId: field(formData, "paymentId"),
+      reason: t.deletePaymentReason,
+    });
+    if (!result.ok) return { ok: false, message: result.code === "CYCLE_NOT_OPEN" ? t.errPaymentLocked : t.errGeneric };
+    return done(interpolate(t.paymentDeleted, { amount: money(result.data.amountMillimes) }));
   });
 }
 

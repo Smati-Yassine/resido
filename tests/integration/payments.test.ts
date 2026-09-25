@@ -97,6 +97,85 @@ describe("payments", () => {
   });
 });
 
+describe("editing and deleting payments", () => {
+  const pay = async (ctx: Awaited<ReturnType<typeof residenceWithOpenCycle>>, codes: [string, string][]) =>
+    unwrap(
+      await payments.recordPayment(ctx.session, ctx.residence.id, {
+        date: "2026-03-02",
+        method: "CASH",
+        idempotencyKey: key(),
+        allocations: codes.map(([c, amount]) => ({ assessmentId: ctx.assessmentOf(c), amountMillimes: amount })),
+      }),
+    );
+  const lotRow = async (ctx: Awaited<ReturnType<typeof residenceWithOpenCycle>>, code: string) =>
+    (await overview.getLotRows(ctx.session, ctx.residence.id, ctx.cycle.id)).find((r) => r.code === code)!;
+
+  it("replaces the units and amounts of a payment, moving what each unit owes", async () => {
+    const ctx = await residenceWithOpenCycle();
+    const payment = await pay(ctx, [["A11", "1000"]]);
+    expect((await lotRow(ctx, "A11")).status).toBe("PAID");
+
+    const edited = unwrap(
+      await payments.updatePayment(ctx.session, ctx.residence.id, {
+        paymentId: payment.id,
+        date: "2026-03-05",
+        method: "CHECK",
+        note: "corrected",
+        allocations: [
+          { assessmentId: ctx.assessmentOf("A11"), amountMillimes: "400" },
+          { assessmentId: ctx.assessmentOf("B11"), amountMillimes: "2000" },
+        ],
+      }),
+    );
+    expect(edited).toMatchObject({ id: payment.id, amountMillimes: 2_400_000, method: "CHECK", note: "corrected" });
+    expect(await lotRow(ctx, "A11")).toMatchObject({ status: "PARTIAL", paidMillimes: 400_000 });
+    expect((await lotRow(ctx, "B11")).status).toBe("PAID");
+    const treasury = unwrap(await cycles.getCycleTreasury(ctx.session, ctx.residence.id, ctx.cycle.id));
+    expect(treasury.incomeMillimes).toBe(2_400_000);
+  });
+
+  it("lets a payment keep the amount it already covers, but never overpay", async () => {
+    const ctx = await residenceWithOpenCycle();
+    const payment = await pay(ctx, [["A11", "1000"]]);
+    // A11 is fully paid by this very payment: re-saving the same amount is fine…
+    unwrap(
+      await payments.updatePayment(ctx.session, ctx.residence.id, {
+        paymentId: payment.id,
+        date: "2026-03-02",
+        method: "CASH",
+        allocations: [{ assessmentId: ctx.assessmentOf("A11"), amountMillimes: "1000" }],
+      }),
+    );
+    // …but more than the unit's charge is refused, and nothing changes.
+    const over = await payments.updatePayment(ctx.session, ctx.residence.id, {
+      paymentId: payment.id,
+      date: "2026-03-02",
+      method: "CASH",
+      allocations: [{ assessmentId: ctx.assessmentOf("A11"), amountMillimes: "1000.001" }],
+    });
+    expect(over).toMatchObject({ ok: false, code: "OVER_ALLOCATION" });
+    expect((await lotRow(ctx, "A11")).paidMillimes).toBe(1_000_000);
+  });
+
+  it("freezes payments once their cycle is closed", async () => {
+    const ctx = await residenceWithOpenCycle();
+    const payment = await pay(ctx, [["A11", "100"]]);
+    unwrap(await cycles.closeCycle(ctx.session, ctx.residence.id, { cycleId: ctx.cycle.id }));
+    expect(await payments.cancelPayment(ctx.session, ctx.residence.id, { paymentId: payment.id, reason: "x" })).toMatchObject({
+      ok: false,
+      code: "CYCLE_NOT_OPEN",
+    });
+    expect(
+      await payments.updatePayment(ctx.session, ctx.residence.id, {
+        paymentId: payment.id,
+        date: "2026-03-02",
+        method: "CASH",
+        allocations: [{ assessmentId: ctx.assessmentOf("A11"), amountMillimes: "50" }],
+      }),
+    ).toMatchObject({ ok: false, code: "CYCLE_NOT_OPEN" });
+  });
+});
+
 describe("expenses", () => {
   it("records against the open cycle and groups by month", async () => {
     const { session, residence, cycle } = await residenceWithOpenCycle();
