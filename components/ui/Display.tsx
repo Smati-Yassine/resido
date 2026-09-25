@@ -93,3 +93,24 @@ export function Bar({ value, tone = "primary" }: { value: number; tone?: "primar
     </div>
   );
 }
+
+/** One figure of a stat strip (`card ledger`): label, value, optional note. */
+export function StatCell({
+  label,
+  value,
+  note,
+  valueClass = "",
+}: {
+  label: string;
+  value: string;
+  note?: string;
+  valueClass?: string;
+}) {
+  return (
+    <div className="ledger-cell">
+      <span className="ledger-label">{label}</span>
+      <span className={`ledger-value ${valueClass}`}>{value}</span>
+      {note && <span className="text-xs text-muted">{note}</span>}
+    </div>
+  );
+}

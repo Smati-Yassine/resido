@@ -16,6 +16,7 @@ import { fromDecimalString, millimes, toDecimalString } from "@/lib/money";
 import { PAYMENT_METHODS } from "@/lib/domain/payments/schema";
 import { ModalButton } from "./ModalButton";
 import { ModalActions } from "./ModalActions";
+import { fold } from "@/lib/text";
 
 /** A unit of the open cycle and what it still owes (a paid unit owes 0). */
 export interface OutstandingLot {
@@ -67,11 +68,6 @@ export function PaymentButton({
 const MAX_RESULTS = 6;
 
 /** Lower case without accents, so "helene" finds "Hélène". */
-const fold = (text: string) =>
-  text
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
 
 /** One unit in the search results: code, bloc, owner and what it still owes. */
 function LotOption({ lot, onPick }: { lot: OutstandingLot; onPick: () => void }) {
