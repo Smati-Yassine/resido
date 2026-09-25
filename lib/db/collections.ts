@@ -48,7 +48,7 @@ const INDEXES: Record<string, IndexDef[]> = {
   [COLLECTIONS.lots]: [
     { key: { organizationId: 1, code: 1 }, options: { unique: true } },
     { key: { organizationId: 1, buildingId: 1 } },
-    { key: { organizationId: 1, ownerId: 1 } },
+    { key: { organizationId: 1, ownerIds: 1 } },
   ],
   [COLLECTIONS.owners]: [{ key: { organizationId: 1, name: 1 } }],
   [COLLECTIONS.cycles]: [

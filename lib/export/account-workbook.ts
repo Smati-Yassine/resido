@@ -149,12 +149,12 @@ export async function buildAccountWorkbook(residences: Residence[], locale: Loca
         r,
         l.code,
         l.buildingId ? (blocName.get(l.buildingId) ?? "") : "",
-        l.ownerId ? (ownerName.get(l.ownerId) ?? "") : "",
+        l.ownerIds.map((id) => ownerName.get(id) ?? "").filter(Boolean).join(" & "),
         dt(l.chargeMillimes),
       ]);
     }
     for (const o of owners) {
-      const held = lots.filter((l) => l.ownerId === o.id).map((l) => l.code);
+      const held = lots.filter((l) => l.ownerIds.includes(o.id)).map((l) => l.code);
       push("owners", [r, o.name, o.phone ?? "", held.join(", ")]);
     }
 

@@ -21,11 +21,11 @@ describe("owners", () => {
       }),
     );
     const rows = await overview.getLotRows(session, residence.id, cycle.id);
-    expect(rows.filter((r) => r.ownerId === owner.id).map((r) => [r.code, r.ownerName])).toEqual([
+    expect(rows.filter((r) => r.ownerIds.includes(owner.id)).map((r) => [r.code, r.ownerName])).toEqual([
       ["A11", "Owner One"],
       ["B11", "Owner One"],
     ]);
-    expect(rows.find((r) => r.code === "A12")?.ownerId).toBeNull();
+    expect(rows.find((r) => r.code === "A12")?.ownerIds).toEqual([]);
   });
 
   it("moves a lot from one owner to another, and editing replaces the owner's lots", async () => {
@@ -44,7 +44,7 @@ describe("owners", () => {
     );
 
     let rows = await overview.getLotRows(session, residence.id, cycle.id);
-    expect(rows.find((r) => r.code === "A12")?.ownerId).toBe(second.id);
+    expect(rows.find((r) => r.code === "A12")?.ownerIds).toEqual([second.id]);
 
     unwrap(
       await owners.updateOwner(session, residence.id, first.id, {
@@ -74,13 +74,13 @@ describe("owners", () => {
         buildingId: l.a11.buildingId!,
         code: "A11",
         chargeMillimes: "1000",
-        ownerId: owner.id,
+        ownerIds: [owner.id],
       }),
     );
     expect((await overview.getLotRows(session, residence.id, cycle.id))[0].ownerName).toBe("Owner");
 
     unwrap(await owners.deleteOwner(session, residence.id, owner.id));
-    expect((await overview.getLotRows(session, residence.id, cycle.id))[0].ownerId).toBeNull();
+    expect((await overview.getLotRows(session, residence.id, cycle.id))[0].ownerIds).toEqual([]);
     expect(unwrap(await owners.listOwners(session, residence.id))).toEqual([]);
   });
 
@@ -196,7 +196,7 @@ describe("ownership per cycle", () => {
           buildingId: l.a11.buildingId!,
           code: "A11",
           chargeMillimes: "1000",
-          ownerId,
+          ownerIds: ownerId ? [ownerId] : [],
         },
         cycleId,
       );
@@ -215,7 +215,7 @@ describe("ownership per cycle", () => {
     expect(await ownerIn(cycle.id)).toBe("A");
     expect(await ownerIn(next.id)).toBe("B");
     // Cycles still to open start with B.
-    expect(unwrap(await lots.listLots(session, residence.id)).find((x) => x.id === l.a11.id)!.ownerId).toBe(b.id);
+    expect(unwrap(await lots.listLots(session, residence.id)).find((x) => x.id === l.a11.id)!.ownerIds).toEqual([b.id]);
   });
 
   it("correcting an old cycle carries forward only while the owner was the same", async () => {
@@ -272,7 +272,7 @@ describe("ownership per cycle", () => {
   it("charges built before owners were kept per cycle keep their owner when it changes", async () => {
     const { session, residence, cycle, next, ownerIn, setOwner } = await twoCycles();
     // Simulate old data: no owner recorded on the charges.
-    await (await getDb()).collection(COLLECTIONS.assessments).updateMany({}, { $unset: { ownerId: "" } });
+    await (await getDb()).collection(COLLECTIONS.assessments).updateMany({}, { $unset: { ownerIds: "", ownerId: "" } });
     expect(await ownerIn(cycle.id)).toBe("A");
     const b = unwrap(
       await owners.createOwner(session, residence.id, {
@@ -300,7 +300,7 @@ describe("ownership per cycle", () => {
     const { session, residence, cycle, next, ownerIn, a, lots: l } = await twoCycles();
     unwrap(await owners.deleteOwner(session, residence.id, a.id, next.id));
     expect([await ownerIn(cycle.id), await ownerIn(next.id)]).toEqual(["A", null]);
-    expect(unwrap(await lots.listLots(session, residence.id)).find((x) => x.id === l.a11.id)!.ownerId).toBeNull();
+    expect(unwrap(await lots.listLots(session, residence.id)).find((x) => x.id === l.a11.id)!.ownerIds).toEqual([]);
   });
 
   it("an owner no cycle names any more is deleted for good", async () => {
@@ -308,5 +308,81 @@ describe("ownership per cycle", () => {
     const o = unwrap(await owners.createOwner(session, residence.id, { name: "Temp", lotIds: [] }));
     unwrap(await owners.deleteOwner(session, residence.id, o.id));
     expect(unwrap(await owners.listOwners(session, residence.id)).some((x) => x.id === o.id)).toBe(false);
+  });
+
+  it("reads records from before co-ownership: one ownerId on the lot and the charges", async () => {
+    const { session, residence, cycle, next, ownerIn, setOwner, lots: l } = await twoCycles();
+    const db = await getDb();
+    // Old shape: a single ownerId field, no ownerIds.
+    await db
+      .collection(COLLECTIONS.assessments)
+      .updateMany({}, [{ $set: { ownerId: { $arrayElemAt: ["$ownerIds", 0] } } }, { $unset: "ownerIds" }]);
+    await db
+      .collection(COLLECTIONS.lots)
+      .updateMany({}, [{ $set: { ownerId: { $arrayElemAt: ["$ownerIds", 0] } } }, { $unset: "ownerIds" }]);
+    expect([await ownerIn(cycle.id), await ownerIn(next.id)]).toEqual(["A", "A"]);
+    const b = unwrap(await owners.createOwner(session, residence.id, { name: "B", lotIds: [] }));
+    unwrap(await setOwner(b.id, next.id));
+    expect([await ownerIn(cycle.id), await ownerIn(next.id)]).toEqual(["A", "B"]);
+    expect(unwrap(await lots.listLots(session, residence.id)).find((x) => x.id === l.a11.id)!.ownerIds).toEqual([b.id]);
+  });
+});
+
+describe("co-ownership", () => {
+  it("the owner form shares a lot (both own it) or hands it over", async () => {
+    const { session, residence, cycle, lots: l } = await residenceWithOpenCycle();
+    const a = unwrap(await owners.createOwner(session, residence.id, { name: "A", lotIds: [l.a11.id, l.a12.id] }));
+    // B shares A11 with A, and takes A12 over.
+    const b = unwrap(
+      await owners.createOwner(session, residence.id, {
+        name: "B",
+        lotIds: [l.a11.id, l.a12.id],
+        shareLotIds: [l.a11.id],
+      }),
+    );
+    const rows = await overview.getLotRows(session, residence.id, cycle.id);
+    const row = (code: string) => rows.find((r) => r.code === code)!;
+    expect(row("A11")).toMatchObject({ ownerIds: [a.id, b.id], ownerName: "A & B" });
+    expect(row("A12")).toMatchObject({ ownerIds: [b.id], ownerName: "B" });
+
+    // Taking B off A11 leaves A its owner.
+    unwrap(await owners.updateOwner(session, residence.id, b.id, { name: "B", lotIds: [l.a12.id] }));
+    const after = await overview.getLotRows(session, residence.id, cycle.id);
+    expect(after.find((r) => r.code === "A11")).toMatchObject({ ownerIds: [a.id], ownerName: "A" });
+  });
+
+  it("a lot can be given several owners from its form, and removing one keeps the other", async () => {
+    const { session, residence, cycle, lots: l } = await residenceWithOpenCycle();
+    const a = unwrap(await owners.createOwner(session, residence.id, { name: "A", lotIds: [] }));
+    const b = unwrap(await owners.createOwner(session, residence.id, { name: "B", lotIds: [] }));
+    unwrap(
+      await lots.updateLot(session, residence.id, {
+        lotId: l.a11.id,
+        buildingId: l.a11.buildingId!,
+        code: "A11",
+        chargeMillimes: "1000",
+        ownerIds: [a.id, b.id],
+      }),
+    );
+    const payment = unwrap(
+      await payments.recordPayment(session, residence.id, {
+        date: "2026-02-01",
+        method: "CASH",
+        idempotencyKey: key(),
+        allocations: [
+          {
+            assessmentId: (await overview.getLotRows(session, residence.id, cycle.id)).find((r) => r.code === "A11")!
+              .assessmentId,
+            amountMillimes: "10",
+          },
+        ],
+      }),
+    );
+    // Co-owners paying together: no single owner, both names.
+    expect(payment).toMatchObject({ ownerId: null, payerName: "A, B" });
+
+    unwrap(await owners.deleteOwner(session, residence.id, a.id));
+    const rows = await overview.getLotRows(session, residence.id, cycle.id);
+    expect(rows.find((r) => r.code === "A11")).toMatchObject({ ownerIds: [b.id], ownerName: "B" });
   });
 });

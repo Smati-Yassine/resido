@@ -6,12 +6,14 @@ import { ownerInputSchema, type Owner, type OwnerInput } from "./schema";
 import * as repo from "./repository";
 import * as lotsRepo from "@/lib/domain/lots/repository";
 import * as assessmentsRepo from "@/lib/domain/assessments/repository";
-import { changeLotOwner, defaultCycleId, lotOwnersInCycle, removeOwnerFrom } from "@/lib/domain/lots/ownership";
+import { changeLotOwners, defaultCycleId, lotOwnersInCycle, removeOwnerFrom } from "@/lib/domain/lots/ownership";
 import type { ClientSession } from "mongodb";
 
 export type Result<T> = { ok: true; data: T } | { ok: false; code: "VALIDATION_ERROR" | "NOT_FOUND"; message: string };
 
-type Parsed = { ok: true; name: string; phone: string | null; lotIds: string[] } | { ok: false; message: string };
+type Parsed =
+  | { ok: true; name: string; phone: string | null; lotIds: string[]; shareLotIds: string[] }
+  | { ok: false; message: string };
 
 async function parse(organizationId: string, rawInput: OwnerInput): Promise<Parsed> {
   const parsed = ownerInputSchema.safeParse(rawInput);
@@ -20,28 +22,45 @@ async function parse(organizationId: string, rawInput: OwnerInput): Promise<Pars
   const known = new Set((await lotsRepo.listLots(organizationId)).map((l) => l.id));
   const lotIds = [...new Set(parsed.data.lotIds)];
   if (lotIds.some((id) => !known.has(id))) return { ok: false, message: "Unknown lot" };
-  return { ok: true, name: parsed.data.name, phone: parsed.data.phone || null, lotIds };
+  const shareLotIds = parsed.data.shareLotIds.filter((id) => lotIds.includes(id));
+  return { ok: true, name: parsed.data.name, phone: parsed.data.phone || null, lotIds, shareLotIds };
 }
 
 /**
- * Makes `lotIds` exactly the lots `ownerId` holds in `cycleId`, taking them
- * from any other owner; lots they held there and no longer list are left
- * without one. Each change runs from that cycle onward (changeLotOwner).
+ * Makes `lotIds` exactly the lots `ownerId` holds in `cycleId`. A lot owned by
+ * someone else is handed over — or, listed in `shareLotIds`, shared: this
+ * owner joins its owners. Lots they held there and no longer list lose them
+ * (co-owners keep theirs). Each change runs from that cycle onward
+ * (changeLotOwners).
  */
 async function assignLots(
   organizationId: string,
   ownerId: string,
   lotIds: string[],
+  shareLotIds: string[],
   cycleId: string | null,
   dbSession: ClientSession,
 ): Promise<void> {
   const lots = await lotsRepo.listLots(organizationId);
   const owners = await lotOwnersInCycle(organizationId, lots, cycleId);
   const wanted = new Set(lotIds);
+  const shared = new Set(shareLotIds);
   for (const lot of lots) {
-    const holds = owners.get(lot.id) === ownerId;
-    if (wanted.has(lot.id) && !holds) await changeLotOwner(organizationId, lot, ownerId, cycleId, dbSession);
-    if (!wanted.has(lot.id) && holds) await changeLotOwner(organizationId, lot, null, cycleId, dbSession);
+    const current = owners.get(lot.id) ?? [];
+    const holds = current.includes(ownerId);
+    if (wanted.has(lot.id) && !holds) {
+      const next = shared.has(lot.id) ? [...current, ownerId] : [ownerId];
+      await changeLotOwners(organizationId, lot, next, cycleId, dbSession);
+    }
+    if (!wanted.has(lot.id) && holds) {
+      await changeLotOwners(
+        organizationId,
+        lot,
+        current.filter((id) => id !== ownerId),
+        cycleId,
+        dbSession,
+      );
+    }
   }
 }
 
@@ -63,7 +82,7 @@ export async function createOwner(
 
   const owner = await withTransaction(async (dbSession) => {
     const created = await repo.insertOwner(organizationId, { name: input.name, phone: input.phone }, dbSession);
-    await assignLots(organizationId, created.id, input.lotIds, from, dbSession);
+    await assignLots(organizationId, created.id, input.lotIds, input.shareLotIds, from, dbSession);
     await writeAuditLog(
       {
         organizationId,
@@ -102,7 +121,7 @@ export async function updateOwner(
       dbSession,
     );
     if (updated) {
-      await assignLots(organizationId, ownerId, input.lotIds, from, dbSession);
+      await assignLots(organizationId, ownerId, input.lotIds, input.shareLotIds, from, dbSession);
       await writeAuditLog(
         {
           organizationId,

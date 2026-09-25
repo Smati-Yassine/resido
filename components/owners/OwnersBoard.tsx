@@ -8,6 +8,8 @@ import { FilterChips, SearchField } from "@/components/ui/Filters";
 import { OwnerRowActions, type LotChoice } from "@/components/workspace/OwnerModals";
 import { formatAmount, formatMoney, initials, percent } from "@/lib/format";
 import { fold } from "@/lib/text";
+import { interpolate } from "@/lib/i18n/dictionaries";
+import { Icon } from "@/components/ui/Icon";
 
 type LotStatus = "PAID" | "PARTIAL" | "UNPAID" | "NONE";
 
@@ -16,6 +18,8 @@ export interface OwnerLot {
   code: string;
   bloc: string;
   status: LotStatus;
+  /** The lot's other owners (co-ownership), by name. */
+  coOwners: string[];
 }
 
 /** One owner as the page shows them for the cycle on screen. */
@@ -39,6 +43,7 @@ export function OwnersBoard({
   owners,
   unassigned,
   lotCount,
+  totalDueMillimes,
   billed,
   residenceId,
   canManage,
@@ -47,6 +52,7 @@ export function OwnersBoard({
   owners: OwnerItem[];
   unassigned: OwnerLot[];
   lotCount: number;
+  totalDueMillimes: number;
   billed: boolean;
   residenceId: string;
   canManage: boolean;
@@ -59,7 +65,7 @@ export function OwnersBoard({
 
   const due = (o: OwnerItem) => o.chargedMillimes - o.paidMillimes;
   const owing = owners.filter((o) => due(o) > 0);
-  const totalDue = owners.reduce((n, o) => n + due(o), 0);
+  const totalDue = totalDueMillimes;
   const q = fold(query.trim());
   const shown = owners.filter(
     (o) =>
@@ -150,11 +156,17 @@ export function OwnersBoard({
                     {owner.lots.map((l) => (
                       <span
                         key={l.id}
-                        className="lot-tile lot-tile-sm"
+                        className={`lot-tile lot-tile-sm ${l.coOwners.length ? "lot-tile-shared" : ""}`}
                         data-status={l.status}
-                        title={`${l.code} · ${l.bloc}`}
+                        title={[
+                          `${l.code} · ${l.bloc}`,
+                          l.coOwners.length ? interpolate(t.sharedWith, { name: l.coOwners.join(" & ") }) : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
                       >
                         {l.code}
+                        {l.coOwners.length > 0 && <Icon name="owners" size={11} />}
                       </span>
                     ))}
                   </div>

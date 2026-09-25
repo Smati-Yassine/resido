@@ -62,9 +62,15 @@ reference. There are no categories; expenses are read month by month, like
 the source ledger.
 
 **Owners.** A lean `owners` collection (name, optional phone) replaces the
-old owner/ownership-history model. Ownership is kept per cycle: each
-assessment records who owned its lot in that cycle (`assessments.ownerId`),
-and `lots.ownerId` is who will own the lot in cycles still to open. Opening
+old owner/ownership-history model. A lot can have several owners
+(co-ownership). Ownership is kept per cycle: each assessment records who
+owned its lot in that cycle (`assessments.ownerIds`), and `lots.ownerIds` is
+who will own the lot in cycles still to open. Records from before
+co-ownership (a single `ownerId`) are read as one-owner lists and rewritten
+on their next change. In the owner form, lots come grouped — theirs, then
+without an owner, then of other owners — with a search; picking another
+owner's lot asks whether to replace them or share it. The lot form takes
+several owners. Opening
 a cycle copies each lot's owner onto its assessment. Lots are assigned from
 the owner form (a checklist) or from a lot's Edit form, and a change applies
 from the cycle being viewed onward: that cycle and each later one that still

@@ -9,6 +9,8 @@ interface AssessmentDoc {
   organizationId: ObjectId;
   cycleId: ObjectId;
   lotId: ObjectId;
+  ownerIds?: ObjectId[];
+  /** Before co-ownership: one owner (null = none). Read as a list; rewritten as ownerIds on the next change. */
   ownerId?: ObjectId | null;
   amountMillimes: number;
   calculationMethod: AssessmentCalculationMethod;
@@ -25,7 +27,13 @@ function toDomain(doc: AssessmentDoc): Assessment {
     organizationId: fromObjectId(doc.organizationId),
     cycleId: fromObjectId(doc.cycleId),
     lotId: fromObjectId(doc.lotId),
-    ownerId: doc.ownerId === undefined ? undefined : doc.ownerId ? fromObjectId(doc.ownerId) : null,
+    ownerIds: doc.ownerIds
+      ? doc.ownerIds.map(fromObjectId)
+      : doc.ownerId === undefined
+        ? undefined
+        : doc.ownerId
+          ? [fromObjectId(doc.ownerId)]
+          : [],
     amountMillimes: doc.amountMillimes,
     calculationMethod: doc.calculationMethod,
     calculationInputs: doc.calculationInputs,
@@ -43,7 +51,7 @@ async function collection() {
 
 export interface InsertAssessmentInput {
   lotId: string;
-  ownerId: string | null;
+  ownerIds: string[];
   amountMillimes: number;
   calculationMethod: AssessmentCalculationMethod;
   calculationInputs?: Record<string, unknown>;
@@ -62,7 +70,7 @@ export async function insertAssessments(
     organizationId: toObjectId(organizationId),
     cycleId: toObjectId(cycleId),
     lotId: toObjectId(input.lotId),
-    ownerId: input.ownerId ? toObjectId(input.ownerId) : null,
+    ownerIds: input.ownerIds.map(toObjectId),
     amountMillimes: input.amountMillimes,
     calculationMethod: input.calculationMethod,
     calculationInputs: input.calculationInputs,
@@ -247,28 +255,35 @@ export async function deleteAssessment(
 }
 
 /**
- * Pins the lot's legacy assessments (no ownerId yet) to `ownerId` — the
- * owner they have implicitly followed so far — before its ownership changes.
+ * Writes the lot's older assessments in today's form before its ownership
+ * changes: those without any owner field are pinned to `lotOwnerIds` (the
+ * owners they have implicitly followed so far), and those with a single
+ * `ownerId` get it as a one-owner list.
  */
-export async function pinLegacyOwner(
+export async function pinLegacyOwners(
   organizationId: string,
   lotId: string,
-  ownerId: string | null,
+  lotOwnerIds: string[],
   session: ClientSession,
 ): Promise<void> {
-  await (
-    await collection()
-  ).updateMany(
-    { organizationId: toObjectId(organizationId), lotId: toObjectId(lotId), ownerId: { $exists: false } },
-    { $set: { ownerId: ownerId ? toObjectId(ownerId) : null } },
+  const lot = { organizationId: toObjectId(organizationId), lotId: toObjectId(lotId), ownerIds: { $exists: false } };
+  const assessments = await collection();
+  await assessments.updateMany(
+    { ...lot, ownerId: { $exists: false } },
+    { $set: { ownerIds: lotOwnerIds.map(toObjectId) } },
+    { session },
+  );
+  await assessments.updateMany(
+    { ...lot, ownerId: { $exists: true } },
+    [{ $set: { ownerIds: { $cond: [{ $eq: ["$ownerId", null] }, [], ["$ownerId"]] } } }, { $unset: "ownerId" }],
     { session },
   );
 }
 
-export async function setAssessmentsOwner(
+export async function setAssessmentsOwners(
   organizationId: string,
   assessmentIds: string[],
-  ownerId: string | null,
+  ownerIds: string[],
   session: ClientSession,
 ): Promise<void> {
   if (assessmentIds.length === 0) return;
@@ -276,12 +291,12 @@ export async function setAssessmentsOwner(
     await collection()
   ).updateMany(
     { organizationId: toObjectId(organizationId), _id: { $in: assessmentIds.map(toObjectId) } },
-    { $set: { ownerId: ownerId ? toObjectId(ownerId) : null } },
+    { $set: { ownerIds: ownerIds.map(toObjectId) }, $unset: { ownerId: "" } },
     { session },
   );
 }
 
-/** Takes `ownerId` off the lots they own in `cycleIds` (an owner removed from a cycle onward). */
+/** Takes `ownerId` off the lots they own in `cycleIds` (an owner removed from a cycle onward); co-owners stay. */
 export async function clearOwnerInCycles(
   organizationId: string,
   ownerId: string,
@@ -289,23 +304,32 @@ export async function clearOwnerInCycles(
   session: ClientSession,
 ): Promise<void> {
   if (cycleIds.length === 0) return;
-  await (
-    await collection()
-  ).updateMany(
-    { organizationId: toObjectId(organizationId), ownerId: toObjectId(ownerId), cycleId: { $in: cycleIds.map(toObjectId) } },
-    { $set: { ownerId: null } },
+  const scope = { organizationId: toObjectId(organizationId), cycleId: { $in: cycleIds.map(toObjectId) } };
+  const assessments = await collection();
+  await assessments.updateMany(
+    { ...scope, ownerIds: toObjectId(ownerId) },
+    { $pull: { ownerIds: toObjectId(ownerId) } },
+    { session },
+  );
+  await assessments.updateMany(
+    { ...scope, ownerIds: { $exists: false }, ownerId: toObjectId(ownerId) },
+    { $set: { ownerIds: [] }, $unset: { ownerId: "" } },
     { session },
   );
 }
 
-/** Whether any cycle still records `ownerId` as a lot's owner. */
+/** Whether any cycle still records `ownerId` among a lot's owners. */
 export async function ownerHasAssessments(
   organizationId: string,
   ownerId: string,
   session: ClientSession,
 ): Promise<boolean> {
+  const owner = toObjectId(ownerId);
   const found = await (
     await collection()
-  ).findOne({ organizationId: toObjectId(organizationId), ownerId: toObjectId(ownerId) }, { session });
+  ).findOne(
+    { organizationId: toObjectId(organizationId), $or: [{ ownerIds: owner }, { ownerId: owner }] },
+    { session },
+  );
   return found !== null;
 }

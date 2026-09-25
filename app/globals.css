@@ -1443,6 +1443,108 @@
     }
   }
 
+  /* Owner chips (a lot's owners; several = co-ownership) */
+  .owner-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 30px;
+    padding: 0 6px 0 4px;
+    border: 1px solid var(--line);
+    border-radius: 99px;
+    background: var(--surface-2);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .owner-chip-add {
+    padding: 0 12px 0 10px;
+    border-style: dashed;
+    background: transparent;
+    color: var(--ink-2);
+    cursor: pointer;
+  }
+  .owner-chip-add:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+  }
+  .owner-chip-remove {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border: none;
+    border-radius: 99px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .owner-chip-remove:hover {
+    background: var(--hover);
+    color: var(--ink);
+  }
+  .avatar-xs {
+    width: 22px;
+    height: 22px;
+    font-size: 10px;
+  }
+
+  /* Pick list: grouped rows with a check (the owner form's lots) */
+  .pick-list {
+    flex: 1;
+    min-height: 140px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--surface);
+  }
+  .pick-group {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--line-soft);
+    background: var(--surface-2);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .pick-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-right: 10px;
+    border-bottom: 1px solid var(--line-soft);
+    transition: background-color 0.12s ease;
+  }
+  .pick-row:last-child {
+    border-bottom: none;
+  }
+  .pick-row[data-on="true"] {
+    background: var(--primary-tint);
+  }
+  .pick-row-main {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    padding: 11px 6px 11px 16px;
+    border: none;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: 14px;
+    text-align: left;
+    cursor: pointer;
+  }
+  .pick-row:hover:not([data-on="true"]) {
+    background: var(--row-hover);
+  }
+
   /* Tables */
   .data-table {
     overflow: hidden;
@@ -1632,6 +1734,11 @@
     height: 26px;
     padding: 0 7px;
     font-size: 11px;
+  }
+  /* A co-owned lot: its tile carries a small people icon and an inner ring. */
+  .lot-tile-shared {
+    gap: 4px;
+    box-shadow: inset 0 0 0 1.5px currentColor;
   }
   .lot-tile[data-status="NONE"] {
     background: var(--track);

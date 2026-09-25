@@ -133,7 +133,7 @@ export async function openCycle(
         cycle.id,
         activeLots.map((lot) => ({
           lotId: lot.id,
-          ownerId: lot.ownerId,
+          ownerIds: lot.ownerIds,
           amountMillimes: lot.chargeMillimes,
           calculationMethod: "FIXED" as const,
           dueDate: cycle.startDate,

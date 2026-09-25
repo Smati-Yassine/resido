@@ -29,13 +29,14 @@ export default async function LotsPage({ params, searchParams }: PageProps<"/res
   // In a billed cycle: the lots it bills, with that cycle's charge and owner. Otherwise the lots themselves.
   const items: LotItem[] = (billed ? lotList.filter((l) => rowByLot.has(l.id)) : lotList).map((lot) => {
     const row = rowByLot.get(lot.id);
-    const ownerId = row ? row.ownerId : lot.ownerId;
+    const ownerIds = row ? row.ownerIds : lot.ownerIds;
+    const names = ownerIds.map((id) => ownerName.get(id)).filter(Boolean);
     return {
       id: lot.id,
       code: lot.code,
       blocId: lot.buildingId,
       blocName: lot.buildingId ? (blocName.get(lot.buildingId) ?? "") : "",
-      ownerName: ownerId ? (ownerName.get(ownerId) ?? null) : null,
+      ownerName: names.length ? names.join(" & ") : null,
       chargeMillimes: row?.dueMillimes ?? lot.chargeMillimes,
       paidMillimes: row ? row.paidMillimes : null,
       status: row?.status ?? null,
@@ -44,7 +45,7 @@ export default async function LotsPage({ params, searchParams }: PageProps<"/res
         code: lot.code,
         buildingId: lot.buildingId,
         chargeMillimes: row?.dueMillimes ?? lot.chargeMillimes,
-        ownerId,
+        ownerIds,
       },
     };
   });
@@ -57,7 +58,7 @@ export default async function LotsPage({ params, searchParams }: PageProps<"/res
   );
 
   // A removed owner is offered only in the cycles where they still own lots.
-  const holders = new Set(billed ? billed.map((r) => r.ownerId) : lotList.map((l) => l.ownerId));
+  const holders = new Set(billed ? billed.flatMap((r) => r.ownerIds) : lotList.flatMap((l) => l.ownerIds));
   const ownerOptions = ownerList
     .filter((o) => !o.removed || holders.has(o.id))
     .map((o) => ({ id: o.id, name: o.name }));

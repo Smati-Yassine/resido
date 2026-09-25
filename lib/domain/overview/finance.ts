@@ -99,24 +99,25 @@ export function collectionCurve(payments: Payment[], cycleId: string, start: Dat
 }
 
 export interface Debtor {
-  ownerId: string | null;
+  /** One owner, or co-owners owing together; empty for lots without an owner. */
+  ownerIds: string[];
   ownerName: string | null;
   outstandingMillimes: number;
   lotCodes: string[];
 }
 
-/** Who owes the most in the cycle, by owner (lots without one grouped together), largest first. */
+/** Who owes the most in the cycle, by owner — co-owners together, lots without one grouped — largest first. */
 export function topDebtors(
-  rows: { ownerId: string | null; ownerName: string | null; code: string; dueMillimes: number; paidMillimes: number }[],
+  rows: { ownerIds: string[]; ownerName: string | null; code: string; dueMillimes: number; paidMillimes: number }[],
   limit: number,
 ): Debtor[] {
   const byOwner = new Map<string, Debtor>();
   for (const row of rows) {
     const owed = row.dueMillimes - row.paidMillimes;
     if (owed <= 0) continue;
-    const key = row.ownerId ?? "";
+    const key = [...row.ownerIds].sort().join(",");
     const debtor = byOwner.get(key) ?? {
-      ownerId: row.ownerId,
+      ownerIds: row.ownerIds,
       ownerName: row.ownerName,
       outstandingMillimes: 0,
       lotCodes: [],

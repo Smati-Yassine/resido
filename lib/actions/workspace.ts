@@ -80,15 +80,11 @@ export async function createLotAction(_: ActionResult | null, formData: FormData
     if (!buildingId) return { ok: false, message: t.errPickBloc };
     if (charge === null) return { ok: false, message: interpolate(t.errLotCharge, { example: example(1209.76) }) };
     const content = { buildingId, code, chargeMillimes: field(formData, "charge").replace(",", ".") };
-    const ownerId = field(formData, "ownerId");
+    // None, one, or several owners (co-ownership).
+    const ownerIds = formData.getAll("ownerIds").map(String).filter(Boolean);
     const result = lotId
-      ? await lots.updateLot(
-          session,
-          residenceId,
-          { ...content, lotId, ownerId: ownerId || null },
-          field(formData, "cycleId") || null,
-        )
-      : await lots.createLot(session, residenceId, { ...content, ownerId: ownerId || undefined });
+      ? await lots.updateLot(session, residenceId, { ...content, lotId, ownerIds }, field(formData, "cycleId") || null)
+      : await lots.createLot(session, residenceId, { ...content, ownerIds });
     if (!result.ok) {
       if (result.code === "DUPLICATE_CODE") return { ok: false, message: interpolate(t.errLotDuplicate, { code }) };
       if (result.code === "CHARGE_BELOW_PAID") return { ok: false, message: t.errChargeBelowPaid };
@@ -156,8 +152,7 @@ export async function recordPaymentAction(_: ActionResult | null, formData: Form
           idempotencyKey: field(formData, "idempotencyKey"),
         });
     if (!result.ok) {
-      if (result.code === "CYCLE_NOT_OPEN")
-        return { ok: false, message: t.errCycleNotOpen };
+      if (result.code === "CYCLE_NOT_OPEN") return { ok: false, message: t.errCycleNotOpen };
       if (result.code === "OVER_ALLOCATION")
         return { ok: false, message: interpolate(t.errAmount, { example: example(480) }) };
       return { ok: false, message: t.errGeneric };
@@ -208,8 +203,7 @@ export async function recordExpenseAction(_: ActionResult | null, formData: Form
           field(formData, "cycleId") || undefined,
         );
     if (!result.ok) {
-      if (result.code === "CYCLE_NOT_OPEN")
-        return { ok: false, message: t.errCycleNotOpen };
+      if (result.code === "CYCLE_NOT_OPEN") return { ok: false, message: t.errCycleNotOpen };
       return { ok: false, message: t.errGeneric };
     }
     return done(
@@ -330,6 +324,8 @@ function ownerInput(formData: FormData) {
     name: field(formData, "name"),
     phone: field(formData, "phone") || undefined,
     lotIds: formData.getAll("lotIds").map(String),
+    // Picked lots of other owners to share (co-ownership) rather than take over.
+    shareLotIds: formData.getAll("shareLotIds").map(String),
   };
 }
 

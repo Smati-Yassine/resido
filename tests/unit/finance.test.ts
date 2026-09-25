@@ -86,7 +86,7 @@ describe("dashboard figures", () => {
   it("ranks who owes the most, lots without an owner grouped", () => {
     const row = (code: string, ownerId: string | null, due: number, paid: number) => ({
       code,
-      ownerId,
+      ownerIds: ownerId ? [ownerId] : [],
       ownerName: ownerId && ownerId.toUpperCase(),
       dueMillimes: due,
       paidMillimes: paid,
@@ -94,8 +94,8 @@ describe("dashboard figures", () => {
     expect(
       topDebtors([row("A1", "a", 100, 0), row("A2", "b", 100, 100), row("A3", "a", 50, 10), row("B1", null, 70, 0)], 5),
     ).toEqual([
-      { ownerId: "a", ownerName: "A", outstandingMillimes: 140, lotCodes: ["A1", "A3"] },
-      { ownerId: null, ownerName: null, outstandingMillimes: 70, lotCodes: ["B1"] },
+      { ownerIds: ["a"], ownerName: "A", outstandingMillimes: 140, lotCodes: ["A1", "A3"] },
+      { ownerIds: [], ownerName: null, outstandingMillimes: 70, lotCodes: ["B1"] },
     ]);
   });
 

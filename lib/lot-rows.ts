@@ -11,7 +11,7 @@ export function paymentLots(rows: LotRow[]): OutstandingLot[] {
     assessmentId: r.assessmentId,
     code: r.code,
     bloc: r.blocName,
-    ownerId: r.ownerId,
+    owners: r.owners,
     ownerName: r.ownerName,
     remainingMillimes: r.dueMillimes - r.paidMillimes,
     partlyPaid: r.status === "PARTIAL",

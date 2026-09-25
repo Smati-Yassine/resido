@@ -16,7 +16,7 @@ import * as cyclesRepo from "@/lib/domain/cycles/repository";
 import * as assessmentsRepo from "@/lib/domain/assessments/repository";
 import * as ownersRepo from "@/lib/domain/owners/repository";
 import * as paymentsRepo from "@/lib/domain/payments/repository";
-import { changeLotOwner, defaultCycleId } from "./ownership";
+import { changeLotOwners, defaultCycleId } from "./ownership";
 
 export type Result<T> =
   | { ok: true; data: T }
@@ -25,6 +25,12 @@ export type Result<T> =
       code: "VALIDATION_ERROR" | "NOT_FOUND" | "DUPLICATE_CODE" | "CHARGE_BELOW_PAID" | "HAS_HISTORY";
       message: string;
     };
+
+/** Every id names an owner of this residence. */
+async function ownersExist(organizationId: string, ownerIds: string[]): Promise<boolean> {
+  const found = await Promise.all(ownerIds.map((id) => ownersRepo.findOwnerById(organizationId, id)));
+  return found.every((o) => o !== null);
+}
 
 /**
  * Creates a lot inside a bloc. If a cycle is OPEN, the lot is billed its
@@ -45,7 +51,7 @@ export async function createLot(
   }
   const building = await buildingsRepo.findBuildingById(organizationId, parsed.data.buildingId);
   if (!building) return { ok: false, code: "NOT_FOUND", message: "Bloc not found" };
-  if (parsed.data.ownerId && !(await ownersRepo.findOwnerById(organizationId, parsed.data.ownerId))) {
+  if (!(await ownersExist(organizationId, parsed.data.ownerIds))) {
     return { ok: false, code: "NOT_FOUND", message: "Owner not found" };
   }
 
@@ -56,7 +62,7 @@ export async function createLot(
         organizationId,
         {
           buildingId: building.id,
-          ownerId: parsed.data.ownerId ?? null,
+          ownerIds: [...new Set(parsed.data.ownerIds)],
           code: parsed.data.code,
           chargeMillimes: parsed.data.chargeMillimes,
         },
@@ -80,7 +86,7 @@ export async function createLot(
           [
             {
               lotId: created.id,
-              ownerId: created.ownerId,
+              ownerIds: created.ownerIds,
               amountMillimes: created.chargeMillimes,
               calculationMethod: "FIXED",
               dueDate: new Date(),
@@ -115,7 +121,7 @@ export async function listLots(
  * Code and bloc are the lot's own. The charge is what that cycle bills — refused
  * below what the lot already paid in it — and becomes the lot's charge for
  * cycles still to open when no later cycle is billed. The owner changes from
- * that cycle onward (see changeLotOwner); earlier cycles keep theirs.
+ * that cycle onward (see changeLotOwners); earlier cycles keep theirs.
  */
 export async function updateLot(
   session: AuthorizedSession,
@@ -136,7 +142,7 @@ export async function updateLot(
   if (!(await buildingsRepo.findBuildingById(organizationId, input.buildingId))) {
     return { ok: false, code: "NOT_FOUND", message: "Bloc not found" };
   }
-  if (input.ownerId && !(await ownersRepo.findOwnerById(organizationId, input.ownerId))) {
+  if (!(await ownersExist(organizationId, input.ownerIds))) {
     return { ok: false, code: "NOT_FOUND", message: "Owner not found" };
   }
 
@@ -172,7 +178,7 @@ export async function updateLot(
         );
         if (!changed) throw new ChargeBelowPaidError();
       }
-      await changeLotOwner(organizationId, lot, input.ownerId, fromCycleId, dbSession);
+      await changeLotOwners(organizationId, lot, [...new Set(input.ownerIds)], fromCycleId, dbSession);
       await writeAuditLog(
         {
           organizationId,

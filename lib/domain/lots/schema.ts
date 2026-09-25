@@ -8,7 +8,7 @@ import { nonEmptyStringSchema, objectIdSchema, millimesInputSchema } from "@/lib
  */
 export const createLotInputSchema = z.object({
   buildingId: objectIdSchema,
-  ownerId: objectIdSchema.optional(),
+  ownerIds: z.array(objectIdSchema).default([]),
   code: nonEmptyStringSchema.max(40),
   chargeMillimes: millimesInputSchema.refine((v) => v > 0, { message: "CHARGE_NOT_POSITIVE" }),
 });
@@ -19,7 +19,8 @@ export interface Lot {
   id: string;
   organizationId: string;
   buildingId: string | null;
-  ownerId: string | null;
+  /** Who will own the lot in cycles still to open — several owners share it (co-ownership). */
+  ownerIds: string[];
   code: string;
   chargeMillimes: number;
   status: "ACTIVE" | "INACTIVE";
@@ -27,12 +28,12 @@ export interface Lot {
   updatedAt: Date;
 }
 
-/** Editing replaces a lot's bloc, code, annual charge and owner (null = none). */
+/** Editing replaces a lot's bloc, code, annual charge and owners (none, one, or several). */
 export const updateLotInputSchema = z.object({
   lotId: objectIdSchema,
   buildingId: objectIdSchema,
   code: nonEmptyStringSchema.max(40),
   chargeMillimes: millimesInputSchema.refine((v) => v > 0, { message: "CHARGE_NOT_POSITIVE" }),
-  ownerId: objectIdSchema.nullable(),
+  ownerIds: z.array(objectIdSchema).default([]),
 });
 export type UpdateLotInput = z.input<typeof updateLotInputSchema>;

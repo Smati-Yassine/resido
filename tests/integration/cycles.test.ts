@@ -63,7 +63,7 @@ describe("editing and deleting lots", () => {
         buildingId: blocB.id,
         code: "B99",
         chargeMillimes: "1250",
-        ownerId: null,
+        ownerIds: [],
       }),
     );
     expect(updated).toMatchObject({

@@ -9,6 +9,8 @@ interface LotDoc {
   _id: ObjectId;
   organizationId: ObjectId;
   buildingId: ObjectId | null;
+  ownerIds?: ObjectId[];
+  /** Before co-ownership: one owner. Read as a one-owner list; rewritten as ownerIds on the next change. */
   ownerId?: ObjectId | null;
   code: string;
   chargeMillimes: number;
@@ -22,7 +24,7 @@ function toDomain(doc: LotDoc): Lot {
     id: fromObjectId(doc._id),
     organizationId: fromObjectId(doc.organizationId),
     buildingId: doc.buildingId ? fromObjectId(doc.buildingId) : null,
-    ownerId: doc.ownerId ? fromObjectId(doc.ownerId) : null,
+    ownerIds: doc.ownerIds ? doc.ownerIds.map(fromObjectId) : doc.ownerId ? [fromObjectId(doc.ownerId)] : [],
     code: doc.code,
     chargeMillimes: doc.chargeMillimes ?? 0,
     status: doc.status,
@@ -40,7 +42,7 @@ export class DuplicateLotCodeError extends Error {}
 
 export interface InsertLotInput {
   buildingId: string | null;
-  ownerId: string | null;
+  ownerIds: string[];
   code: string;
   chargeMillimes: number;
 }
@@ -50,7 +52,7 @@ export async function insertLot(organizationId: string, input: InsertLotInput, s
     _id: new ObjectId(),
     organizationId: toObjectId(organizationId),
     buildingId: input.buildingId ? toObjectId(input.buildingId) : null,
-    ownerId: input.ownerId ? toObjectId(input.ownerId) : null,
+    ownerIds: input.ownerIds.map(toObjectId),
     code: input.code,
     chargeMillimes: input.chargeMillimes,
     status: "ACTIVE",
@@ -95,21 +97,20 @@ export async function listLots(organizationId: string, filter: ListLotsFilter = 
   return docs.map(toDomain);
 }
 
-/** Sets (or clears, with null) who will own the lot in cycles still to open (see lots/ownership.ts). */
-export async function setLotOwner(
+/** Sets who will own the lot in cycles still to open (see lots/ownership.ts); [] leaves it without an owner. */
+export async function setLotOwners(
   organizationId: string,
   lotId: string,
-  ownerId: string | null,
+  ownerIds: string[],
   session?: ClientSession,
-): Promise<Lot | null> {
-  const result = await (
+): Promise<void> {
+  await (
     await collection()
-  ).findOneAndUpdate(
+  ).updateOne(
     { _id: toObjectId(lotId), organizationId: toObjectId(organizationId) },
-    { $set: { ownerId: ownerId ? toObjectId(ownerId) : null, updatedAt: new Date() } },
-    { returnDocument: "after", session },
+    { $set: { ownerIds: ownerIds.map(toObjectId), updatedAt: new Date() }, $unset: { ownerId: "" } },
+    { session },
   );
-  return result ? toDomain(result) : null;
 }
 
 export async function updateLot(

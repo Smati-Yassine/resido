@@ -44,7 +44,7 @@ export default async function DashboardPage({ params, searchParams }: PageProps<
           counts={{
             blocs: blocResult.ok ? blocResult.data.length : 0,
             lots: lotList.length,
-            assigned: lotList.filter((l) => l.ownerId).length,
+            assigned: lotList.filter((l) => l.ownerIds.length > 0).length,
           }}
           draft={cycles[0] ?? null}
           can={{
@@ -325,10 +325,10 @@ export default async function DashboardPage({ params, searchParams }: PageProps<
           ) : (
             <ul className="flex flex-col gap-4">
               {debtors.map((d) => (
-                <li key={d.ownerId ?? "none"} className="flex flex-col gap-1.5">
+                <li key={d.ownerIds.join(",") || "none"} className="flex flex-col gap-1.5">
                   <div className="flex items-baseline justify-between gap-3 text-sm">
                     <span className="min-w-0">
-                      <span className={`block truncate font-semibold ${d.ownerId ? "" : "text-muted"}`}>
+                      <span className={`block truncate font-semibold ${d.ownerIds.length ? "" : "text-muted"}`}>
                         {d.ownerName ?? t.noOwnerLabel}
                       </span>
                       <span className="block truncate text-xs text-muted">{d.lotCodes.join(", ")}</span>

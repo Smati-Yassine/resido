@@ -15,7 +15,7 @@ import * as repo from "./repository";
 import { DuplicateIdempotencyKeyError } from "./repository";
 import * as assessmentsRepo from "@/lib/domain/assessments/repository";
 import { OverAllocationError } from "@/lib/domain/assessments/repository";
-import { effectiveOwnerId } from "@/lib/domain/assessments/schema";
+import { effectiveOwnerIds } from "@/lib/domain/assessments/schema";
 import * as cyclesRepo from "@/lib/domain/cycles/repository";
 import * as ownersRepo from "@/lib/domain/owners/repository";
 import * as lotsRepo from "@/lib/domain/lots/repository";
@@ -86,15 +86,14 @@ async function resolvePayer(
     return { ok: true, data: { owner, payerName: owner.name } };
   }
   const lots = await lotsRepo.findLotsByIds(organizationId, [...new Set(resolved.map((a) => a.lotId))]);
-  const lotOwner = new Map(lots.map((l) => [l.id, l.ownerId]));
+  const lotOwners = new Map(lots.map((l) => [l.id, l.ownerIds]));
   const assessments = await Promise.all(
     resolved.map((a) => assessmentsRepo.findAssessmentById(organizationId, a.assessmentId)),
   );
   const ownerIds = [
     ...new Set(
       assessments
-        .map((a) => (a ? effectiveOwnerId(a, lotOwner.get(a.lotId) ?? null) : null))
-        .filter((id): id is string => !!id),
+        .flatMap((a) => (a ? effectiveOwnerIds(a, lotOwners.get(a.lotId) ?? []) : [])),
     ),
   ];
   const owners = (await Promise.all(ownerIds.map((id) => ownersRepo.findOwnerById(organizationId, id)))).filter(

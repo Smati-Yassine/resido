@@ -23,7 +23,9 @@ export interface OutstandingLot {
   assessmentId: string;
   code: string;
   bloc: string;
-  ownerId: string | null;
+  /** Its owners in the cycle (several when co-owned). */
+  owners: { id: string; name: string }[];
+  /** Their names joined, for display. */
   ownerName: string | null;
   remainingMillimes: number;
   partlyPaid: boolean;
@@ -127,8 +129,8 @@ export function PaymentModal({
   const byId = new Map(allLots.map((l) => [l.assessmentId, l]));
   const pickedLots = picked.map((id) => byId.get(id)!).filter(Boolean);
   // The same owners' other unpaid units, offered unselected.
-  const ownerIds = new Set(pickedLots.map((l) => l.ownerId).filter(Boolean));
-  const siblings = allLots.filter((l) => l.ownerId && ownerIds.has(l.ownerId) && !picked.includes(l.assessmentId));
+  const ownerIds = new Set(pickedLots.flatMap((l) => l.owners.map((o) => o.id)));
+  const siblings = allLots.filter((l) => l.owners.some((o) => ownerIds.has(o.id)) && !picked.includes(l.assessmentId));
   const shown = [...pickedLots, ...siblings];
 
   // The search matches a unit code or an owner's name (ignoring case and accents).
@@ -140,14 +142,17 @@ export function PaymentModal({
         .sort((a, b) => Number(!fold(a.code).startsWith(needle)) - Number(!fold(b.code).startsWith(needle)))
         .slice(0, MAX_RESULTS)
     : [];
-  // An owner's name matching: every one of their unpaid units, plus a row to add them all.
+  // An owner's name matching: every one of their unpaid units (co-owned ones too), plus a row to add them all.
   const ownerGroups: { name: string; lots: OutstandingLot[] }[] = [];
   if (needle) {
     for (const lot of available) {
-      if (!lot.ownerName || !fold(lot.ownerName).includes(needle) || codeMatches.includes(lot)) continue;
-      const group = ownerGroups.find((g) => g.name === lot.ownerName);
-      if (group) group.lots.push(lot);
-      else ownerGroups.push({ name: lot.ownerName, lots: [lot] });
+      if (codeMatches.includes(lot)) continue;
+      for (const owner of lot.owners) {
+        if (!fold(owner.name).includes(needle)) continue;
+        const group = ownerGroups.find((g) => g.name === owner.name);
+        if (group) group.lots.push(lot);
+        else ownerGroups.push({ name: owner.name, lots: [lot] });
+      }
     }
   }
   const noMatch = needle !== "" && codeMatches.length === 0 && ownerGroups.length === 0;
@@ -219,7 +224,7 @@ export function PaymentModal({
       icon="income"
       onClose={onClose}
     >
-      <form onSubmit={submit} className="flex flex-col gap-5">
+      <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col gap-5">
         <input type="hidden" name="residenceId" value={residenceId} />
         <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
         {payment && <input type="hidden" name="paymentId" value={payment.id} />}
@@ -306,12 +311,12 @@ export function PaymentModal({
           )}
         </div>
 
-        <div className="flex min-h-0 flex-col gap-2">
+        <div className="flex min-h-0 flex-1 flex-col gap-2">
           <span className="text-[13px] font-semibold text-ink-2">{t.lotsCovered}</span>
           {shown.length === 0 && (
             <span className="text-sm text-muted">{allLots.length ? t.searchToStart : t.allPaid}</span>
           )}
-          <div className="scroll flex max-h-[270px] flex-col gap-2 pr-1">
+          <div className="scroll flex min-h-[120px] flex-1 flex-col gap-2 pr-1">
             {shown.map((lot, i) => {
               const on = lot.assessmentId in amounts;
               const value = on ? amountOf(lot) : null;
@@ -322,7 +327,7 @@ export function PaymentModal({
                   {firstSibling && (
                     <span className="label-caps pt-1 text-[11px]">
                       {interpolate(t.otherLotsOf, {
-                        name: [...new Set(siblings.map((l) => l.ownerName).filter(Boolean))].join(", "),
+                        name: [...new Set(pickedLots.flatMap((l) => l.owners.map((o) => o.name)))].join(", "),
                       })}
                     </span>
                   )}

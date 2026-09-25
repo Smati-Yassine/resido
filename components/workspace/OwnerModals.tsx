@@ -7,6 +7,7 @@ import { Icon } from "@/components/ui/Icon";
 import { useI18n } from "@/components/ui/I18nProvider";
 import { useActionToast } from "@/components/ui/useActionToast";
 import { deleteOwnerAction, saveOwnerAction } from "@/lib/actions/workspace";
+import { fold } from "@/lib/text";
 import { interpolate } from "@/lib/i18n/dictionaries";
 import { ModalButton } from "./ModalButton";
 import { ModalActions } from "./ModalActions";
@@ -20,13 +21,12 @@ export interface OwnerDraft {
   lotIds: string[];
 }
 
-/** Every lot of the residence, with who holds it now — the choices in the owner form. */
+/** Every lot of the residence, with who holds it in the cycle on screen — the choices in the owner form. */
 export interface LotChoice {
   id: string;
   code: string;
   bloc: string;
-  ownerId: string | null;
-  ownerName: string | null;
+  owners: { id: string; name: string }[];
 }
 
 export function NewOwnerButton({ residenceId, lots }: { residenceId: string; lots: LotChoice[] }) {
@@ -73,6 +73,15 @@ export function OwnerRowActions({
   );
 }
 
+type Group = { key: "mine" | "free" | "taken"; title: string; lots: LotChoice[] };
+
+/**
+ * Create or edit an owner and choose their lots. The lots come in groups —
+ * theirs (when editing), then those without an owner, then those of other
+ * owners — with a search over codes, blocs and owners. Picking a lot that
+ * someone else owns asks how: hand it over (Remplacer) or share it
+ * (Partager — both own it).
+ */
 function OwnerModal({
   residenceId,
   lots,
@@ -87,12 +96,38 @@ function OwnerModal({
   const { t } = useI18n();
   const cycle = useViewedCycle();
   const [picked, setPicked] = useState<Set<string>>(() => new Set(owner?.lotIds ?? []));
+  // Lots of other owners this owner joins as a co-owner; picked ones not in here are handed over.
+  const [shared, setShared] = useState<Set<string>>(() => new Set());
+  const [query, setQuery] = useState("");
   const [onSubmit, pending] = useActionToast(saveOwnerAction, onClose);
+
+  const others = (lot: LotChoice) => lot.owners.filter((o) => o.id !== owner?.id);
+  const isMine = (lot: LotChoice) => !!owner && lot.owners.some((o) => o.id === owner.id);
+  const q = fold(query.trim());
+  const matches = (lot: LotChoice) =>
+    !q || fold(lot.code).includes(q) || fold(lot.bloc).includes(q) || lot.owners.some((o) => fold(o.name).includes(q));
+  const groups: Group[] = (
+    [
+      { key: "mine", title: t.groupMine, lots: lots.filter((l) => isMine(l)) },
+      { key: "free", title: t.groupFree, lots: lots.filter((l) => l.owners.length === 0) },
+      { key: "taken", title: t.groupTaken, lots: lots.filter((l) => !isMine(l) && l.owners.length > 0) },
+    ] as Group[]
+  )
+    .map((g) => ({ ...g, lots: g.lots.filter(matches) }))
+    .filter((g) => g.lots.length > 0);
+
   const toggle = (id: string) =>
     setPicked((current) => {
       const next = new Set(current);
       if (next.has(id)) next.delete(id);
       else next.add(id);
+      return next;
+    });
+  const setMode = (id: string, share: boolean) =>
+    setShared((current) => {
+      const next = new Set(current);
+      if (share) next.add(id);
+      else next.delete(id);
       return next;
     });
 
@@ -105,7 +140,12 @@ function OwnerModal({
         {[...picked].map((id) => (
           <input key={id} type="hidden" name="lotIds" value={id} />
         ))}
-        <div className="grid grid-cols-2 gap-3">
+        {[...shared]
+          .filter((id) => picked.has(id))
+          .map((id) => (
+            <input key={id} type="hidden" name="shareLotIds" value={id} />
+          ))}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label={t.ownerName}>
             <input
               className="input"
@@ -125,39 +165,92 @@ function OwnerModal({
             />
           </Field>
         </div>
-        <div className="flex min-h-0 flex-1 flex-col gap-2">
-          <span className="text-[13px] font-semibold text-ink-2">
-            {t.ownerLots} · {picked.size}
-          </span>
+
+        <div className="flex min-h-0 flex-1 flex-col gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span className="text-[13px] font-semibold text-ink-2">
+              {t.ownerLots} · {interpolate(t.pickedCount, { count: picked.size })}
+            </span>
+            <label className="search-field max-w-[280px]">
+              <span className="search-field-icon">
+                <Icon name="search" size={16} />
+              </span>
+              <input
+                className="input h-10 text-sm"
+                type="search"
+                value={query}
+                autoComplete="off"
+                placeholder={t.searchLotsOrOwner}
+                aria-label={t.searchLotsOrOwner}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </label>
+          </div>
+
           {lots.length === 0 ? (
             <span className="text-sm text-muted">{t.noLotsYet}</span>
           ) : (
-            <div className="scroll grid min-h-[120px] flex-1 grid-cols-2 content-start gap-2 pr-1 sm:grid-cols-3">
-              {lots.map((lot) => {
-                const on = picked.has(lot.id);
-                const elsewhere = lot.ownerId && lot.ownerId !== owner?.id ? lot.ownerName : null;
-                return (
-                  <button
-                    key={lot.id}
-                    type="button"
-                    className="choice flex-row items-center gap-2.5 px-3 py-2.5"
-                    aria-pressed={on}
-                    onClick={() => toggle(lot.id)}
-                  >
-                    <span className="check pointer-events-none h-5 w-5 rounded-md" data-on={on}>
-                      {on && <Icon name="check" size={12} strokeWidth={3} />}
-                    </span>
-                    <span className="flex min-w-0 flex-col">
-                      <span className="choice-title">
-                        {lot.code} <span className="font-medium text-muted">· {lot.bloc}</span>
-                      </span>
-                      {elsewhere && (
-                        <span className="choice-text truncate">{interpolate(t.ownedBy, { name: elsewhere })}</span>
-                      )}
-                    </span>
-                  </button>
-                );
-              })}
+            <div className="pick-list scroll">
+              {groups.length === 0 && <p className="px-4 py-6 text-center text-sm text-muted">{t.noMatch}</p>}
+              {groups.map((group) => (
+                <section key={group.key}>
+                  <div className="pick-group">
+                    {group.title} <span className="num">· {group.lots.length}</span>
+                  </div>
+                  {group.lots.map((lot) => {
+                    const on = picked.has(lot.id);
+                    const current = others(lot);
+                    const names = current.map((o) => o.name).join(" & ");
+                    // Only a lot owned by someone else asks how it is taken.
+                    const asks = on && group.key === "taken";
+                    return (
+                      <div key={lot.id} className="pick-row" data-on={on}>
+                        <button
+                          type="button"
+                          className="pick-row-main"
+                          aria-pressed={on}
+                          onClick={() => toggle(lot.id)}
+                        >
+                          <span className="check pointer-events-none h-5 w-5 rounded-md" data-on={on}>
+                            {on && <Icon name="check" size={12} strokeWidth={3} />}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="font-bold">{lot.code}</span>{" "}
+                            <span className="text-[13px] text-muted">· {lot.bloc}</span>
+                          </span>
+                          {names && !asks && (
+                            <span className="truncate text-[13px] text-muted">
+                              {group.key === "mine" ? interpolate(t.sharedWith, { name: names }) : names}
+                            </span>
+                          )}
+                        </button>
+                        {asks && (
+                          <div className="segmented segmented-sm shrink-0" role="group" aria-label={lot.code}>
+                            <button
+                              type="button"
+                              className="segment"
+                              aria-pressed={!shared.has(lot.id)}
+                              title={interpolate(t.replaceOwnerHint, { name: names })}
+                              onClick={() => setMode(lot.id, false)}
+                            >
+                              {interpolate(t.replaceOwner, { name: names })}
+                            </button>
+                            <button
+                              type="button"
+                              className="segment"
+                              aria-pressed={shared.has(lot.id)}
+                              title={interpolate(t.shareOwnerHint, { name: names })}
+                              onClick={() => setMode(lot.id, true)}
+                            >
+                              {t.shareOwner}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </section>
+              ))}
             </div>
           )}
         </div>

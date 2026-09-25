@@ -1,6 +1,6 @@
 import type { AuthorizedSession } from "@/lib/rbac/permissions";
 import { requirePermission, requireOrganization } from "@/lib/rbac/permissions";
-import { effectiveOwnerId, type AssessmentStatus } from "@/lib/domain/assessments/schema";
+import { effectiveOwnerIds, type AssessmentStatus } from "@/lib/domain/assessments/schema";
 import type { Cycle } from "@/lib/domain/cycles/schema";
 import type { Expense } from "@/lib/domain/expenses/schema";
 import * as assessmentsRepo from "@/lib/domain/assessments/repository";
@@ -24,7 +24,10 @@ export interface LotRow {
   code: string;
   blocId: string | null;
   blocName: string;
-  ownerId: string | null;
+  /** Who owned the lot in this cycle: one owner, several (co-owned), or none. */
+  ownerIds: string[];
+  owners: { id: string; name: string }[];
+  /** Their names, joined ("A & B"); null without an owner. */
   ownerName: string | null;
   dueMillimes: number;
   paidMillimes: number;
@@ -63,15 +66,18 @@ export async function getLotRows(
       const lot = lotById.get(a.lotId);
       const blocId = lot?.buildingId ?? null;
       // Who owned the lot in this cycle, not today.
-      const ownerId = effectiveOwnerId(a, lot?.ownerId ?? null);
+      const ownerIds = effectiveOwnerIds(a, lot?.ownerIds ?? []);
+      const owned = ownerIds.flatMap((id) => (ownerName.has(id) ? [{ id, name: ownerName.get(id)! }] : []));
+      const names = owned.map((o) => o.name);
       return {
         lotId: a.lotId,
         assessmentId: a.id,
         code: lot?.code ?? "?",
         blocId,
         blocName: blocId ? (blocName.get(blocId) ?? "") : "",
-        ownerId,
-        ownerName: ownerId ? (ownerName.get(ownerId) ?? null) : null,
+        ownerIds,
+        owners: owned,
+        ownerName: names.length ? names.join(" & ") : null,
         dueMillimes: a.amountMillimes,
         paidMillimes: a.paidMillimes,
         status: toLotStatus(a.status),

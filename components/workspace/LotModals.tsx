@@ -9,6 +9,7 @@ import { ModalButton } from "./ModalButton";
 import { useCurrency } from "@/components/ui/CurrencyProvider";
 import { toInputAmount } from "@/lib/format";
 import { ModalActions } from "./ModalActions";
+import { OwnerPicker } from "./OwnerPicker";
 import { Notice } from "@/components/ui/Display";
 import { interpolate } from "@/lib/i18n/dictionaries";
 import { useViewedCycle, ViewedCycleField } from "@/components/shell/ViewedCycle";
@@ -63,7 +64,7 @@ export interface EditableLot {
   code: string;
   buildingId: string | null;
   chargeMillimes: number;
-  ownerId: string | null;
+  ownerIds: string[];
 }
 
 /** Adds a lot, or edits `lot` when given (code, bloc, annual charge, owner). */
@@ -109,15 +110,8 @@ export function LotModal({
             required
           />
         </Field>
-        <Field label={t.owner}>
-          <select className="input" name="ownerId" defaultValue={lot?.ownerId ?? ""}>
-            <option value="">{t.noOwner}</option>
-            {owners.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.name}
-              </option>
-            ))}
-          </select>
+        <Field label={t.ownersLabel} hint={t.coOwnHint}>
+          <OwnerPicker owners={owners} initial={lot?.ownerIds ?? []} />
         </Field>
         {lot && cycle && cycle.status !== "DRAFT" && (
           <Notice icon="calendar">{interpolate(t.lotCycleNote, { name: cycle.name })}</Notice>
