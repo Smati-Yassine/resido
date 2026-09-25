@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/ui/Modal";
 import { Field } from "@/components/ui/Field";
-import { Icon } from "@/components/ui/Icon";
+import { Icon, type IconName } from "@/components/ui/Icon";
 import { useI18n } from "@/components/ui/I18nProvider";
 import { useToast } from "@/components/ui/Toaster";
 import { useActionToast } from "@/components/ui/useActionToast";
@@ -25,7 +25,7 @@ export interface ExportableResidence {
   name: string;
 }
 
-type Tab = "general" | "account";
+type Tab = "general" | "profile" | "security" | "data";
 type Confirm = "purge" | "delete" | null;
 
 interface AccountUser {
@@ -33,7 +33,13 @@ interface AccountUser {
   email: string;
 }
 
-/** Account-wide settings, opened from the user menu: General (appearance) and Account. */
+type Section = { key: Tab; icon: IconName; label: string; desc: string };
+
+/**
+ * Account-wide settings, opened from the user menu — a fixed-size panel with a
+ * side navigation: General (appearance), Profile, Security, Data. A purge or
+ * account deletion is confirmed in a modal on top.
+ */
 export function AccountSettingsModal({
   user,
   theme,
@@ -49,55 +55,76 @@ export function AccountSettingsModal({
   const [tab, setTab] = useState<Tab>("general");
   const [confirm, setConfirm] = useState<Confirm>(null);
 
-  if (confirm) {
-    return <DangerConfirm kind={confirm} email={user.email} onCancel={() => setConfirm(null)} onDone={onClose} />;
-  }
-
-  const tabs: { key: Tab; label: string }[] = [
-    { key: "general", label: t.tabGeneral },
-    { key: "account", label: t.account },
+  const sections: Section[] = [
+    { key: "general", icon: "sun", label: t.tabGeneral, desc: t.navAppearanceDesc },
+    { key: "profile", icon: "user", label: t.profile, desc: t.navProfileDesc },
+    { key: "security", icon: "lock", label: t.navSecurity, desc: t.navSecurityDesc },
+    { key: "data", icon: "archive", label: t.navData, desc: t.navDataDesc },
   ];
 
   return (
-    <Modal title={t.settings} width={680} onClose={onClose}>
-      <div className="tabs flex-wrap gap-x-6 gap-y-2" role="tablist">
-        {tabs.map(({ key, label }) => (
-          <button
-            key={key}
-            type="button"
-            role="tab"
-            className="tab"
-            aria-selected={tab === key}
-            onClick={() => setTab(key)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+    <Modal title={t.settings} subtitle={user.email} size="panel" icon="settings" onClose={onClose}>
+      <div className="settings-layout">
+        <nav className="settings-nav" aria-label={t.settings}>
+          {sections.map((s) => (
+            <button
+              key={s.key}
+              type="button"
+              className="settings-nav-item"
+              aria-current={tab === s.key ? "page" : undefined}
+              onClick={() => setTab(s.key)}
+            >
+              <span className="settings-nav-icon">
+                <Icon name={s.icon} size={18} />
+              </span>
+              <span>
+                <span className="settings-nav-label">{s.label}</span>
+                <span className="settings-nav-desc">{s.desc}</span>
+              </span>
+            </button>
+          ))}
+        </nav>
 
-      {tab === "general" && <AppearanceSettings theme={theme} bare />}
-      {tab === "account" && (
-        <div className="flex flex-col gap-6">
-          <ProfileForm user={user} />
-          <div className="divider" />
-          <SecurityPanel />
-          <div className="divider" />
-          <ExportSection residences={residences} />
-          <div className="divider" />
-          <section className="card card-danger flex flex-col gap-4 p-5">
-            <h3 className="h-card text-danger">{t.dangerZone}</h3>
-            <DangerRow title={t.purgeTitle} text={t.purgeText}>
-              <button type="button" className="btn btn-danger btn-sm" onClick={() => setConfirm("purge")}>
-                {t.purgeCta}
-              </button>
-            </DangerRow>
-            <DangerRow title={t.deleteAccountTitle} text={t.deleteAccountText}>
-              <button type="button" className="btn btn-danger-solid btn-sm" onClick={() => setConfirm("delete")}>
-                {t.deleteAccountCta}
-              </button>
-            </DangerRow>
-          </section>
+        <div className="flex min-w-0 flex-col gap-5">
+          {tab === "general" && (
+            <section className="card card-pad">
+              <AppearanceSettings theme={theme} bare />
+            </section>
+          )}
+          {tab === "profile" && (
+            <section className="card card-pad">
+              <ProfileForm user={user} />
+            </section>
+          )}
+          {tab === "security" && (
+            <section className="card card-pad">
+              <SecurityPanel />
+            </section>
+          )}
+          {tab === "data" && (
+            <>
+              <section className="card card-pad">
+                <ExportSection residences={residences} />
+              </section>
+              <section className="card card-pad card-danger flex flex-col gap-4">
+                <h3 className="h-card text-danger">{t.dangerZone}</h3>
+                <DangerRow title={t.purgeTitle} text={t.purgeText}>
+                  <button type="button" className="btn btn-danger btn-sm" onClick={() => setConfirm("purge")}>
+                    {t.purgeCta}
+                  </button>
+                </DangerRow>
+                <DangerRow title={t.deleteAccountTitle} text={t.deleteAccountText}>
+                  <button type="button" className="btn btn-danger-solid btn-sm" onClick={() => setConfirm("delete")}>
+                    {t.deleteAccountCta}
+                  </button>
+                </DangerRow>
+              </section>
+            </>
+          )}
         </div>
+      </div>
+      {confirm && (
+        <DangerConfirm kind={confirm} email={user.email} onCancel={() => setConfirm(null)} onDone={onClose} />
       )}
     </Modal>
   );
@@ -317,7 +344,9 @@ function DangerConfirm({
     <Modal
       title={kind === "purge" ? t.purgeConfirmTitle : t.deleteAccountConfirmTitle}
       subtitle={kind === "purge" ? t.purgeText : t.deleteAccountText}
-      width={480}
+      size="confirm"
+      icon={kind === "purge" ? "archive" : "trash"}
+      tone="danger"
       onClose={onCancel}
     >
       <form onSubmit={onSubmit} className="flex flex-col gap-5">

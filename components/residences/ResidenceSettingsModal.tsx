@@ -58,7 +58,8 @@ export function ResidenceSettingsModal({
     <Modal
       title={interpolate(t.settingsOf, { name: data?.residence.name ?? residenceName })}
       subtitle={data ? [data.residence.city, `${data.lotCount} ${t.lotsWord}`].filter(Boolean).join(" · ") : undefined}
-      width={1040}
+      size="panel"
+      icon="settings"
       onClose={onClose}
     >
       {data ? (

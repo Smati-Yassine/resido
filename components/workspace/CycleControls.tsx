@@ -37,7 +37,7 @@ function NewCycleModal({ residenceId, onClose }: { residenceId: string; onClose:
   const [onSubmit, pending] = useActionToast(createCycleAction, onClose);
 
   return (
-    <Modal title={t.newCycle} subtitle={t.newCycleHelp} width={520} onClose={onClose}>
+    <Modal title={t.newCycle} subtitle={t.newCycleHelp} icon="calendar" onClose={onClose}>
       <form onSubmit={onSubmit} className="flex flex-col gap-5">
         <input type="hidden" name="residenceId" value={residenceId} />
         <input type="hidden" name="endMode" value={endMode} />
@@ -70,11 +70,16 @@ function NewCycleModal({ residenceId, onClose }: { residenceId: string; onClose:
             </button>
           </div>
         </div>
-        {endMode === "fixed" && (
-          <Field label={t.endDate}>
-            <input className="input" type="date" name="endDate" required />
-          </Field>
-        )}
+        {/* Always shown, so the modal keeps its height; usable once "fixed end" is chosen. */}
+        <Field label={t.endDate}>
+          <input
+            className="input"
+            type="date"
+            name="endDate"
+            required={endMode === "fixed"}
+            disabled={endMode === "open"}
+          />
+        </Field>
         <ModalActions onCancel={onClose} submitLabel={t.createCycle} pending={pending} />
       </form>
     </Modal>
@@ -154,7 +159,13 @@ function CloseCycleModal({
   const { code } = useCurrency();
   const [onSubmit, pending] = useActionToast(closeCycleAction, onClose);
   return (
-    <Modal title={interpolate(t.closeTitle, { name: cycleName })} onClose={onClose}>
+    <Modal
+      title={interpolate(t.closeTitle, { name: cycleName })}
+      size="confirm"
+      icon="lock"
+      tone="warn"
+      onClose={onClose}
+    >
       <form onSubmit={onSubmit} className="flex flex-col gap-5">
         <input type="hidden" name="residenceId" value={residenceId} />
         <input type="hidden" name="cycleId" value={cycleId} />
@@ -229,7 +240,13 @@ function DeleteCycleModal({
     if (params.get("cycle") === cycleId) router.replace(`${base}/settings?tab=cycles`, { scroll: false });
   });
   return (
-    <Modal title={interpolate(t.deleteCycleTitle, { name: cycleName })} width={460} onClose={onClose}>
+    <Modal
+      title={interpolate(t.deleteCycleTitle, { name: cycleName })}
+      size="confirm"
+      icon="trash"
+      tone="danger"
+      onClose={onClose}
+    >
       <form onSubmit={onSubmit} className="flex flex-col gap-5">
         <input type="hidden" name="residenceId" value={residenceId} />
         <input type="hidden" name="cycleId" value={cycleId} />

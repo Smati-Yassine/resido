@@ -53,7 +53,7 @@ export function ExpenseModal({
   const [idempotencyKey] = useState(() => crypto.randomUUID());
   const [onSubmit, pending] = useActionToast(recordExpenseAction, onClose);
   return (
-    <Modal title={expense ? t.editExpense : t.newExpense} width={500} onClose={onClose}>
+    <Modal title={expense ? t.editExpense : t.newExpense} icon="expense" onClose={onClose}>
       <form onSubmit={onSubmit} className="flex flex-col gap-5">
         <input type="hidden" name="residenceId" value={residenceId} />
         <input type="hidden" name="idempotencyKey" value={idempotencyKey} />

@@ -26,7 +26,7 @@ function BlocModal({ residenceId, onClose }: { residenceId: string; onClose: () 
   const { t } = useI18n();
   const [onSubmit, pending] = useActionToast(createBlocAction, onClose);
   return (
-    <Modal title={t.newBloc} subtitle={t.blocHelp} width={460} onClose={onClose}>
+    <Modal title={t.newBloc} subtitle={t.blocHelp} icon="bloc" onClose={onClose}>
       <form onSubmit={onSubmit} className="flex flex-col gap-5">
         <input type="hidden" name="residenceId" value={residenceId} />
         <Field label={t.blocName}>
@@ -85,7 +85,7 @@ export function LotModal({
   const cycle = useViewedCycle();
   const [onSubmit, pending] = useActionToast(createLotAction, onClose);
   return (
-    <Modal title={lot ? t.editLot : t.addLot} subtitle={lot ? t.editLotHelp : t.lotHelp} onClose={onClose}>
+    <Modal title={lot ? t.editLot : t.addLot} subtitle={lot ? t.editLotHelp : t.lotHelp} icon="lots" onClose={onClose}>
       <form onSubmit={onSubmit} className="flex flex-col gap-5">
         <input type="hidden" name="residenceId" value={residenceId} />
         {lot && <input type="hidden" name="lotId" value={lot.id} />}

@@ -230,7 +230,9 @@ function RemoveMemberModal({
   return (
     <Modal
       title={interpolate(self ? t.leaveTitle : t.removeMemberTitle, { name: self ? residenceName : member.name })}
-      width={460}
+      size="confirm"
+      icon={self ? "logout" : "trash"}
+      tone="danger"
       onClose={onClose}
     >
       <form onSubmit={onSubmit} className="flex flex-col gap-5">

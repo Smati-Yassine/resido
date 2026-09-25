@@ -212,7 +212,13 @@ export function PaymentModal({
   const [submit, pending] = useActionToast(recordPaymentAction, onClose, prepare);
 
   return (
-    <Modal title={payment ? t.editPayment : t.newPayment} subtitle={t.payHelp} width={720} onClose={onClose}>
+    <Modal
+      title={payment ? t.editPayment : t.newPayment}
+      subtitle={t.payHelp}
+      size="wide"
+      icon="income"
+      onClose={onClose}
+    >
       <form onSubmit={submit} className="flex flex-col gap-5">
         <input type="hidden" name="residenceId" value={residenceId} />
         <input type="hidden" name="idempotencyKey" value={idempotencyKey} />

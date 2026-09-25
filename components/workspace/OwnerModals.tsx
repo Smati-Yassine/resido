@@ -97,7 +97,7 @@ function OwnerModal({
     });
 
   return (
-    <Modal title={owner ? t.editOwner : t.newOwner} subtitle={t.ownerHelp} width={620} onClose={onClose}>
+    <Modal title={owner ? t.editOwner : t.newOwner} subtitle={t.ownerHelp} size="wide" icon="owners" onClose={onClose}>
       <form onSubmit={onSubmit} className="flex flex-col gap-5">
         <input type="hidden" name="residenceId" value={residenceId} />
         {owner && <input type="hidden" name="ownerId" value={owner.id} />}
@@ -184,7 +184,13 @@ function DeleteOwnerModal({
   const billed = cycle && cycle.status !== "DRAFT";
   const [onSubmit, pending] = useActionToast(deleteOwnerAction, onClose);
   return (
-    <Modal title={interpolate(t.deleteOwnerTitle, { name: owner.name })} width={460} onClose={onClose}>
+    <Modal
+      title={interpolate(t.deleteOwnerTitle, { name: owner.name })}
+      size="confirm"
+      icon="trash"
+      tone="danger"
+      onClose={onClose}
+    >
       <form onSubmit={onSubmit} className="flex flex-col gap-5">
         <input type="hidden" name="residenceId" value={residenceId} />
         <input type="hidden" name="ownerId" value={owner.id} />

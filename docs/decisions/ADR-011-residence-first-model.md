@@ -165,7 +165,13 @@ with thousandths exist. Dates are shown DD/MM/YYYY.
 dark, plus component classes (`btn`, `input`, `card`, `badge`, `data-table`,
 `modal`, `toast`, …). Pages compose those classes and Tailwind layout
 utilities and never hard-code colours. Every action opens a modal where one
-is needed and reports its outcome as a toast. Language (FR/EN) and theme are
+is needed and reports its outcome as a toast. Modals come in four sizes
+(`confirm` 440, `form` 560, `wide` 760 and `panel` 1040 wide; `wide` and
+`panel` have a fixed height and a scrolling body), share one frame (icon,
+title, subtitle, close; actions pinned in a footer bar) and never change size
+while open: tabbed panels keep their height, and optional fields stay shown,
+disabled, instead of appearing. Confirmations stack over the modal they
+come from. Language (FR/EN) and theme are
 cookies read on the server, so the page renders in the right theme with no
 flash.
 

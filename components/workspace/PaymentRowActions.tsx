@@ -80,7 +80,7 @@ function DeletePaymentModal({
   const { code } = useCurrency();
   const [onSubmit, pending] = useActionToast(deletePaymentAction, onClose);
   return (
-    <Modal title={t.deletePaymentTitle} width={460} onClose={onClose}>
+    <Modal title={t.deletePaymentTitle} size="confirm" icon="trash" tone="danger" onClose={onClose}>
       <form onSubmit={onSubmit} className="flex flex-col gap-5">
         <input type="hidden" name="residenceId" value={residenceId} />
         <input type="hidden" name="paymentId" value={paymentId} />

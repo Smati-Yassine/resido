@@ -56,7 +56,7 @@ function DeleteExpenseModal({
   const { code } = useCurrency();
   const [onSubmit, pending] = useActionToast(deleteExpenseAction, onClose);
   return (
-    <Modal title={t.deleteExpenseTitle} width={460} onClose={onClose}>
+    <Modal title={t.deleteExpenseTitle} size="confirm" icon="trash" tone="danger" onClose={onClose}>
       <form onSubmit={onSubmit} className="flex flex-col gap-5">
         <input type="hidden" name="residenceId" value={residenceId} />
         <input type="hidden" name="expenseId" value={expense.id} />

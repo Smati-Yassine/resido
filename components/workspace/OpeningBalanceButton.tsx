@@ -69,7 +69,7 @@ function OpeningBalanceModal({
   );
 
   return (
-    <Modal title={t.editStartBalance} subtitle={t.treasuryNote} width={480} onClose={onClose}>
+    <Modal title={t.editStartBalance} subtitle={t.treasuryNote} icon="treasury" onClose={onClose}>
       <form onSubmit={onSubmit} className="flex flex-col gap-5">
         <input type="hidden" name="residenceId" value={residenceId} />
         <input type="hidden" name="cycleId" value={cycleId} />
@@ -87,11 +87,26 @@ function OpeningBalanceModal({
             {choice("manual", t.manualOption)}
           </div>
         )}
-        {mode === "manual" && (
-          <Field label={t.startBalance} hint={t.startEditNote}>
-            <MoneyInput scale="lg" name="amount" defaultValue={toInputAmount(openingMillimes, code)} required />
-          </Field>
-        )}
+        {/* Always shown, so the modal keeps its height: the carried amount, or the one to type. */}
+        <Field label={t.startBalance} hint={t.startEditNote}>
+          {mode === "carry" && previous ? (
+            <MoneyInput
+              scale="lg"
+              key="carry"
+              value={toInputAmount(previous.closingMillimes, code)}
+              disabled
+              readOnly
+            />
+          ) : (
+            <MoneyInput
+              scale="lg"
+              key="manual"
+              name="amount"
+              defaultValue={toInputAmount(openingMillimes, code)}
+              required
+            />
+          )}
+        </Field>
         <ModalActions onCancel={onClose} submitLabel={t.save} pending={pending} />
       </form>
     </Modal>

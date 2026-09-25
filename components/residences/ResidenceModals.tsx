@@ -19,17 +19,14 @@ export interface ResidenceDraft {
 export function ResidenceFormModal({ residence, onClose }: { residence?: ResidenceDraft; onClose: () => void }) {
   const { t, locale } = useI18n();
   const router = useRouter();
-  const [onSubmit, pending] = useActionToast(
-    residence ? updateResidenceAction : createResidenceAction,
-    (result) => {
-      onClose();
-      // Creating opens the new residence; editing stays on the list.
-      if (!residence && result.data) router.push(`/residences/${result.data.slug}`);
-    },
-  );
+  const [onSubmit, pending] = useActionToast(residence ? updateResidenceAction : createResidenceAction, (result) => {
+    onClose();
+    // Creating opens the new residence; editing stays on the list.
+    if (!residence && result.data) router.push(`/residences/${result.data.slug}`);
+  });
 
   return (
-    <Modal title={residence ? t.editResidence : t.newResidence} onClose={onClose}>
+    <Modal title={residence ? t.editResidence : t.newResidence} icon="residence" onClose={onClose}>
       <form onSubmit={onSubmit} className="flex flex-col gap-5">
         {residence && <input type="hidden" name="residenceId" value={residence.id} />}
         <Field label={t.residenceName}>
@@ -85,7 +82,13 @@ export function DeleteResidenceModal({
   });
 
   return (
-    <Modal title={interpolate(t.deleteTitle, { name: residence.name })} width={460} onClose={onClose}>
+    <Modal
+      title={interpolate(t.deleteTitle, { name: residence.name })}
+      size="confirm"
+      icon="trash"
+      tone="danger"
+      onClose={onClose}
+    >
       <form onSubmit={onSubmit} className="flex flex-col gap-5">
         <input type="hidden" name="residenceId" value={residence.id} />
         <p className="text-[15px] leading-relaxed text-ink-2">{t.deleteText}</p>

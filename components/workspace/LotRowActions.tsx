@@ -59,7 +59,13 @@ function DeleteLotModal({ residenceId, lot, onClose }: { residenceId: string; lo
   const { t } = useI18n();
   const [onSubmit, pending] = useActionToast(deleteLotAction, onClose);
   return (
-    <Modal title={interpolate(t.deleteLotTitle, { code: lot.code })} width={460} onClose={onClose}>
+    <Modal
+      title={interpolate(t.deleteLotTitle, { code: lot.code })}
+      size="confirm"
+      icon="trash"
+      tone="danger"
+      onClose={onClose}
+    >
       <form onSubmit={onSubmit} className="flex flex-col gap-5">
         <input type="hidden" name="residenceId" value={residenceId} />
         <input type="hidden" name="lotId" value={lot.id} />
