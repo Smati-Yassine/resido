@@ -198,6 +198,17 @@ come from. Language (FR/EN) and theme are
 cookies read on the server, so the page renders in the right theme with no
 flash.
 
+**Printing.** The dashboard, Finances (each tab) and Copropriété have a
+"Imprimer" button that opens `/residences/<r>/print/<doc>` in a new tab, for
+the cycle on screen: `property` (every lot by bloc with owners, phones,
+charge, paid, remaining, status and payment methods; subtotals per bloc;
+landscape), `payments` and `expenses` (by month, subtotals, total; payments
+also by method), `finances` (treasury + both lists) and `report` (key
+figures, treasury, then the three). The pages live outside the `(workspace)`
+route group, so they have no app shell; they open the print dialog by
+themselves. Sheets use the `--paper-*` tokens, which the dark theme never
+redefines, so paper is always light.
+
 ## Consequences
 
 - Ownership history is the per-cycle owner on each assessment; there is no

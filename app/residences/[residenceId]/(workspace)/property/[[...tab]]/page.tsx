@@ -11,6 +11,7 @@ import { NewOwnerButton } from "@/components/workspace/OwnerModals";
 import { LotsBoard } from "@/components/lots/LotsBoard";
 import { OwnersBoard } from "@/components/owners/OwnersBoard";
 import { PropertyOverview } from "@/components/property/PropertyOverview";
+import { PrintLink } from "@/components/print/PrintLink";
 
 const TABS = ["overview", "lots", "owners"] as const;
 type Tab = (typeof TABS)[number];
@@ -44,6 +45,7 @@ export default async function PropertyPage({
     </>
   );
   const ownerAction = canOwners && <NewOwnerButton residenceId={residenceId} lots={data.choices} />;
+  const print = cycle && figures.lots > 0 && <PrintLink href={href("/print/property")} label={t.print} />;
 
   return (
     <>
@@ -52,16 +54,11 @@ export default async function PropertyPage({
         subtitle={interpolate(t.lotsSubtitle, { lots: figures.lots, blocs: figures.blocs })}
         title={t.navProperty}
         actions={
-          tab === "owners" ? (
-            ownerAction
-          ) : tab === "lots" ? (
-            lotActions
-          ) : (
-            <>
-              {lotActions}
-              {ownerAction}
-            </>
-          )
+          <>
+            {print}
+            {tab !== "owners" && lotActions}
+            {tab !== "lots" && ownerAction}
+          </>
         }
       />
 

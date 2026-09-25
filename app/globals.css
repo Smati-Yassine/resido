@@ -89,6 +89,18 @@
   --shadow-modal: 0 30px 80px rgb(15 34 64 / 0.3);
   --shadow-toast: 0 14px 40px rgb(15 34 64 / 0.18);
   --overlay: rgb(15 34 64 / 0.45);
+
+  /* Paper — printed documents stay light whatever the theme (never redefined in dark) */
+  --paper: #ffffff;
+  --paper-ink: #16181d;
+  --paper-muted: #5e6470;
+  --paper-line: #d9d2c5;
+  --paper-rule: #16181d;
+  --paper-tint: #f5f1ea;
+  --paper-group: #e3ecf7;
+  --paper-group-ink: #0f2240;
+  --paper-owed: #9a4a0e;
+  --paper-shadow: 0 6px 24px rgb(22 24 29 / 0.14);
 }
 
 [data-theme="dark"] {
@@ -1374,7 +1386,6 @@
     color: var(--ink);
   }
 
-
   .site-footer.site-footer-night {
     border-top: 1px solid rgb(255 255 255 / 0.1);
     background: var(--night);
@@ -2298,5 +2309,223 @@
   *::after {
     animation: none !important;
     transition: none !important;
+  }
+}
+
+/* ---------- Printed documents ---------- */
+
+/*
+ * /residences/<r>/print/<doc>: A4 sheets on screen, plain pages on paper.
+ * Every sheet starts a new page; .print-landscape sheets print on the
+ * landscape named page (the wide property ledger).
+ */
+@page {
+  size: A4;
+  margin: 12mm 11mm;
+}
+@page landscape {
+  size: A4 landscape;
+  margin: 10mm 10mm;
+}
+
+@layer components {
+  .print-doc {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    padding: 0 16px 48px;
+    background: var(--ground);
+  }
+  .print-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 4px;
+    background: var(--ground);
+    border-bottom: 1px solid var(--line);
+  }
+  .print-sheet {
+    width: 210mm;
+    max-width: 100%;
+    min-height: 297mm;
+    padding: 14mm 12mm;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    background: var(--paper);
+    color: var(--paper-ink);
+    box-shadow: var(--paper-shadow);
+    font-size: 11px;
+    line-height: 1.35;
+    overflow-x: auto;
+  }
+  .print-landscape {
+    width: 297mm;
+    min-height: 210mm;
+    page: landscape;
+  }
+  .print-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--paper-rule);
+  }
+  .print-mark {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: var(--mark-bg);
+    color: var(--mark-fg);
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 17px;
+  }
+  .print-residence {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .print-title {
+    font-family: var(--font-display);
+    font-size: 19px;
+    font-weight: 700;
+    line-height: 1.15;
+  }
+  .print-muted {
+    color: var(--paper-muted);
+    font-size: 10.5px;
+  }
+  .print-section-title {
+    margin-top: 4px;
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .print-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+  }
+  .print-table-narrow {
+    width: auto;
+    min-width: 50%;
+    align-self: flex-end;
+  }
+  .print-table th {
+    padding: 5px 6px;
+    text-align: left;
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--paper-muted);
+    border-bottom: 1.5px solid var(--paper-rule);
+  }
+  .print-table td {
+    padding: 4px 6px;
+    border-bottom: 1px solid var(--paper-line);
+    vertical-align: top;
+  }
+  .print-table .num {
+    text-align: right;
+    white-space: nowrap;
+  }
+  .print-table tr {
+    break-inside: avoid;
+  }
+  .print-table thead {
+    display: table-header-group;
+  }
+  .print-bloc {
+    font-weight: 700;
+    background: var(--paper-tint);
+    border-right: 1px solid var(--paper-line);
+  }
+  .print-table tr[data-status="UNPAID"] td:nth-last-child(3),
+  .print-table tr[data-status="PARTIAL"] td:nth-last-child(3) {
+    color: var(--paper-owed);
+  }
+  .print-group td {
+    padding-top: 8px;
+    font-weight: 700;
+    text-transform: capitalize;
+    color: var(--paper-group-ink);
+    background: var(--paper-group);
+  }
+  .print-subtotal td {
+    font-weight: 700;
+    background: var(--paper-tint);
+  }
+  .print-total td {
+    font-weight: 800;
+    font-size: 11.5px;
+    border-top: 1.5px solid var(--paper-rule);
+    border-bottom: 3px double var(--paper-rule);
+  }
+  .print-figures {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    border: 1px solid var(--paper-line);
+  }
+  .print-figure {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 8px 10px;
+    border-right: 1px solid var(--paper-line);
+  }
+  .print-figure:last-child {
+    border-right: 0;
+    background: var(--paper-tint);
+  }
+  .print-figure-label {
+    font-size: 9.5px;
+    color: var(--paper-muted);
+  }
+  .print-figure-value {
+    font-size: 13px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@media print {
+  html,
+  body {
+    height: auto;
+    background: var(--paper);
+  }
+  .print-toolbar {
+    display: none;
+  }
+  .print-doc {
+    display: block;
+    padding: 0;
+    background: var(--paper);
+  }
+  .print-sheet,
+  .print-landscape {
+    width: auto;
+    min-height: 0;
+    padding: 0;
+    box-shadow: none;
+    overflow: visible;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .print-sheet + .print-sheet {
+    break-before: page;
   }
 }

@@ -152,6 +152,13 @@ const PATHS = {
       <path d="M8 11v5M8 8v.01M12 16v-5M16 16v-3a2 2 0 0 0-4 0" />
     </>
   ),
+  printer: (
+    <>
+      <path d="M7 9V3h10v6" />
+      <rect x="3" y="9" width="18" height="8" rx="2" />
+      <path d="M7 14h10v7H7z" />
+    </>
+  ),
   history: (
     <>
       <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
