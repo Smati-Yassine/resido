@@ -279,17 +279,31 @@ export async function setAssessmentsOwner(
   );
 }
 
-/** A deleted owner leaves every cycle: their lots' assessments keep no owner. */
-export async function clearOwnerEverywhere(
+/** Takes `ownerId` off the lots they own in `cycleIds` (an owner removed from a cycle onward). */
+export async function clearOwnerInCycles(
   organizationId: string,
   ownerId: string,
+  cycleIds: string[],
   session: ClientSession,
 ): Promise<void> {
+  if (cycleIds.length === 0) return;
   await (
     await collection()
   ).updateMany(
-    { organizationId: toObjectId(organizationId), ownerId: toObjectId(ownerId) },
+    { organizationId: toObjectId(organizationId), ownerId: toObjectId(ownerId), cycleId: { $in: cycleIds.map(toObjectId) } },
     { $set: { ownerId: null } },
     { session },
   );
+}
+
+/** Whether any cycle still records `ownerId` as a lot's owner. */
+export async function ownerHasAssessments(
+  organizationId: string,
+  ownerId: string,
+  session: ClientSession,
+): Promise<boolean> {
+  const found = await (
+    await collection()
+  ).findOne({ organizationId: toObjectId(organizationId), ownerId: toObjectId(ownerId) }, { session });
+  return found !== null;
 }

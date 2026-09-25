@@ -19,15 +19,18 @@ export default async function OwnersPage({ params, searchParams }: PageProps<"/r
     lots.listLots(session, residenceId, { status: "ACTIVE" }),
     buildings.listBuildings(session, residenceId),
   ]);
-  const ownerList = ownerResult.ok ? ownerResult.data : [];
+  const allOwners = ownerResult.ok ? ownerResult.data : [];
   const lotList = lotResult.ok ? lotResult.data : [];
   const blocName = new Map((blocResult.ok ? blocResult.data : []).map((b) => [b.id, b.name]));
-  const ownerName = new Map(ownerList.map((o) => [o.id, o.name]));
+  const ownerName = new Map(allOwners.map((o) => [o.id, o.name]));
   // What each lot still owes in the cycle being viewed (nothing billed in a draft).
   const rows = cycle && cycle.status !== "DRAFT" ? await getLotRows(session, residenceId, cycle.id) : [];
   const dueByLot = new Map(rows.map((r) => [r.lotId, r.dueMillimes - r.paidMillimes]));
   // Who owns each lot in the cycle on screen — owners change from one cycle to the next.
   const ownerOf = await lotOwnersInCycle(residenceId, lotList, cycle?.id ?? null);
+  // A removed owner still shows in the cycles where they own lots (history), nowhere else.
+  const holders = new Set(ownerOf.values());
+  const ownerList = allOwners.filter((o) => !o.removed || holders.has(o.id));
 
   const choices: LotChoice[] = lotList.map((l) => ({
     id: l.id,

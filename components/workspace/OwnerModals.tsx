@@ -180,16 +180,21 @@ function DeleteOwnerModal({
   onClose: () => void;
 }) {
   const { t } = useI18n();
+  const cycle = useViewedCycle();
+  const billed = cycle && cycle.status !== "DRAFT";
   const [onSubmit, pending] = useActionToast(deleteOwnerAction, onClose);
   return (
     <Modal title={interpolate(t.deleteOwnerTitle, { name: owner.name })} width={460} onClose={onClose}>
       <form onSubmit={onSubmit} className="flex flex-col gap-5">
         <input type="hidden" name="residenceId" value={residenceId} />
         <input type="hidden" name="ownerId" value={owner.id} />
-        <p className="text-[15px] leading-relaxed text-ink-2">{t.deleteOwnerText}</p>
+        <ViewedCycleField />
+        <p className="text-[15px] leading-relaxed text-ink-2">
+          {billed ? interpolate(t.deleteOwnerTextCycle, { name: cycle.name }) : t.deleteOwnerText}
+        </p>
         <ModalActions
           onCancel={onClose}
-          submitLabel={t.deleteForever}
+          submitLabel={billed ? t.remove : t.deleteForever}
           pending={pending}
           submitClassName="btn btn-danger-solid"
         />

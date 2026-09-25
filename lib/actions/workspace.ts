@@ -290,6 +290,16 @@ export async function openCycleAction(_: ActionResult | null, formData: FormData
   });
 }
 
+export async function reopenCycleAction(_: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  const { residenceId, session, t, done } = await scoped(formData);
+  return guarded(t, async () => {
+    const result = await cycles.reopenCycle(session, residenceId, { cycleId: field(formData, "cycleId") });
+    if (!result.ok)
+      return { ok: false, message: result.code === "ANOTHER_CYCLE_OPEN" ? t.errAnotherOpen : t.errGeneric };
+    return done(interpolate(t.cycleReopened, { name: result.data.name }));
+  });
+}
+
 export async function closeCycleAction(_: ActionResult | null, formData: FormData): Promise<ActionResult> {
   const { residenceId, session, t, done, money } = await scoped(formData);
   return guarded(t, async () => {
@@ -342,8 +352,20 @@ export async function saveOwnerAction(_: ActionResult | null, formData: FormData
 export async function deleteOwnerAction(_: ActionResult | null, formData: FormData): Promise<ActionResult> {
   const { residenceId, session, t, done } = await scoped(formData);
   return guarded(t, async () => {
-    const result = await owners.deleteOwner(session, residenceId, field(formData, "ownerId"));
+    // Removed from the cycle on screen onward; earlier cycles keep the owner.
+    const result = await owners.deleteOwner(
+      session,
+      residenceId,
+      field(formData, "ownerId"),
+      field(formData, "cycleId") || null,
+    );
     if (!result.ok) return { ok: false, message: t.errGeneric };
-    return done(interpolate(t.ownerDeleted, { name: result.data.name }));
+    const cycleId = field(formData, "cycleId");
+    const cycle = cycleId ? await cycles.getCycle(session, residenceId, cycleId) : null;
+    return done(
+      cycle && cycle.status !== "DRAFT"
+        ? interpolate(t.ownerRemovedFrom, { name: result.data.name, cycle: cycle.name })
+        : interpolate(t.ownerDeleted, { name: result.data.name }),
+    );
   });
 }

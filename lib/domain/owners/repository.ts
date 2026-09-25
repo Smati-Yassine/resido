@@ -10,6 +10,8 @@ interface OwnerDoc {
   organizationId: ObjectId;
   name: string;
   phone: string | null;
+  /** Set when the owner was removed while past cycles still name them (kept for that history). */
+  removedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -20,6 +22,7 @@ function toDomain(doc: OwnerDoc): Owner {
     organizationId: fromObjectId(doc.organizationId),
     name: doc.name,
     phone: doc.phone ?? null,
+    removed: !!doc.removedAt,
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
   };
@@ -84,4 +87,15 @@ export async function deleteOwner(organizationId: string, id: string, session: C
     await collection()
   ).deleteOne({ _id: toObjectId(id), organizationId: toObjectId(organizationId) }, { session });
   return result.deletedCount === 1;
+}
+
+/** Hides an owner who still appears in past cycles: kept for that history, gone from the present. */
+export async function markOwnerRemoved(organizationId: string, id: string, session: ClientSession): Promise<void> {
+  await (
+    await collection()
+  ).updateOne(
+    { _id: toObjectId(id), organizationId: toObjectId(organizationId) },
+    { $set: { removedAt: new Date(), updatedAt: new Date() } },
+    { session },
+  );
 }

@@ -156,6 +156,39 @@ export async function markCycleClosed(
   return result ? toDomain(result) : null;
 }
 
+/**
+ * Reopens a CLOSED cycle. An open-ended cycle gets its end date back to none
+ * (closing had stamped it with the close date). Throws AnotherCycleOpenError
+ * if another cycle is OPEN — at most one is (unique partial index).
+ */
+export async function markCycleReopened(organizationId: string, cycleId: string): Promise<Cycle | null> {
+  try {
+    const result = await (
+      await collection()
+    ).findOneAndUpdate(
+      { _id: toObjectId(cycleId), organizationId: toObjectId(organizationId), status: "CLOSED" },
+      [
+        {
+          $set: {
+            status: "OPEN",
+            endDate: { $cond: [{ $eq: ["$endDate", "$closedAt"] }, null, "$endDate"] },
+            closedAt: null,
+            closedBy: null,
+            closingTreasuryBalanceMillimes: null,
+          },
+        },
+      ],
+      { returnDocument: "after" },
+    );
+    return result ? toDomain(result) : null;
+  } catch (error) {
+    if (isDuplicateKeyError(error)) {
+      throw new AnotherCycleOpenError("Another cycle is already OPEN for this organization");
+    }
+    throw error;
+  }
+}
+
 export async function linkNextCycle(
   organizationId: string,
   previousCycleId: string,

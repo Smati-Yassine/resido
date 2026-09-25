@@ -112,35 +112,6 @@ export async function setLotOwner(
   return result ? toDomain(result) : null;
 }
 
-/**
- * Makes `lotIds` exactly the lots held by `ownerId`: listed lots are
- * (re)assigned to it — taking them from any previous owner — and lots it
- * held that are not listed are left without an owner.
- */
-export async function replaceOwnerLots(
-  organizationId: string,
-  ownerId: string,
-  lotIds: string[],
-  session: ClientSession,
-): Promise<void> {
-  const org = toObjectId(organizationId);
-  const owner = toObjectId(ownerId);
-  const ids = lotIds.map(toObjectId);
-  const lots = await collection();
-  await lots.updateMany(
-    { organizationId: org, ownerId: owner, _id: { $nin: ids } },
-    { $set: { ownerId: null, updatedAt: new Date() } },
-    { session },
-  );
-  if (ids.length) {
-    await lots.updateMany(
-      { organizationId: org, _id: { $in: ids } },
-      { $set: { ownerId: owner, updatedAt: new Date() } },
-      { session },
-    );
-  }
-}
-
 export async function updateLot(
   organizationId: string,
   lotId: string,

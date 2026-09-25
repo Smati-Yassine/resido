@@ -18,6 +18,11 @@ export interface Owner {
   organizationId: string;
   name: string;
   phone: string | null;
+  /**
+   * Removed from the present but still named by past cycles: shown only where
+   * they own lots (an older cycle), hidden elsewhere.
+   */
+  removed: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

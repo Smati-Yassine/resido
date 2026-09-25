@@ -24,10 +24,14 @@ export default async function LotsPage({ params, searchParams }: PageProps<"/res
     lots.listLots(session, residenceId, { status: "ACTIVE" }),
     owners.listOwners(session, residenceId),
   ]);
-  const ownerOptions = (ownerResult.ok ? ownerResult.data : []).map((o) => ({ id: o.id, name: o.name }));
   const blocs = blocResult.ok ? blocResult.data : [];
   const lotList = lotResult.ok ? lotResult.data : [];
   const billed = cycle && cycle.status !== "DRAFT" ? await getLotRows(session, residenceId, cycle.id) : null;
+  // A removed owner is offered only in the cycles where they still own lots.
+  const holders = new Set(billed ? billed.map((r) => r.ownerId) : lotList.map((l) => l.ownerId));
+  const ownerOptions = (ownerResult.ok ? ownerResult.data : [])
+    .filter((o) => !o.removed || holders.has(o.id))
+    .map((o) => ({ id: o.id, name: o.name }));
   const blocName = new Map(blocs.map((b) => [b.id, b.name]));
 
   // Lot changes are for roles that manage lots; the owner is changed only through Edit.

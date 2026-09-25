@@ -283,4 +283,30 @@ describe("ownership per cycle", () => {
     unwrap(await setOwner(b.id, next.id));
     expect([await ownerIn(cycle.id), await ownerIn(next.id)]).toEqual(["A", "B"]);
   });
+
+  it("removing an owner in the new cycle keeps them in the old one", async () => {
+    const { session, residence, cycle, next, ownerIn, setOwner, a } = await twoCycles();
+    const b = unwrap(await owners.createOwner(session, residence.id, { name: "B", lotIds: [] }));
+    unwrap(await setOwner(b.id, next.id));
+    // A owns A11 in 2026 only; removed while viewing 2027.
+    unwrap(await owners.deleteOwner(session, residence.id, a.id, next.id));
+    expect([await ownerIn(cycle.id), await ownerIn(next.id)]).toEqual(["A", "B"]);
+    // Kept for 2026's history, flagged as removed from the present.
+    const kept = unwrap(await owners.listOwners(session, residence.id)).find((o) => o.id === a.id);
+    expect(kept).toMatchObject({ name: "A", removed: true });
+  });
+
+  it("removing an owner from a cycle clears that cycle and the later ones", async () => {
+    const { session, residence, cycle, next, ownerIn, a, lots: l } = await twoCycles();
+    unwrap(await owners.deleteOwner(session, residence.id, a.id, next.id));
+    expect([await ownerIn(cycle.id), await ownerIn(next.id)]).toEqual(["A", null]);
+    expect(unwrap(await lots.listLots(session, residence.id)).find((x) => x.id === l.a11.id)!.ownerId).toBeNull();
+  });
+
+  it("an owner no cycle names any more is deleted for good", async () => {
+    const { session, residence } = await residenceWithOpenCycle();
+    const o = unwrap(await owners.createOwner(session, residence.id, { name: "Temp", lotIds: [] }));
+    unwrap(await owners.deleteOwner(session, residence.id, o.id));
+    expect(unwrap(await owners.listOwners(session, residence.id)).some((x) => x.id === o.id)).toBe(false);
+  });
 });

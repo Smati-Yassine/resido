@@ -69,6 +69,16 @@ export async function createCycle(
   return { ok: true, data: cycle };
 }
 
+export async function getCycle(
+  session: AuthorizedSession,
+  organizationId: string,
+  cycleId: string,
+): Promise<Cycle | null> {
+  requireOrganization(session, organizationId);
+  requirePermission(session, "cycles:read");
+  return repo.findCycleById(organizationId, cycleId);
+}
+
 export async function listCycles(session: AuthorizedSession, organizationId: string): Promise<Result<Cycle[]>> {
   requireOrganization(session, organizationId);
   requirePermission(session, "cycles:read");
@@ -203,6 +213,43 @@ export async function closeCycle(
   });
   if (!closed) return { ok: false, code: "CONFLICT", message: "Cycle is not currently OPEN" };
   return { ok: true, data: closed };
+}
+
+/**
+ * Reopens a CLOSED cycle, making it the current one again — refused while
+ * another cycle is OPEN (close that one first).
+ */
+export async function reopenCycle(
+  session: AuthorizedSession,
+  organizationId: string,
+  rawInput: CycleIdInput,
+): Promise<Result<Cycle>> {
+  requireOrganization(session, organizationId);
+  requirePermission(session, "cycles:manage");
+
+  const parsed = cycleIdInputSchema.safeParse(rawInput);
+  if (!parsed.success) return validationError(parsed.error);
+  const open = await repo.findOpenCycle(organizationId);
+  if (open) return { ok: false, code: "ANOTHER_CYCLE_OPEN", message: `${open.name} is OPEN` };
+
+  try {
+    const reopened = await repo.markCycleReopened(organizationId, parsed.data.cycleId);
+    if (!reopened) return { ok: false, code: "CONFLICT", message: "Cycle is not CLOSED" };
+    await writeAuditLog({
+      organizationId,
+      actorUserId: session.userId,
+      action: "CYCLE_REOPENED",
+      entityType: "cycle",
+      entityId: reopened.id,
+      metadata: { name: reopened.name },
+    });
+    return { ok: true, data: reopened };
+  } catch (error) {
+    if (error instanceof AnotherCycleOpenError) {
+      return { ok: false, code: "ANOTHER_CYCLE_OPEN", message: error.message };
+    }
+    throw error;
+  }
 }
 
 /**

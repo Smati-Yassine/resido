@@ -35,7 +35,9 @@ current one. Closing ends a cycle but does not freeze it: payments,
 expenses, charges and owners of a CLOSED cycle stay correctable (a late
 payment, a mistake found in the next year), and viewing a cycle through the
 cycle switcher shows and edits that cycle's data. Only DRAFT cycles take no
-money, since they bill nothing yet. Reopening was removed. A cycle of any
+money, since they bill nothing yet. A CLOSED cycle can be reopened — made
+the current one again — while no other cycle is OPEN; an open-ended cycle
+loses the end date its close had stamped. A cycle of any
 status can be deleted: its assessments, payments and expenses go with it,
 and every previous/next link to it is repointed. ADR-005 is amended
 accordingly.
@@ -78,8 +80,12 @@ payment starts from a unit search: the unit found is selected for its full
 remaining due and its owner's other unpaid units are offered unselected.
 There is no payer field: the server takes the units' owner in their cycle
 (`ownerId` + `payerName` snapshot), or joins the owners' names when units of
-several owners are paid together. Deleting an owner leaves their lots
-without one, in every cycle.
+several owners are paid together. Removing an owner applies from the
+cycle being viewed onward, like any ownership change: their lots there and
+after are left without an owner, earlier cycles keep them. An owner no
+cycle names any more is deleted; one a past cycle still names is kept for
+that history (`owners.removedAt`) and shown only in the cycles where they own
+lots.
 
 **Removed modules:** ownerships, receipts, receiptCounters,
 expenseCategories. Legacy indexes that would clash are dropped by

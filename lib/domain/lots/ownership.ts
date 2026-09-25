@@ -89,3 +89,24 @@ export async function changeLotOwner(
   await assessmentsRepo.setAssessmentsOwner(organizationId, targets, ownerId, session);
   if (reachedLatest && lot.ownerId === previous) await repo.setLotOwner(organizationId, lot.id, ownerId, session);
 }
+
+/**
+ * Takes an owner off every lot from `fromCycleId` onward — and off the lots'
+ * own owners, for cycles still to open. Earlier cycles keep them. Without a
+ * billed cycle, only the lots' own owners change.
+ */
+export async function removeOwnerFrom(
+  organizationId: string,
+  ownerId: string,
+  fromCycleId: string | null,
+  session: ClientSession,
+): Promise<void> {
+  const cycles = await billedCycles(organizationId);
+  const from = fromCycleId ? cycles.findIndex((c) => c.id === fromCycleId) : -1;
+  const held = (await repo.listLots(organizationId)).filter((lot) => lot.ownerId === ownerId);
+  // Legacy assessments of their lots follow the lot's owner: pin them before it changes.
+  for (const lot of held) await assessmentsRepo.pinLegacyOwner(organizationId, lot.id, ownerId, session);
+  const fromOn = from === -1 ? [] : cycles.slice(from).map((c) => c.id);
+  await assessmentsRepo.clearOwnerInCycles(organizationId, ownerId, fromOn, session);
+  for (const lot of held) await repo.setLotOwner(organizationId, lot.id, null, session);
+}

@@ -6,7 +6,7 @@ import { ownerInputSchema, type Owner, type OwnerInput } from "./schema";
 import * as repo from "./repository";
 import * as lotsRepo from "@/lib/domain/lots/repository";
 import * as assessmentsRepo from "@/lib/domain/assessments/repository";
-import { changeLotOwner, defaultCycleId, lotOwnersInCycle } from "@/lib/domain/lots/ownership";
+import { changeLotOwner, defaultCycleId, lotOwnersInCycle, removeOwnerFrom } from "@/lib/domain/lots/ownership";
 import type { ClientSession } from "mongodb";
 
 export type Result<T> = { ok: true; data: T } | { ok: false; code: "VALIDATION_ERROR" | "NOT_FOUND"; message: string };
@@ -121,20 +121,31 @@ export async function updateOwner(
   return { ok: true, data: owner };
 }
 
-/** Deletes an owner; their lots are kept, without an owner in any cycle. Past payments keep the payer's name. */
+/**
+ * Removes an owner from `cycleId` (the open cycle by default) onward: their
+ * lots there and after are left without an owner, earlier cycles keep them.
+ * An owner no cycle names any more is deleted; one still named by a past
+ * cycle is kept for that history, hidden from the present (`removed`).
+ * Past payments keep the payer's name.
+ */
 export async function deleteOwner(
   session: AuthorizedSession,
   organizationId: string,
   ownerId: string,
+  cycleId?: string | null,
 ): Promise<Result<Owner>> {
   requireOrganization(session, organizationId);
   requirePermission(session, "owners:*");
   const owner = await repo.findOwnerById(organizationId, ownerId);
   if (!owner) return { ok: false, code: "NOT_FOUND", message: "Owner not found" };
+  const from = cycleId === undefined ? await defaultCycleId(organizationId) : cycleId;
   await withTransaction(async (dbSession) => {
-    await assessmentsRepo.clearOwnerEverywhere(organizationId, ownerId, dbSession);
-    await lotsRepo.replaceOwnerLots(organizationId, ownerId, [], dbSession);
-    await repo.deleteOwner(organizationId, ownerId, dbSession);
+    await removeOwnerFrom(organizationId, ownerId, from, dbSession);
+    if (await assessmentsRepo.ownerHasAssessments(organizationId, ownerId, dbSession)) {
+      await repo.markOwnerRemoved(organizationId, ownerId, dbSession);
+    } else {
+      await repo.deleteOwner(organizationId, ownerId, dbSession);
+    }
     await writeAuditLog(
       {
         organizationId,

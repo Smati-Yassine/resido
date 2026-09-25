@@ -1,12 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Modal } from "@/components/ui/Modal";
 import { Field } from "@/components/ui/Field";
 import { useI18n } from "@/components/ui/I18nProvider";
 import { useActionToast } from "@/components/ui/useActionToast";
-import { closeCycleAction, createCycleAction, deleteCycleAction, openCycleAction } from "@/lib/actions/workspace";
+import {
+  closeCycleAction,
+  createCycleAction,
+  deleteCycleAction,
+  openCycleAction,
+  reopenCycleAction,
+} from "@/lib/actions/workspace";
 import { interpolate } from "@/lib/i18n/dictionaries";
 import { formatAmount, todayIso } from "@/lib/format";
 import { useCurrency } from "@/components/ui/CurrencyProvider";
@@ -26,14 +32,9 @@ export function NewCycleButton({ residenceId, label }: { residenceId: string; la
 
 function NewCycleModal({ residenceId, onClose }: { residenceId: string; onClose: () => void }) {
   const { t } = useI18n();
-  const router = useRouter();
-  const base = useResidenceBase();
   const [endMode, setEndMode] = useState<"fixed" | "open">("open");
-  const [onSubmit, pending] = useActionToast(createCycleAction, (result) => {
-    onClose();
-    const created = result.data as { id: string } | undefined;
-    if (created) router.push(`${base}/settings?tab=cycles&cycle=${created.id}`);
-  });
+  // The new cycle appears in the list; the page stays on the cycle being viewed.
+  const [onSubmit, pending] = useActionToast(createCycleAction, onClose);
 
   return (
     <Modal title={t.newCycle} subtitle={t.newCycleHelp} width={520} onClose={onClose}>
@@ -89,6 +90,21 @@ export function OpenCycleButton({ residenceId, cycleId }: { residenceId: string;
       <input type="hidden" name="cycleId" value={cycleId} />
       <button type="submit" className="btn btn-primary" disabled={pending}>
         {t.openCycle}
+      </button>
+    </form>
+  );
+}
+
+/** Makes a closed cycle the current one again (refused while another is open). */
+export function ReopenCycleButton({ residenceId, cycleId }: { residenceId: string; cycleId: string }) {
+  const { t } = useI18n();
+  const [onSubmit, pending] = useActionToast(reopenCycleAction);
+  return (
+    <form onSubmit={onSubmit}>
+      <input type="hidden" name="residenceId" value={residenceId} />
+      <input type="hidden" name="cycleId" value={cycleId} />
+      <button type="submit" className="btn btn-ghost" disabled={pending} title={t.reopenCycleHelp}>
+        {t.reopenCycle}
       </button>
     </form>
   );
@@ -206,10 +222,11 @@ function DeleteCycleModal({
   const { t } = useI18n();
   const router = useRouter();
   const base = useResidenceBase();
+  const params = useSearchParams();
   const [onSubmit, pending] = useActionToast(deleteCycleAction, () => {
     onClose();
-    // The deleted cycle may be the one in the URL; drop it so the default cycle shows.
-    router.replace(`${base}/settings?tab=cycles`);
+    // Only when the URL names the deleted cycle: drop it, in place, so the default cycle shows.
+    if (params.get("cycle") === cycleId) router.replace(`${base}/settings?tab=cycles`, { scroll: false });
   });
   return (
     <Modal title={interpolate(t.deleteCycleTitle, { name: cycleName })} width={460} onClose={onClose}>

@@ -13,6 +13,7 @@ import {
   DeleteCycleButton,
   NewCycleButton,
   OpenCycleButton,
+  ReopenCycleButton,
 } from "@/components/workspace/CycleControls";
 
 /** Settings › Cycles: every cycle of the residence, newest first — create, open, close, delete, or jump into one. */
@@ -93,6 +94,9 @@ export async function CyclesPanel({
                         cycleName={cycle.name}
                         closingBalanceMillimes={treasury.closingBalanceMillimes}
                       />
+                    )}
+                    {canManageCycles && cycle.status === "CLOSED" && (
+                      <ReopenCycleButton residenceId={residenceId} cycleId={cycle.id} />
                     )}
                     {canManageCycles && cycle.status === "DRAFT" && !hasOpen && (
                       <OpenCycleButton residenceId={residenceId} cycleId={cycle.id} />

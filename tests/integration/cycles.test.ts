@@ -233,6 +233,22 @@ describe("cycles", () => {
     expect((await cycles.computeCycleTreasury(residence.id, opened)).carriedFrom).toMatchObject({ name: "2026" });
   });
 
+  it("reopens a closed cycle, only while no other cycle is open", async () => {
+    const { session, residence, cycle } = await residenceWithOpenCycle();
+    unwrap(await cycles.closeCycle(session, residence.id, { cycleId: cycle.id }));
+    const reopened = unwrap(await cycles.reopenCycle(session, residence.id, { cycleId: cycle.id }));
+    // Open-ended: the end date stamped at close goes away again.
+    expect(reopened).toMatchObject({ status: "OPEN", endDate: null, closedAt: null });
+
+    unwrap(await cycles.closeCycle(session, residence.id, { cycleId: cycle.id }));
+    const next = unwrap(await cycles.createCycle(session, residence.id, { name: "2027", startDate: "2027-01-01" }));
+    unwrap(await cycles.openCycle(session, residence.id, { cycleId: next.id }));
+    expect(await cycles.reopenCycle(session, residence.id, { cycleId: cycle.id })).toMatchObject({
+      ok: false,
+      code: "ANOTHER_CYCLE_OPEN",
+    });
+  });
+
   it("keeps a closed cycle correctable, and the next cycle's start follows it", async () => {
     const { session, residence, cycle, assessmentOf } = await residenceWithOpenCycle();
     unwrap(
