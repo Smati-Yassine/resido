@@ -45,89 +45,68 @@ export function MembersPanel({
   const [removing, setRemoving] = useState<MemberRow | null>(null);
 
   return (
-    <div className="@container">
-      <div className="grid grid-cols-1 items-start gap-5 @4xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-        <div className="flex min-w-0 flex-col gap-5">
+    <div className="flex flex-col gap-5">
+      <p className="text-sm text-muted">{t.membersHelp}</p>
+      {canManage && <AddMemberForm residenceId={residenceId} />}
+
+      <div className="card data-table">
+        <div className="settings-group-head border-b border-line-soft">
+          <h2 className="h-card">{t.members}</h2>
+          <Badge tone="closed">{members.length}</Badge>
+        </div>
+        {members.map((m) => {
+          const self = m.userId === currentUserId;
+          return (
+            <div key={m.userId} className="data-row grid-cols-[40px_1fr_200px_130px]">
+              <span className="avatar avatar-sm">{initials(m.name)}</span>
+              <span className="flex min-w-0 flex-col">
+                <span className="truncate font-bold">
+                  {m.name} {self && <span className="font-medium text-muted">({t.you})</span>}
+                </span>
+                <span className="truncate text-[13px] text-muted">
+                  {m.email} · {interpolate(t.since, { date: m.since })}
+                </span>
+              </span>
+              {canManage ? (
+                <RoleSelect residenceId={residenceId} member={m} />
+              ) : (
+                <span>
+                  <Badge tone={m.role === "SYNDIC_ADMIN" ? "open" : "closed"}>{roleLabel(t, m.role)}</Badge>
+                </span>
+              )}
+              <span className="flex justify-end">
+                {(canManage || self) && (
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setRemoving(m)}>
+                    {self ? t.leave : t.remove}
+                  </button>
+                )}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {invitations.length > 0 && (
+        <div className="flex flex-col gap-2.5">
           <div className="card data-table">
             <div className="settings-group-head border-b border-line-soft">
-              <h2 className="h-card">{t.members}</h2>
-              <Badge tone="closed">{members.length}</Badge>
+              <h2 className="h-card">{t.pendingInvitations}</h2>
+              <Badge tone="draft">{invitations.length}</Badge>
             </div>
-            {members.map((m) => {
-              const self = m.userId === currentUserId;
-              return (
-                <div key={m.userId} className="data-row grid-cols-[40px_1fr_200px_130px]">
-                  <span className="avatar avatar-sm">{initials(m.name)}</span>
-                  <span className="flex min-w-0 flex-col">
-                    <span className="truncate font-bold">
-                      {m.name} {self && <span className="font-medium text-muted">({t.you})</span>}
-                    </span>
-                    <span className="truncate text-[13px] text-muted">
-                      {m.email} · {interpolate(t.since, { date: m.since })}
-                    </span>
-                  </span>
-                  {canManage ? (
-                    <RoleSelect residenceId={residenceId} member={m} />
-                  ) : (
-                    <span>
-                      <Badge tone={m.role === "SYNDIC_ADMIN" ? "open" : "closed"}>{roleLabel(t, m.role)}</Badge>
-                    </span>
-                  )}
-                  <span className="flex justify-end">
-                    {(canManage || self) && (
-                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setRemoving(m)}>
-                        {self ? t.leave : t.remove}
-                      </button>
-                    )}
-                  </span>
-                </div>
-              );
-            })}
+            {invitations.map((i) => (
+              <div key={i.id} className="data-row grid-cols-[1fr_200px_180px]">
+                <span className="truncate font-semibold">{i.email}</span>
+                <span>
+                  <Badge tone="draft">{interpolate(t.invitedAs, { role: roleLabel(t, i.role) })}</Badge>
+                </span>
+                <span className="flex justify-end">
+                  {canManage && <CancelInvitationButton residenceId={residenceId} invitationId={i.id} />}
+                </span>
+              </div>
+            ))}
           </div>
-
-          {invitations.length > 0 && (
-            <div className="flex flex-col gap-2.5">
-              <div className="card data-table">
-                <div className="settings-group-head border-b border-line-soft">
-                  <h2 className="h-card">{t.pendingInvitations}</h2>
-                  <Badge tone="draft">{invitations.length}</Badge>
-                </div>
-                {invitations.map((i) => (
-                  <div key={i.id} className="data-row grid-cols-[1fr_200px_180px]">
-                    <span className="truncate font-semibold">{i.email}</span>
-                    <span>
-                      <Badge tone="draft">{interpolate(t.invitedAs, { role: roleLabel(t, i.role) })}</Badge>
-                    </span>
-                    <span className="flex justify-end">
-                      {canManage && <CancelInvitationButton residenceId={residenceId} invitationId={i.id} />}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
-
-        <div className="flex min-w-0 flex-col gap-5">
-          {/* Admins pick a role in the form, which explains each; others get the guide. */}
-          {canManage ? (
-            <AddMemberForm residenceId={residenceId} />
-          ) : (
-            <section className="card card-pad flex flex-col gap-3">
-              <div className="flex flex-col gap-1">
-                <h2 className="h-card">{t.rolesTitle}</h2>
-                <p className="text-[13px] text-muted">{t.membersHelp}</p>
-              </div>
-              {ROLES.map((r) => (
-                <div key={r} className="flex items-start gap-3 border-t border-line-soft pt-3">
-                  <Badge tone={r === "SYNDIC_ADMIN" ? "open" : "closed"}>{roleLabel(t, r)}</Badge>
-                  <span className="text-[13px] text-ink-2">{(t as Record<string, string>)[`roleHelp${r}`]}</span>
-                </div>
-              ))}
-            </section>
-          )}
-        </div>
-      </div>
+      )}
 
       {removing && (
         <RemoveMemberModal
@@ -155,15 +134,15 @@ function AddMemberForm({ residenceId }: { residenceId: string }) {
       </div>
       <input type="hidden" name="residenceId" value={residenceId} />
       <input type="hidden" name="role" value={role} />
-      <div className="grid grid-cols-1 items-end gap-3">
+      <div className="grid grid-cols-1 items-end gap-3 md:grid-cols-[1fr_auto]">
         <Field label={t.memberEmail}>
           <input className="input" name="email" type="email" placeholder={t.emailPlaceholder} required />
         </Field>
-        <button type="submit" className="btn btn-primary h-[46px] w-full" disabled={pending}>
+        <button type="submit" className="btn btn-primary h-[46px]" disabled={pending}>
           {t.addMember}
         </button>
       </div>
-      <div className="grid grid-cols-1 gap-2">
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
         {ROLES.map((r) => (
           <button key={r} type="button" className="choice" aria-pressed={role === r} onClick={() => setRole(r)}>
             <span className="choice-title">{roleLabel(t, r)}</span>

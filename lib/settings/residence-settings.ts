@@ -3,7 +3,6 @@ import { roleHasPermission } from "@/lib/rbac/permissions";
 import type { Dictionary, Locale } from "@/lib/i18n/dictionaries";
 import type { CurrencyCode } from "@/lib/currency";
 import type { BadgeTone } from "@/components/ui/Display";
-import type { IconName } from "@/components/ui/Icon";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { toCycleView } from "@/lib/cycle-view";
 import { residencePath, withSlugs } from "@/lib/workspace";
@@ -34,7 +33,7 @@ export interface SettingsCycle {
   closingBalanceMillimes: number | null;
 }
 
-/** What a journal entry is about — the Journal tab's filters. */
+/** What a journal entry is about — the Journal's filter. */
 export type JournalKind = "money" | "cycles" | "property" | "access";
 
 export interface SettingsJournalEntry {
@@ -44,9 +43,6 @@ export interface SettingsJournalEntry {
   what: string;
   detail: string;
   kind: JournalKind;
-  icon: IconName;
-  /** Undoing or removing something reads as "neg"; creating as "pos". */
-  tone: "pos" | "neg" | "neutral";
 }
 
 export interface SettingsJournalDay {
@@ -54,27 +50,19 @@ export interface SettingsJournalDay {
   entries: SettingsJournalEntry[];
 }
 
-/** An audit action's kind, icon and tone, from its name (PAYMENT_CREATED, LOT_DELETED…). */
-export function journalLook(action: string): Pick<SettingsJournalEntry, "kind" | "icon" | "tone"> {
-  const [subject] = action.split("_");
-  const tone = /CANCELLED|DELETED|REMOVED|REVERSED|ARCHIVED|CLOSED/.test(action)
-    ? "neg"
-    : /CREATED|ADDED|OPENED|RESTORED|REOPENED/.test(action)
-      ? "pos"
-      : "neutral";
-  const look: Record<string, Pick<SettingsJournalEntry, "kind" | "icon">> = {
-    PAYMENT: { kind: "money", icon: "income" },
-    EXPENSE: { kind: "money", icon: "expense" },
-    OPENING: { kind: "money", icon: "treasury" },
-    CYCLE: { kind: "cycles", icon: "calendar" },
-    BLOC: { kind: "property", icon: "bloc" },
-    LOT: { kind: "property", icon: "lots" },
-    OWNER: { kind: "property", icon: "owners" },
-    MEMBER: { kind: "access", icon: "user" },
-    INVITATION: { kind: "access", icon: "mail" },
-    RESIDENCE: { kind: "access", icon: "residence" },
-  };
-  return { ...(look[subject] ?? { kind: "access", icon: "history" }), tone };
+const KIND_OF: Record<string, JournalKind> = {
+  PAYMENT: "money",
+  EXPENSE: "money",
+  OPENING: "money",
+  CYCLE: "cycles",
+  BLOC: "property",
+  LOT: "property",
+  OWNER: "property",
+};
+
+/** An audit action's kind, from its subject (PAYMENT_CREATED → money, LOT_DELETED → property…). */
+export function journalKind(action: string): JournalKind {
+  return KIND_OF[action.split("_")[0]] ?? "access";
 }
 
 /**
@@ -147,7 +135,7 @@ export async function loadResidenceSettings(
   for (const entry of entries) {
     const day = formatDate(entry.createdAt);
     const row: SettingsJournalEntry = {
-      ...journalLook(entry.action),
+      kind: journalKind(entry.action),
       id: entry.id,
       time: formatDateTime(entry.createdAt, locale).slice(-5),
       who: people.get(entry.actorUserId) ?? t.someone,

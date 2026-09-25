@@ -201,14 +201,10 @@ flash.
 **Settings.** The sidebar has a second group, "Paramètres", under the
 overview: Général (`/settings`), Cycles, Membres and Journal
 (`/settings/<tab>`), each its own entry (the current one is the longest
-matching path). The settings page is laid out like Finances and
-Copropriété — header, a strip of figures (cycles, members, currency, last
-activity), tabs, then the section: General (identity with a live preview,
-currency, shortcuts, danger zone), Cycles (the current cycle in front, then
-the timeline with each cycle's collection), Members (members and
-invitations beside the invite form), Journal (search, filters by kind —
-finances, cycles, property, access — 40 entries at a time). The modal on the
-residences list shows the same sections with its side navigation.
+matching path). Each is a plain page in one narrow column: a header naming
+it, then its rows — no tabs or figures, the sidebar is the navigation.
+Journal can be searched and filtered by kind, 40 entries at a time. The
+modal on the residences list shows the same sections with a side navigation.
 
 **Printing.** The dashboard, Finances (each tab) and Copropriété have a
 "Imprimer" button. It fetches `/residences/<r>/print/<doc>` — a route

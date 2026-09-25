@@ -1045,7 +1045,7 @@
     vector-effect: non-scaling-stroke;
   }
 
-  /* Settings: side navigation, grouped rows, cycle timeline */
+  /* Settings: side navigation, grouped rows */
   .settings-layout {
     display: grid;
     grid-template-columns: 236px minmax(0, 1fr);
@@ -1155,101 +1155,38 @@
     background: var(--primary-soft);
     color: var(--primary);
   }
-  /* Settings › General: the residence as it shows in the list */
-  .settings-preview {
+  /* Settings pages: one readable column */
+  .settings-page {
     display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 16px;
-    border: 1px solid var(--line);
-    border-radius: 16px;
-    background: var(--surface-2);
+    flex-direction: column;
+    gap: 24px;
+    width: 100%;
+    max-width: 880px;
   }
-  /* Settings › Cycles: the cycle that matters now, in front */
-  .cycle-feature {
+  .settings-list-row {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 20px 32px;
-    padding: 24px 28px;
-    border-left: 4px solid var(--stone);
-  }
-  .cycle-feature[data-status="OPEN"] {
-    border-left-color: var(--primary);
-  }
-  /* Settings › Journal: one action per row, its kind as a coloured icon */
-  .journal-row {
-    display: grid;
-    grid-template-columns: 34px minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 14px;
-    padding: 12px 24px;
+    justify-content: space-between;
+    gap: 12px 24px;
+    padding: 16px 24px;
     border-top: 1px solid var(--line-soft);
   }
-  .journal-row:hover {
-    background: var(--row-hover);
+  .journal-days {
+    border-top: 1px solid var(--line-soft);
   }
-  .journal-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 34px;
-    height: 34px;
-    border-radius: 11px;
-    background: var(--primary-soft);
-    color: var(--primary);
+  /* A card without a heading starts with its first row: no rule above it */
+  .settings-group > .settings-list-row:first-child,
+  .settings-group > .journal-days:first-child {
+    border-top: 0;
   }
-  .journal-icon[data-kind="money"] {
-    background: var(--badge-paid-bg);
-    color: var(--badge-paid-fg);
-  }
-  .journal-icon[data-kind="property"] {
-    background: var(--badge-partial-bg);
-    color: var(--badge-partial-fg);
-  }
-  .journal-icon[data-kind="access"] {
-    background: var(--badge-closed-bg);
-    color: var(--badge-closed-fg);
-  }
-  .journal-icon[data-tone="neg"] {
-    background: var(--danger-soft);
-    color: var(--danger);
-  }
-  .timeline {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-  }
-  .timeline::before {
-    content: "";
-    position: absolute;
-    top: 14px;
-    bottom: 14px;
-    left: 11px;
-    width: 2px;
-    background: var(--line);
-  }
-  .timeline-item {
-    position: relative;
+  .journal-row {
     display: grid;
-    grid-template-columns: 24px minmax(0, 1fr);
+    grid-template-columns: 48px minmax(0, 1fr) auto;
+    align-items: center;
     gap: 16px;
-    padding: 8px 0;
-  }
-  .timeline-dot {
-    width: 14px;
-    height: 14px;
-    margin: 22px 0 0 5px;
-    border-radius: 99px;
-    background: var(--stone);
-    box-shadow: 0 0 0 4px var(--surface);
-  }
-  .timeline-dot[data-status="OPEN"] {
-    background: var(--primary);
-  }
-  .timeline-dot[data-status="DRAFT"] {
-    border: 2px dashed var(--stone);
-    background: var(--surface);
+    padding: 11px 24px;
+    border-top: 1px solid var(--line-soft);
   }
   @media (max-width: 1023px) {
     .settings-layout {
