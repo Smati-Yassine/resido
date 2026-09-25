@@ -22,6 +22,7 @@ export function ResidenceShell({
   initialCollapsed,
   lotCount,
   unpaidCount,
+  cycleCount,
   switchers,
   userMenu,
   children,
@@ -31,6 +32,7 @@ export function ResidenceShell({
   initialCollapsed: boolean;
   lotCount: number;
   unpaidCount: number;
+  cycleCount: number;
   switchers: React.ReactNode;
   userMenu: React.ReactNode;
   children: React.ReactNode;
@@ -62,6 +64,7 @@ export function ResidenceShell({
             <SideNav
               lotCount={lotCount}
               unpaidCount={unpaidCount}
+              cycleCount={cycleCount}
               footer={
                 <button
                   type="button"

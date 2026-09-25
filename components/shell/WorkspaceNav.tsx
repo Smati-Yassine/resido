@@ -7,17 +7,23 @@ import { useI18n } from "@/components/ui/I18nProvider";
 import { interpolate, type Dictionary } from "@/lib/i18n/dictionaries";
 import { useResidenceBase } from "./ResidenceLink";
 
-type SectionKey = "dashboard" | "finances" | "property" | "settings";
+type SectionKey = "dashboard" | "finances" | "property" | "general" | "cycles" | "members" | "journal";
 
 interface Section {
   key: SectionKey;
   path: string;
   icon: IconName;
+  label: keyof Dictionary;
 }
 
-const S = (key: SectionKey, path: string, icon: IconName): Section => ({ key, path, icon });
+const S = (key: SectionKey, path: string, icon: IconName, label: keyof Dictionary = key as keyof Dictionary) => ({
+  key,
+  path,
+  icon,
+  label,
+});
 
-/** The residence's sections, in their sidebar groups; settings sits apart at the bottom. */
+/** The residence's sections, in their sidebar groups: the overview, then each part of the settings. */
 const GROUPS: { label: keyof Dictionary; sections: Section[] }[] = [
   {
     label: "navOverview",
@@ -27,17 +33,29 @@ const GROUPS: { label: keyof Dictionary; sections: Section[] }[] = [
       S("property", "/property", "lots"),
     ],
   },
+  {
+    label: "settings",
+    sections: [
+      S("general", "/settings", "settings", "tabGeneral"),
+      S("cycles", "/settings/cycles", "calendar"),
+      S("members", "/settings/members", "user"),
+      S("journal", "/settings/journal", "history"),
+    ],
+  },
 ];
-const SETTINGS = S("settings", "/settings", "settings");
 
-export const SECTIONS: Section[] = [...GROUPS.flatMap((g) => g.sections), SETTINGS];
+export const SECTIONS: Section[] = GROUPS.flatMap((g) => g.sections);
 
-/** Which section a pathname belongs to. */
+/** Which section a pathname belongs to: the longest path it falls under (/settings/cycles is Cycles, not General). */
 export function useSection() {
   const pathname = usePathname();
   const rest = pathname.slice(useResidenceBase().length);
-  return SECTIONS.find((s) => s.path && rest.startsWith(s.path)) ?? SECTIONS[0];
+  const matches = SECTIONS.filter((s) => s.path && (rest === s.path || rest.startsWith(`${s.path}/`)));
+  return matches.sort((a, b) => b.path.length - a.path.length)[0] ?? SECTIONS[0];
 }
+
+/** Whether a section is one of the settings pages. */
+export const isSettings = (section: Section) => section.path.startsWith("/settings");
 
 /** A workspace link that keeps the cycle being viewed. */
 export function useWorkspaceHref() {
@@ -55,10 +73,12 @@ export function useWorkspaceHref() {
 export function SideNav({
   lotCount,
   unpaidCount,
+  cycleCount,
   footer,
 }: {
   lotCount: number;
   unpaidCount: number;
+  cycleCount: number;
   footer: React.ReactNode;
 }) {
   const { t } = useI18n();
@@ -66,7 +86,7 @@ export function SideNav({
   const href = useWorkspaceHref();
 
   const item = (s: Section, extra?: React.ReactNode) => {
-    const label = t[s.key] as string;
+    const label = t[s.label] as string;
     return (
       <Link
         key={s.key}
@@ -95,6 +115,8 @@ export function SideNav({
                 s,
                 s.key === "property" ? (
                   <span className="side-count">{lotCount}</span>
+                ) : s.key === "cycles" ? (
+                  <span className="side-count">{cycleCount}</span>
                 ) : s.key === "finances" && unpaidCount > 0 ? (
                   <span
                     className="side-count side-count-warn"
@@ -108,10 +130,7 @@ export function SideNav({
           </div>
         ))}
       </nav>
-      <div className="side-foot">
-        {item(SETTINGS)}
-        {footer}
-      </div>
+      <div className="side-foot">{footer}</div>
     </>
   );
 }

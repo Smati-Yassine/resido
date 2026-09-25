@@ -1155,6 +1155,66 @@
     background: var(--primary-soft);
     color: var(--primary);
   }
+  /* Settings › General: the residence as it shows in the list */
+  .settings-preview {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--surface-2);
+  }
+  /* Settings › Cycles: the cycle that matters now, in front */
+  .cycle-feature {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 20px 32px;
+    padding: 24px 28px;
+    border-left: 4px solid var(--stone);
+  }
+  .cycle-feature[data-status="OPEN"] {
+    border-left-color: var(--primary);
+  }
+  /* Settings › Journal: one action per row, its kind as a coloured icon */
+  .journal-row {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 24px;
+    border-top: 1px solid var(--line-soft);
+  }
+  .journal-row:hover {
+    background: var(--row-hover);
+  }
+  .journal-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 11px;
+    background: var(--primary-soft);
+    color: var(--primary);
+  }
+  .journal-icon[data-kind="money"] {
+    background: var(--badge-paid-bg);
+    color: var(--badge-paid-fg);
+  }
+  .journal-icon[data-kind="property"] {
+    background: var(--badge-partial-bg);
+    color: var(--badge-partial-fg);
+  }
+  .journal-icon[data-kind="access"] {
+    background: var(--badge-closed-bg);
+    color: var(--badge-closed-fg);
+  }
+  .journal-icon[data-tone="neg"] {
+    background: var(--danger-soft);
+    color: var(--danger);
+  }
   .timeline {
     position: relative;
     display: flex;

@@ -42,6 +42,7 @@ export default async function ResidenceLayout({ children, params }: LayoutProps<
         lotCount={lotCount}
         // Lots still owing something in the current cycle — the Encaissements badge.
         unpaidCount={rows.filter((r) => r.status !== "PAID").length}
+        cycleCount={cycles.length}
         switchers={
           <>
             <ResidenceSwitcher
