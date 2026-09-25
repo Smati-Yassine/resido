@@ -27,7 +27,9 @@ export function AuthPanel() {
       </div>
       <div className="flex flex-col gap-1.5">
         <h2 className="display text-[32px]">{mode === "login" ? t.signInTitle : t.registerTitle}</h2>
-        <p className="text-[15px] text-muted">{mode === "login" ? t.signInSubtitle : t.registerSubtitle}</p>
+        <p className="auth-card-sub text-[15px] text-muted">
+          {mode === "login" ? t.signInSubtitle : t.registerSubtitle}
+        </p>
       </div>
       <AuthForm key={mode} mode={mode} />
       <p className="text-center text-sm text-muted">
