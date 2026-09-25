@@ -205,7 +205,8 @@ currency side by side, then the danger zone; Cycles and Journal are tables
 (cycles with billed, collected, collection rate and balance, their actions
 behind a "⋯" menu; the journal searchable, filtered by kind, 40 rows at a
 time). The tables drop secondary columns when their container is narrow
-(container queries), as in the settings modal on the residences list.
+(container queries). The settings modal on the residences list shows the
+same tabs and sections, at the modal's full width.
 
 **Printing.** The dashboard, Finances (each tab) and Copropriété have a
 "Imprimer" button. It fetches `/residences/<r>/print/<doc>` — a route

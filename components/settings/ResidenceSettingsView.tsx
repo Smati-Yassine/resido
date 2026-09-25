@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Icon, type IconName } from "@/components/ui/Icon";
+import type { IconName } from "@/components/ui/Icon";
 import { Badge, EmptyState, Notice } from "@/components/ui/Display";
 import { SearchField } from "@/components/ui/Filters";
 import { useI18n } from "@/components/ui/I18nProvider";
@@ -51,7 +51,7 @@ export function ResidenceSettingsView({
     <div className="flex min-w-0 flex-col gap-5">
       {!data.can.manage && tab !== "journal" && <Notice icon="lock">{t.readOnlyNote}</Notice>}
       {tab === "general" && <GeneralSection data={data} mode={mode} onGone={onGone} />}
-      {tab === "cycles" && <CyclesSection data={data} mode={mode} />}
+      {tab === "cycles" && <CyclesSection data={data} />}
       {tab === "members" && (
         <MembersPanel
           residenceId={data.residence.id}
@@ -67,27 +67,36 @@ export function ResidenceSettingsView({
   );
   if (mode === "page") return section;
 
+  // In the modal: the page's tabs across the top, so each section gets the full width.
+  const counts: Record<SettingsTab, number | null> = {
+    general: null,
+    cycles: data.cycles.length,
+    members: data.members.length,
+    journal: data.journal.reduce((n, d) => n + d.entries.length, 0),
+  };
   return (
-    <div className="settings-layout">
-      <nav className="settings-nav" aria-label={t.residenceSettings}>
-        {SETTINGS_NAV.map((item) => (
-          <button
-            key={item.key}
-            type="button"
-            className="settings-nav-item"
-            aria-current={item.key === tab ? "page" : undefined}
-            onClick={() => onTab?.(item.key)}
-          >
-            <span className="settings-nav-icon">
-              <Icon name={item.icon} size={18} />
-            </span>
-            <span>
-              <span className="settings-nav-label">{t[item.label] as string}</span>
-              <span className="settings-nav-desc">{t[item.desc] as string}</span>
-            </span>
-          </button>
-        ))}
-      </nav>
+    <div className="flex flex-col gap-5">
+      <div className="flex min-h-[54px] items-end justify-between gap-4 border-b border-line">
+        <nav className="tabs min-w-0 overflow-x-auto border-b-0" aria-label={t.residenceSettings}>
+          {SETTINGS_NAV.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              className="tab shrink-0"
+              aria-current={item.key === tab ? "page" : undefined}
+              onClick={() => onTab?.(item.key)}
+            >
+              {t[item.label] as string}
+              {counts[item.key] !== null && <span className="tab-count">{counts[item.key]}</span>}
+            </button>
+          ))}
+        </nav>
+        {tab === "cycles" && data.can.cycles && (
+          <div className="shrink-0 pb-2.5">
+            <NewCycleButton residenceId={data.residence.id} />
+          </div>
+        )}
+      </div>
       {section}
     </div>
   );
@@ -303,80 +312,66 @@ const CYCLE_COLS =
   "grid-cols-[minmax(0,1fr)_auto_36px] @3xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,1fr)_36px]";
 
 /** Every cycle, newest first, as a table: dates, billed, collected, collection rate, balance, and a menu of actions. */
-function CyclesSection({ data, mode }: { data: ResidenceSettingsData; mode: "page" | "modal" }) {
+function CyclesSection({ data }: { data: ResidenceSettingsData }) {
   const { t } = useI18n();
   const { residence } = data;
   const money = (millimes: number | null) => (millimes === null ? "—" : formatAmount(millimes, residence.currency));
-  const newCycle = mode === "modal" && data.can.cycles && (
-    <div className="flex justify-end">
-      <NewCycleButton residenceId={residence.id} />
-    </div>
-  );
-
   if (data.cycles.length === 0) {
-    return (
-      <>
-        {newCycle}
-        <EmptyState title={t.noCycleTitle} text={t.noCycleText} />
-      </>
-    );
+    return <EmptyState title={t.noCycleTitle} text={t.noCycleText} />;
   }
   return (
-    <>
-      {newCycle}
-      <section className="@container card data-table">
-        <div className={`data-head ${CYCLE_COLS}`}>
-          <span>{t.colCycle}</span>
-          <span className="hidden text-right @3xl:block">{t.expected}</span>
-          <span className="hidden text-right @3xl:block">{t.collected}</span>
-          <span>{t.kpiRate}</span>
-          <span className="hidden text-right @3xl:block">{t.endBalance}</span>
-          <span />
-        </div>
-        {data.cycles.map((cycle) => {
-          const billed = cycle.expectedMillimes !== null;
-          const rate = percent(cycle.collectedMillimes ?? 0, cycle.expectedMillimes ?? 0);
-          return (
-            <div key={cycle.id} className={`data-row ${CYCLE_COLS}`}>
-              <span className="flex min-w-0 flex-col gap-0.5">
-                <span className="flex items-center gap-2">
-                  <span className="truncate font-bold">{cycle.name}</span>
-                  <Badge tone={cycle.badge}>{cycle.statusLabel}</Badge>
+    <section className="@container card data-table">
+      <div className={`data-head ${CYCLE_COLS}`}>
+        <span>{t.colCycle}</span>
+        <span className="hidden text-right @3xl:block">{t.expected}</span>
+        <span className="hidden text-right @3xl:block">{t.collected}</span>
+        <span>{t.kpiRate}</span>
+        <span className="hidden text-right @3xl:block">{t.endBalance}</span>
+        <span />
+      </div>
+      {data.cycles.map((cycle) => {
+        const billed = cycle.expectedMillimes !== null;
+        const rate = percent(cycle.collectedMillimes ?? 0, cycle.expectedMillimes ?? 0);
+        return (
+          <div key={cycle.id} className={`data-row ${CYCLE_COLS}`}>
+            <span className="flex min-w-0 flex-col gap-0.5">
+              <span className="flex items-center gap-2">
+                <span className="truncate font-bold">{cycle.name}</span>
+                <Badge tone={cycle.badge}>{cycle.statusLabel}</Badge>
+              </span>
+              <span className="truncate text-[13px] text-muted">{cycle.range}</span>
+            </span>
+            <span className="num hidden text-right @3xl:block">{money(cycle.expectedMillimes)}</span>
+            <span className="num hidden text-right @3xl:block">{money(cycle.collectedMillimes)}</span>
+            {billed ? (
+              <span className="flex items-center gap-2.5">
+                <span className="bar hidden h-1.5 flex-1 @3xl:block">
+                  <span
+                    className={`bar-fill block ${cycle.status === "OPEN" ? "" : "bar-fill-pos"}`}
+                    style={{ width: `${Math.min(100, rate)}%` }}
+                  />
                 </span>
-                <span className="truncate text-[13px] text-muted">{cycle.range}</span>
+                <b className="num w-11 text-right text-[13px]">{rate} %</b>
               </span>
-              <span className="num hidden text-right @3xl:block">{money(cycle.expectedMillimes)}</span>
-              <span className="num hidden text-right @3xl:block">{money(cycle.collectedMillimes)}</span>
-              {billed ? (
-                <span className="flex items-center gap-2.5">
-                  <span className="bar hidden h-1.5 flex-1 @3xl:block">
-                    <span
-                      className={`bar-fill block ${cycle.status === "OPEN" ? "" : "bar-fill-pos"}`}
-                      style={{ width: `${Math.min(100, rate)}%` }}
-                    />
-                  </span>
-                  <b className="num w-11 text-right text-[13px]">{rate} %</b>
-                </span>
-              ) : (
-                <span className="text-[13px] text-muted">{t.cycleDraftNote}</span>
-              )}
-              <span className="num hidden text-right font-semibold @3xl:block">
-                {money(cycle.closingBalanceMillimes)}
-              </span>
-              <span className="flex justify-end">
-                <CycleMenu
-                  residenceId={residence.id}
-                  cycle={cycle}
-                  viewHref={`${residence.base}?cycle=${cycle.slug}`}
-                  canManage={data.can.cycles}
-                  canOpen={!data.hasOpenCycle}
-                />
-              </span>
-            </div>
-          );
-        })}
-      </section>
-    </>
+            ) : (
+              <span className="text-[13px] text-muted">{t.cycleDraftNote}</span>
+            )}
+            <span className="num hidden text-right font-semibold @3xl:block">
+              {money(cycle.closingBalanceMillimes)}
+            </span>
+            <span className="flex justify-end">
+              <CycleMenu
+                residenceId={residence.id}
+                cycle={cycle}
+                viewHref={`${residence.base}?cycle=${cycle.slug}`}
+                canManage={data.can.cycles}
+                canOpen={!data.hasOpenCycle}
+              />
+            </span>
+          </div>
+        );
+      })}
+    </section>
   );
 }
 
