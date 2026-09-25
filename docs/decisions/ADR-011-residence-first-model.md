@@ -125,6 +125,15 @@ delete), Cycles (create, open, close, delete; `/cycles` redirects there),
 Membres, Journal. The cycle switcher in the top bar picks which cycle every
 page shows.
 
+**Dashboard.** The residence's home shows the viewed cycle at a glance: the
+collection rate on a gauge; what was billed, collected, still owed and the
+treasury balance, each against the previous cycle at the same point in its
+year (the whole previous cycle once this one is closed); the collection
+curve against what was billed; the lots by status (donut) and as a map of
+tiles by bloc; the largest balances due by owner; expenses by month; and the
+latest journal entries. Charts are plain server-rendered SVG coloured by the
+design system's classes.
+
 **First steps.** Until a first cycle opens, the dashboard is a setup guide:
 blocs and lots, their owners, the year's cycle, then opening it.
 

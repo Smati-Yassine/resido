@@ -70,3 +70,80 @@ export function incomeByMethod(payments: Payment[], cycleId: string): MethodShar
   }
   return [...byMethod.values()].sort((a, b) => b.totalMillimes - a.totalMillimes);
 }
+
+export interface CurvePoint {
+  date: Date;
+  /** Collected in the cycle up to and including this date. */
+  cumulativeMillimes: number;
+}
+
+/**
+ * The cycle's collection over time: the running total of what was paid, one
+ * point per payment day, from `start` (at 0) to `end` (the last total).
+ */
+export function collectionCurve(payments: Payment[], cycleId: string, start: Date, end: Date): CurvePoint[] {
+  const byDay = new Map<number, number>();
+  for (const p of payments) {
+    const day = Date.UTC(p.date.getUTCFullYear(), p.date.getUTCMonth(), p.date.getUTCDate());
+    byDay.set(day, (byDay.get(day) ?? 0) + incomeInCycle(p, cycleId));
+  }
+  const points: CurvePoint[] = [{ date: start, cumulativeMillimes: 0 }];
+  let total = 0;
+  for (const day of [...byDay.keys()].sort((a, b) => a - b)) {
+    total += byDay.get(day)!;
+    points.push({ date: new Date(day), cumulativeMillimes: total });
+  }
+  const last = points[points.length - 1].date;
+  points.push({ date: end.getTime() > last.getTime() ? end : last, cumulativeMillimes: total });
+  return points;
+}
+
+export interface Debtor {
+  ownerId: string | null;
+  ownerName: string | null;
+  outstandingMillimes: number;
+  lotCodes: string[];
+}
+
+/** Who owes the most in the cycle, by owner (lots without one grouped together), largest first. */
+export function topDebtors(
+  rows: { ownerId: string | null; ownerName: string | null; code: string; dueMillimes: number; paidMillimes: number }[],
+  limit: number,
+): Debtor[] {
+  const byOwner = new Map<string, Debtor>();
+  for (const row of rows) {
+    const owed = row.dueMillimes - row.paidMillimes;
+    if (owed <= 0) continue;
+    const key = row.ownerId ?? "";
+    const debtor = byOwner.get(key) ?? {
+      ownerId: row.ownerId,
+      ownerName: row.ownerName,
+      outstandingMillimes: 0,
+      lotCodes: [],
+    };
+    debtor.outstandingMillimes += owed;
+    debtor.lotCodes.push(row.code);
+    byOwner.set(key, debtor);
+  }
+  return [...byOwner.values()].sort((a, b) => b.outstandingMillimes - a.outstandingMillimes).slice(0, limit);
+}
+
+/** Change from `previous` to `current` in whole percent; null without a base to compare to. */
+export function percentChange(current: number, previous: number | null | undefined): number | null {
+  if (previous === null || previous === undefined || previous === 0) return null;
+  return Math.round(((current - previous) / Math.abs(previous)) * 100);
+}
+
+/** What the cycle had collected by `cutoff` (everything when null) — to compare cycles at the same point. */
+export function collectedBy(payments: Payment[], cycleId: string, cutoff: Date | null): number {
+  return payments
+    .filter((p) => !cutoff || p.date.getTime() <= cutoff.getTime())
+    .reduce((sum, p) => sum + incomeInCycle(p, cycleId), 0);
+}
+
+/** What the cycle had spent by `cutoff` (everything when null). */
+export function spentBy(expenses: Expense[], cutoff: Date | null): number {
+  return expenses
+    .filter((e) => !cutoff || e.date.getTime() <= cutoff.getTime())
+    .reduce((sum, e) => sum + e.amountMillimes, 0);
+}

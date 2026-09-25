@@ -916,6 +916,120 @@
     color: var(--badge-paid-fg);
   }
 
+  /* Dashboard: gauge, donut, change chips, unit map */
+  .gauge-track {
+    fill: none;
+    stroke: rgb(255 255 255 / 0.14);
+  }
+  .gauge-fill {
+    fill: none;
+    stroke: var(--ochre-light);
+    stroke-linecap: round;
+  }
+  .donut-track {
+    fill: none;
+    stroke: var(--track);
+  }
+  .donut-seg {
+    fill: none;
+  }
+  .donut-seg.fill-paid {
+    stroke: var(--olive);
+  }
+  .donut-seg.fill-partial {
+    stroke: var(--partial);
+  }
+  .donut-seg.fill-unpaid {
+    stroke: var(--stone);
+  }
+  .delta {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 22px;
+    padding: 0 8px;
+    border-radius: 99px;
+    font-size: 12px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .delta-good {
+    background: var(--badge-paid-bg);
+    color: var(--badge-paid-fg);
+  }
+  .delta-bad {
+    background: var(--badge-unpaid-bg);
+    color: var(--badge-unpaid-fg);
+  }
+  .delta-flat {
+    background: var(--track);
+    color: var(--muted);
+  }
+  .delta-on-night {
+    background: rgb(255 255 255 / 0.12);
+    color: var(--night-ink);
+  }
+  .lot-map {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .lot-tile {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 46px;
+    height: 32px;
+    padding: 0 8px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+    text-decoration: none;
+    transition:
+      transform 0.12s ease,
+      box-shadow 0.12s ease;
+  }
+  .lot-tile:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgb(22 24 29 / 0.12);
+  }
+  .lot-tile[data-status="PAID"] {
+    background: var(--badge-paid-bg);
+    color: var(--badge-paid-fg);
+  }
+  .lot-tile[data-status="PARTIAL"] {
+    background: var(--badge-partial-bg);
+    color: var(--badge-partial-fg);
+  }
+  .lot-tile[data-status="UNPAID"] {
+    background: var(--badge-unpaid-bg);
+    color: var(--badge-unpaid-fg);
+  }
+  .chart-line-pos {
+    fill: none;
+    stroke: var(--olive);
+    stroke-width: 2.5;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .chart-area-pos {
+    fill: var(--badge-paid-bg);
+  }
+  .chart-target {
+    stroke: var(--ochre-light);
+    stroke-width: 1.5;
+    stroke-dasharray: 6 5;
+    vector-effect: non-scaling-stroke;
+  }
+  .chart-today {
+    stroke: var(--line-2);
+    stroke-width: 1.5;
+    stroke-dasharray: 2 4;
+    vector-effect: non-scaling-stroke;
+  }
+
   /* Tables */
   .data-table {
     overflow: hidden;
