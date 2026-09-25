@@ -54,8 +54,8 @@ export function UserMenu({
               setSettings(true);
             }}
           >
-            <Icon name="settings" size={16} />
-            {t.settings}
+            <Icon name="user" size={16} />
+            {t.accountSettings}
           </button>
           <button
             type="button"

@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { Badge, EmptyState, Notice } from "@/components/ui/Display";
 import { SearchField } from "@/components/ui/Filters";
+import { Group, Row, SettingsTabs } from "./SettingsParts";
 import { useI18n } from "@/components/ui/I18nProvider";
 import { useToast } from "@/components/ui/Toaster";
 import { useActionToast } from "@/components/ui/useActionToast";
@@ -76,70 +77,14 @@ export function ResidenceSettingsView({
   };
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-5">
-      <div className="flex min-h-[54px] items-end justify-between gap-4 border-b border-line">
-        <nav className="tabs min-w-0 overflow-x-auto border-b-0" aria-label={t.residenceSettings}>
-          {SETTINGS_NAV.map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              className="tab shrink-0"
-              aria-current={item.key === tab ? "page" : undefined}
-              onClick={() => onTab?.(item.key)}
-            >
-              {t[item.label] as string}
-              {counts[item.key] !== null && <span className="tab-count">{counts[item.key]}</span>}
-            </button>
-          ))}
-        </nav>
-        {tab === "cycles" && data.can.cycles && (
-          <div className="shrink-0 pb-2.5">
-            <NewCycleButton residenceId={data.residence.id} />
-          </div>
-        )}
-      </div>
+      <SettingsTabs
+        label={t.residenceSettings}
+        value={tab}
+        onChange={(key) => onTab?.(key)}
+        items={SETTINGS_NAV.map((item) => ({ key: item.key, label: t[item.label] as string, count: counts[item.key] }))}
+        action={tab === "cycles" && data.can.cycles && <NewCycleButton residenceId={data.residence.id} />}
+      />
       {section}
-    </div>
-  );
-}
-
-function Group({
-  title,
-  text,
-  action,
-  danger = false,
-  children,
-}: {
-  /** None when the page title already says it: the card is just its rows. */
-  title?: string;
-  text?: string;
-  action?: React.ReactNode;
-  danger?: boolean;
-  children?: React.ReactNode;
-}) {
-  return (
-    <section className={`card settings-group ${danger ? "settings-group-danger" : ""}`}>
-      {title && (
-        <div className="settings-group-head">
-          <div className="flex min-w-0 flex-col gap-1">
-            <h2 className="h-card">{title}</h2>
-            {text && <p className="text-[13px] text-muted">{text}</p>}
-          </div>
-          {action}
-        </div>
-      )}
-      {children}
-    </section>
-  );
-}
-
-function Row({ title, text, children }: { title: string; text?: string; children: React.ReactNode }) {
-  return (
-    <div className="settings-row">
-      <div className="min-w-0">
-        <span className="settings-row-title">{title}</span>
-        {text && <span className="settings-row-text">{text}</span>}
-      </div>
-      <div className="settings-row-control">{children}</div>
     </div>
   );
 }

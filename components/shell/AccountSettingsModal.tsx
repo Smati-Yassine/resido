@@ -4,7 +4,8 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/ui/Modal";
 import { Field } from "@/components/ui/Field";
-import { Icon, type IconName } from "@/components/ui/Icon";
+import { Icon } from "@/components/ui/Icon";
+import { Group, Row, SettingsTabs } from "@/components/settings/SettingsParts";
 import { useI18n } from "@/components/ui/I18nProvider";
 import { useToast } from "@/components/ui/Toaster";
 import { useActionToast } from "@/components/ui/useActionToast";
@@ -33,12 +34,10 @@ interface AccountUser {
   email: string;
 }
 
-type Section = { key: Tab; icon: IconName; label: string; desc: string };
-
 /**
- * Account-wide settings, opened from the user menu — a fixed-size panel with a
- * side navigation: General (appearance), Profile, Security, Data. A purge or
- * account deletion is confirmed in a modal on top.
+ * Account-wide settings, opened from the user menu — a fixed-size panel with
+ * tabs, like the residence settings: General (appearance), Profile, Security,
+ * Data. A purge or account deletion is confirmed in a modal on top.
  */
 export function AccountSettingsModal({
   user,
@@ -55,73 +54,43 @@ export function AccountSettingsModal({
   const [tab, setTab] = useState<Tab>("general");
   const [confirm, setConfirm] = useState<Confirm>(null);
 
-  const sections: Section[] = [
-    { key: "general", icon: "sun", label: t.tabGeneral, desc: t.navAppearanceDesc },
-    { key: "profile", icon: "user", label: t.profile, desc: t.navProfileDesc },
-    { key: "security", icon: "lock", label: t.navSecurity, desc: t.navSecurityDesc },
-    { key: "data", icon: "archive", label: t.navData, desc: t.navDataDesc },
-  ];
-
   return (
-    <Modal title={t.settings} subtitle={user.email} size="panel" icon="settings" onClose={onClose}>
-      <div className="settings-layout">
-        <nav className="settings-nav" aria-label={t.settings}>
-          {sections.map((s) => (
-            <button
-              key={s.key}
-              type="button"
-              className="settings-nav-item"
-              aria-current={tab === s.key ? "page" : undefined}
-              onClick={() => setTab(s.key)}
-            >
-              <span className="settings-nav-icon">
-                <Icon name={s.icon} size={18} />
-              </span>
-              <span>
-                <span className="settings-nav-label">{s.label}</span>
-                <span className="settings-nav-desc">{s.desc}</span>
-              </span>
-            </button>
-          ))}
-        </nav>
+    <Modal title={t.accountSettings} subtitle={user.email} size="panel" icon="user" onClose={onClose}>
+      <div className="flex min-h-0 flex-1 flex-col gap-5">
+        <SettingsTabs
+          label={t.accountSettings}
+          value={tab}
+          onChange={setTab}
+          items={[
+            { key: "general", label: t.tabGeneral },
+            { key: "profile", label: t.profile },
+            { key: "security", label: t.navSecurity },
+            { key: "data", label: t.navData },
+          ]}
+        />
 
-        <div className="flex min-w-0 flex-col gap-5">
-          {tab === "general" && (
-            <section className="card card-pad">
-              <AppearanceSettings theme={theme} bare />
-            </section>
-          )}
-          {tab === "profile" && (
-            <section className="card card-pad">
-              <ProfileForm user={user} />
-            </section>
-          )}
-          {tab === "security" && (
-            <section className="card card-pad">
-              <SecurityPanel />
-            </section>
-          )}
-          {tab === "data" && (
-            <>
-              <section className="card card-pad">
-                <ExportSection residences={residences} />
-              </section>
-              <section className="card card-pad card-danger flex flex-col gap-4">
-                <h3 className="h-card text-danger">{t.dangerZone}</h3>
-                <DangerRow title={t.purgeTitle} text={t.purgeText}>
-                  <button type="button" className="btn btn-danger btn-sm" onClick={() => setConfirm("purge")}>
+        {tab === "general" && <AppearanceSettings theme={theme} />}
+        {tab === "profile" && <ProfileForm user={user} />}
+        {tab === "security" && <SecurityPanel />}
+        {tab === "data" && (
+          <div className="@container">
+            <div className="grid grid-cols-1 items-start gap-5 @xl:grid-cols-2">
+              <ExportSection residences={residences} />
+              <Group title={t.dangerZone} danger>
+                <Row title={t.purgeTitle} text={t.purgeText}>
+                  <button type="button" className="btn btn-danger" onClick={() => setConfirm("purge")}>
                     {t.purgeCta}
                   </button>
-                </DangerRow>
-                <DangerRow title={t.deleteAccountTitle} text={t.deleteAccountText}>
-                  <button type="button" className="btn btn-danger-solid btn-sm" onClick={() => setConfirm("delete")}>
+                </Row>
+                <Row title={t.deleteAccountTitle} text={t.deleteAccountText}>
+                  <button type="button" className="btn btn-danger-solid" onClick={() => setConfirm("delete")}>
                     {t.deleteAccountCta}
                   </button>
-                </DangerRow>
-              </section>
-            </>
-          )}
-        </div>
+                </Row>
+              </Group>
+            </div>
+          </div>
+        )}
       </div>
       {confirm && (
         <DangerConfirm kind={confirm} email={user.email} onCancel={() => setConfirm(null)} onDone={onClose} />
@@ -130,53 +99,60 @@ export function AccountSettingsModal({
   );
 }
 
-function DangerRow({ title, text, children }: { title: string; text: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-start justify-between gap-4">
-      <div className="flex flex-col gap-1">
-        <span className="text-sm font-bold">{title}</span>
-        <span className="text-[13px] text-muted">{text}</span>
-      </div>
-      {children}
-    </div>
-  );
-}
-
 /** Name and email; a new email also asks for the current password. */
 function ProfileForm({ user }: { user: AccountUser }) {
   const { t } = useI18n();
   const router = useRouter();
+  const [name, setName] = useState(user.name);
   const [email, setEmail] = useState(user.email);
   const [onSubmit, pending] = useActionToast(updateProfileAction, () => router.refresh());
   const emailChanged = email.trim().toLowerCase() !== user.email;
+  const changed = emailChanged || name.trim() !== user.name;
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-4">
-      <h3 className="h-card">{t.profile}</h3>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Field label={t.fullName}>
-          <input className="input" name="name" defaultValue={user.name} autoComplete="name" required />
-        </Field>
-        <Field label={t.email}>
+    <form onSubmit={onSubmit}>
+      <Group title={t.profile} text={t.navProfileDesc}>
+        <Row title={t.fullName} text={t.fullNameHelp}>
+          <input
+            className="input"
+            name="name"
+            aria-label={t.fullName}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            autoComplete="name"
+            required
+          />
+        </Row>
+        <Row title={t.email} text={t.emailHelp}>
           <input
             className="input"
             name="email"
             type="email"
+            aria-label={t.email}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             autoComplete="email"
             required
           />
-        </Field>
-      </div>
-      {emailChanged && (
-        <Field label={t.currentPassword} hint={t.emailChangeNeedsPassword}>
-          <input className="input" name="password" type="password" autoComplete="current-password" required />
-        </Field>
-      )}
-      <button type="submit" className="btn btn-primary self-start" disabled={pending}>
-        {t.saveProfile}
-      </button>
+        </Row>
+        {emailChanged && (
+          <Row title={t.currentPassword} text={t.emailChangeNeedsPassword}>
+            <input
+              className="input"
+              name="password"
+              type="password"
+              aria-label={t.currentPassword}
+              autoComplete="current-password"
+              required
+            />
+          </Row>
+        )}
+        <div className="settings-foot">
+          <button type="submit" className="btn btn-primary" disabled={!changed || pending}>
+            {t.saveProfile}
+          </button>
+        </div>
+      </Group>
     </form>
   );
 }
@@ -194,60 +170,71 @@ function SecurityPanel() {
   const [ending, startTransition] = useTransition();
 
   return (
-    <div className="flex flex-col gap-6">
-      <form key={formKey} onSubmit={onSubmit} className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <h3 className="h-card">{t.changePassword}</h3>
-          <p className="text-[13px] text-muted">{t.passwordChangeHelp}</p>
-        </div>
-        <Field label={t.currentPassword}>
-          <input className="input" name="currentPassword" type="password" autoComplete="current-password" required />
-        </Field>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Field label={t.newPassword} hint={t.passwordHint}>
-            <input
-              className="input"
-              name="newPassword"
-              type="password"
-              autoComplete="new-password"
-              minLength={8}
-              required
-            />
-          </Field>
-          <Field label={t.confirmPassword}>
-            <input
-              className="input"
-              name="confirmPassword"
-              type="password"
-              autoComplete="new-password"
-              minLength={8}
-              required
-            />
-          </Field>
-        </div>
-        <button type="submit" className="btn btn-primary self-start" disabled={pending}>
-          {t.changePassword}
-        </button>
-      </form>
-      <div className="divider" />
-      <DangerRow title={t.sessionsTitle} text={t.sessionsText}>
-        <button
-          type="button"
-          className="btn btn-ghost btn-sm"
-          disabled={ending}
-          onClick={() =>
-            startTransition(async () => {
-              const result = await endAllSessionsAction();
-              toast({ tone: "info", text: result.message });
-              router.replace("/");
-              router.refresh();
-            })
-          }
-        >
-          <Icon name="logout" size={16} />
-          {t.endAllSessions}
-        </button>
-      </DangerRow>
+    <div className="@container">
+      <div className="grid grid-cols-1 items-start gap-5 @xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+        <form key={formKey} onSubmit={onSubmit}>
+          <Group title={t.changePassword} text={t.passwordChangeHelp}>
+            <Row title={t.currentPassword}>
+              <input
+                className="input"
+                name="currentPassword"
+                type="password"
+                aria-label={t.currentPassword}
+                autoComplete="current-password"
+                required
+              />
+            </Row>
+            <Row title={t.newPassword} text={t.passwordHint}>
+              <input
+                className="input"
+                name="newPassword"
+                type="password"
+                aria-label={t.newPassword}
+                autoComplete="new-password"
+                minLength={8}
+                required
+              />
+            </Row>
+            <Row title={t.confirmPassword}>
+              <input
+                className="input"
+                name="confirmPassword"
+                type="password"
+                aria-label={t.confirmPassword}
+                autoComplete="new-password"
+                minLength={8}
+                required
+              />
+            </Row>
+            <div className="settings-foot">
+              <button type="submit" className="btn btn-primary" disabled={pending}>
+                {t.changePassword}
+              </button>
+            </div>
+          </Group>
+        </form>
+
+        <Group title={t.sessionsTitle} text={t.sessionsText}>
+          <div className="settings-foot">
+            <button
+              type="button"
+              className="btn btn-ghost h-auto min-h-10 w-full whitespace-normal py-2 text-center"
+              disabled={ending}
+              onClick={() =>
+                startTransition(async () => {
+                  const result = await endAllSessionsAction();
+                  toast({ tone: "info", text: result.message });
+                  router.replace("/");
+                  router.refresh();
+                })
+              }
+            >
+              <Icon name="logout" size={16} />
+              {t.endAllSessions}
+            </button>
+          </div>
+        </Group>
+      </div>
     </div>
   );
 }
@@ -273,16 +260,12 @@ function ExportSection({ residences }: { residences: ExportableResidence[] }) {
   };
 
   return (
-    <section className="flex flex-col gap-3">
-      <div className="flex flex-col gap-1">
-        <h3 className="h-card">{t.exportTitle}</h3>
-        <p className="text-[13px] text-muted">{t.exportText}</p>
-      </div>
+    <Group title={t.exportTitle} text={t.exportText}>
       {residences.length === 0 ? (
-        <p className="text-sm text-muted">{t.exportNone}</p>
+        <p className="border-t border-line-soft px-6 py-5 text-sm text-muted">{t.exportNone}</p>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-2 border-t border-line-soft px-6 py-4">
             {residences.map((r) => {
               const on = picked.has(r.id);
               return (
@@ -301,22 +284,22 @@ function ExportSection({ residences }: { residences: ExportableResidence[] }) {
               );
             })}
           </div>
-          <div className="flex flex-wrap gap-2.5">
-            <button type="button" className="btn btn-primary btn-sm" onClick={() => download(null)}>
-              {t.exportAll}
-            </button>
+          <div className="settings-foot">
             <button
               type="button"
-              className="btn btn-ghost btn-sm"
+              className="btn btn-ghost"
               disabled={picked.size === 0}
               onClick={() => download([...picked])}
             >
               {interpolate(t.exportSelected, { count: picked.size })}
             </button>
+            <button type="button" className="btn btn-primary" onClick={() => download(null)}>
+              {t.exportAll}
+            </button>
           </div>
         </>
       )}
-    </section>
+    </Group>
   );
 }
 

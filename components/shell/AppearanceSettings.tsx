@@ -6,11 +6,12 @@ import { useI18n } from "@/components/ui/I18nProvider";
 import { useToast } from "@/components/ui/Toaster";
 import { setPreferenceAction } from "@/lib/actions/preferences";
 import { useThemeSwitch } from "@/components/ui/useThemeSwitch";
+import { Group, Row } from "@/components/settings/SettingsParts";
 import type { Theme } from "@/lib/i18n/server";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
-/** Language and theme. `bare` drops the card frame (e.g. inside the account settings modal). */
-export function AppearanceSettings({ theme: initialTheme, bare = false }: { theme: Theme; bare?: boolean }) {
+/** Language and theme, as two settings rows. */
+export function AppearanceSettings({ theme: initialTheme }: { theme: Theme }) {
   const { t, locale } = useI18n();
   const toast = useToast();
   const [pending, startTransition] = useTransition();
@@ -23,13 +24,9 @@ export function AppearanceSettings({ theme: initialTheme, bare = false }: { them
     });
 
   return (
-    <div className={bare ? "flex flex-col gap-5" : "card card-pad flex max-w-[560px] flex-col gap-5"}>
-      <h2 className="h-card">{t.appearance}</h2>
-      <div className="flex flex-col gap-2">
-        <span id="lang-label" className="text-[13px] font-semibold text-ink-2">
-          {t.language}
-        </span>
-        <div role="group" aria-labelledby="lang-label" className="segmented">
+    <Group title={t.appearance} text={t.navAppearanceDesc}>
+      <Row title={t.language} text={t.languageHelp}>
+        <div role="group" aria-label={t.language} className="segmented">
           <button
             type="button"
             className="segment"
@@ -49,12 +46,9 @@ export function AppearanceSettings({ theme: initialTheme, bare = false }: { them
             English
           </button>
         </div>
-      </div>
-      <div className="flex flex-col gap-2">
-        <span id="theme-label" className="text-[13px] font-semibold text-ink-2">
-          {t.theme}
-        </span>
-        <div role="group" aria-labelledby="theme-label" className="segmented">
+      </Row>
+      <Row title={t.theme} text={t.themeHelp}>
+        <div role="group" aria-label={t.theme} className="segmented">
           <button
             type="button"
             className="segment"
@@ -69,7 +63,7 @@ export function AppearanceSettings({ theme: initialTheme, bare = false }: { them
             {t.dark}
           </button>
         </div>
-      </div>
-    </div>
+      </Row>
+    </Group>
   );
 }
