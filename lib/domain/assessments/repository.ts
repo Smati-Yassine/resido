@@ -202,9 +202,11 @@ export async function summarizeAssessmentsForCycle(
     countByStatus: { PENDING: 0, PARTIALLY_PAID: 0, PAID: 0, CANCELLED: 0 },
   };
   for (const doc of docs) {
+    summary.countByStatus[doc.status] += 1;
+    // A cancelled charge bills nothing — the same rule as the lot rows.
+    if (doc.status === "CANCELLED") continue;
     summary.totalAmountMillimes += doc.amountMillimes;
     summary.totalPaidMillimes += doc.paidMillimes;
-    summary.countByStatus[doc.status] += 1;
   }
   return summary;
 }

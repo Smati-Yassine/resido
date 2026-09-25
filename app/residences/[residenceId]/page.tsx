@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { loadWorkspace } from "@/lib/workspace";
+import { loadWorkspace, lotRowsFor, activeLotsFor } from "@/lib/workspace";
 import { currencySymbol } from "@/lib/currency";
 import { getDictionary } from "@/lib/i18n/server";
 import { interpolate } from "@/lib/i18n/dictionaries";
@@ -7,7 +7,7 @@ import { formatAmount, formatDateTime, formatMoney, formatMonthShort, percent } 
 import { cycleRange } from "@/lib/cycle-view";
 import { paymentLots } from "@/lib/lot-rows";
 import { computeAllTreasuries } from "@/lib/domain/cycles/service";
-import { getExpenseMonths, getLotRows, progressByBloc, totalsFromLotRows } from "@/lib/domain/overview/service";
+import { getExpenseMonths, progressByBloc, totalsFromLotRows } from "@/lib/domain/overview/service";
 import { collectedBy, collectionCurve, percentChange, spentBy, topDebtors } from "@/lib/domain/overview/finance";
 import * as payments from "@/lib/domain/payments/service";
 import { listAuditLog } from "@/lib/audit/log";
@@ -20,7 +20,6 @@ import { ExpenseButton } from "@/components/workspace/ExpenseModal";
 import { SetupGuide } from "@/components/workspace/SetupGuide";
 import { CollectionCurve, Delta, Donut, Gauge } from "@/components/dashboard/Charts";
 import * as buildings from "@/lib/domain/buildings/service";
-import * as lots from "@/lib/domain/lots/service";
 export default async function DashboardPage({ params, searchParams }: PageProps<"/residences/[residenceId]">) {
   const { session, residenceId, residence, cycle, cycles, currency, can, base } = await loadWorkspace(
     params,
@@ -32,7 +31,7 @@ export default async function DashboardPage({ params, searchParams }: PageProps<
   if (cycles.every((c) => c.status === "DRAFT")) {
     const [blocResult, lotResult] = await Promise.all([
       buildings.listBuildings(session, residenceId),
-      lots.listLots(session, residenceId, { status: "ACTIVE" }),
+      activeLotsFor(session, residenceId),
     ]);
     const lotList = lotResult.ok ? lotResult.data : [];
     return (
@@ -63,11 +62,11 @@ export default async function DashboardPage({ params, searchParams }: PageProps<
   const previous = cycles.find((c) => c.id === cycle.previousCycleId && c.status !== "DRAFT") ?? null;
   const [rows, paymentResult, months, treasuries, previousRows, previousPayments, previousMonths, activity] =
     await Promise.all([
-      getLotRows(session, residenceId, cycle.id),
+      lotRowsFor(session, residenceId, cycle.id),
       payments.listPaymentsForCycle(session, residenceId, cycle.id),
       getExpenseMonths(session, residenceId, cycle.id),
       computeAllTreasuries(residenceId),
-      previous ? getLotRows(session, residenceId, previous.id) : Promise.resolve(null),
+      previous ? lotRowsFor(session, residenceId, previous.id) : Promise.resolve(null),
       previous ? payments.listPaymentsForCycle(session, residenceId, previous.id) : Promise.resolve(null),
       previous ? getExpenseMonths(session, residenceId, previous.id) : Promise.resolve(null),
       listAuditLog(residenceId, 5),

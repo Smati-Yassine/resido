@@ -10,7 +10,7 @@ import { findResidenceById } from "@/lib/domain/residences/repository";
 import * as cycles from "@/lib/domain/cycles/service";
 import * as members from "@/lib/domain/members/service";
 import * as lots from "@/lib/domain/lots/service";
-import { getLotRows, totalsFromLotRows } from "@/lib/domain/overview/service";
+import { summarizeAssessmentsForCycle } from "@/lib/domain/assessments/repository";
 import { findUsersByIds } from "@/lib/domain/users/service";
 import { listAuditLog } from "@/lib/audit/log";
 import { describeAuditEntry } from "@/lib/audit/describe";
@@ -82,7 +82,8 @@ export async function loadResidenceSettings(
     cycleList.map(async (cycle): Promise<SettingsCycle> => {
       const view = toCycleView(cycle, t);
       const billed = cycle.status !== "DRAFT";
-      const totals = billed ? totalsFromLotRows(await getLotRows(session, residenceId, cycle.id)) : null;
+      // Two totals per cycle: one summary query, not the full lot rows.
+      const summary = billed ? await summarizeAssessmentsForCycle(residenceId, cycle.id) : null;
       return {
         id: cycle.id,
         name: cycle.name,
@@ -90,8 +91,8 @@ export async function loadResidenceSettings(
         statusLabel: view.statusLabel,
         badge: view.badge,
         range: view.range,
-        expectedMillimes: totals?.expectedMillimes ?? null,
-        collectedMillimes: totals?.collectedMillimes ?? null,
+        expectedMillimes: summary?.totalAmountMillimes ?? null,
+        collectedMillimes: summary?.totalPaidMillimes ?? null,
         closingBalanceMillimes: billed ? (treasuries.get(cycle.id)?.closingBalanceMillimes ?? null) : null,
       };
     }),

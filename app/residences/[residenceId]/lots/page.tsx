@@ -1,10 +1,8 @@
-import { loadWorkspace } from "@/lib/workspace";
+import { loadWorkspace, lotRowsFor, activeLotsFor } from "@/lib/workspace";
 import { getDictionary } from "@/lib/i18n/server";
 import { interpolate } from "@/lib/i18n/dictionaries";
 import * as buildings from "@/lib/domain/buildings/service";
-import * as lots from "@/lib/domain/lots/service";
 import * as owners from "@/lib/domain/owners/service";
-import { getLotRows } from "@/lib/domain/overview/service";
 import { EmptyState, PageHeader } from "@/components/ui/Display";
 import { ClosedBanner } from "@/components/workspace/CycleState";
 import { AddLotButton, NewBlocButton } from "@/components/workspace/LotModals";
@@ -15,15 +13,15 @@ export default async function LotsPage({ params, searchParams }: PageProps<"/res
   const { session, residenceId, cycle, can } = await loadWorkspace(params, searchParams);
   const { t } = await getDictionary();
 
-  const [blocResult, lotResult, ownerResult] = await Promise.all([
+  const [blocResult, lotResult, ownerResult, billed] = await Promise.all([
     buildings.listBuildings(session, residenceId),
-    lots.listLots(session, residenceId, { status: "ACTIVE" }),
+    activeLotsFor(session, residenceId),
     owners.listOwners(session, residenceId),
+    cycle && cycle.status !== "DRAFT" ? lotRowsFor(session, residenceId, cycle.id) : Promise.resolve(null),
   ]);
   const blocs = (blocResult.ok ? blocResult.data : []).map((b) => ({ id: b.id, name: b.name }));
   const lotList = lotResult.ok ? lotResult.data : [];
   const ownerList = ownerResult.ok ? ownerResult.data : [];
-  const billed = cycle && cycle.status !== "DRAFT" ? await getLotRows(session, residenceId, cycle.id) : null;
   const blocName = new Map(blocs.map((b) => [b.id, b.name]));
   const ownerName = new Map(ownerList.map((o) => [o.id, o.name]));
   const rowByLot = new Map((billed ?? []).map((r) => [r.lotId, r]));

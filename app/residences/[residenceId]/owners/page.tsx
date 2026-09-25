@@ -1,10 +1,8 @@
-import { loadWorkspace } from "@/lib/workspace";
+import { loadWorkspace, lotRowsFor, activeLotsFor } from "@/lib/workspace";
 import { getDictionary } from "@/lib/i18n/server";
 import { interpolate } from "@/lib/i18n/dictionaries";
 import * as owners from "@/lib/domain/owners/service";
-import * as lots from "@/lib/domain/lots/service";
 import * as buildings from "@/lib/domain/buildings/service";
-import { getLotRows } from "@/lib/domain/overview/service";
 import { lotOwnersInCycle } from "@/lib/domain/lots/ownership";
 import { PageHeader } from "@/components/ui/Display";
 import { ClosedBanner } from "@/components/workspace/CycleState";
@@ -16,10 +14,12 @@ export default async function OwnersPage({ params, searchParams }: PageProps<"/r
   const { session, residenceId, cycle, can } = await loadWorkspace(params, searchParams);
   const { t } = await getDictionary();
 
-  const [ownerResult, lotResult, blocResult] = await Promise.all([
+  const [ownerResult, lotResult, blocResult, billed] = await Promise.all([
     owners.listOwners(session, residenceId),
-    lots.listLots(session, residenceId, { status: "ACTIVE" }),
+    activeLotsFor(session, residenceId),
     buildings.listBuildings(session, residenceId),
+    // What each lot is billed and has paid in the cycle on screen (nothing in a draft).
+    cycle && cycle.status !== "DRAFT" ? lotRowsFor(session, residenceId, cycle.id) : Promise.resolve(null),
   ]);
   const allOwners = ownerResult.ok ? ownerResult.data : [];
   const lotList = lotResult.ok ? lotResult.data : [];
@@ -27,8 +27,6 @@ export default async function OwnersPage({ params, searchParams }: PageProps<"/r
   const blocName = new Map(blocs.map((b) => [b.id, b.name]));
   const blocIndex = new Map(blocs.map((b, i) => [b.id, i]));
   const ownerName = new Map(allOwners.map((o) => [o.id, o.name]));
-  // What each lot is billed and has paid in the cycle on screen (nothing in a draft).
-  const billed = cycle && cycle.status !== "DRAFT" ? await getLotRows(session, residenceId, cycle.id) : null;
   const rowByLot = new Map((billed ?? []).map((r) => [r.lotId, r]));
   // Who owns each lot in the cycle on screen — owners change from one cycle to the next.
   const ownerOf = await lotOwnersInCycle(residenceId, lotList, cycle?.id ?? null);

@@ -5,6 +5,7 @@ import { Icon } from "@/components/ui/Icon";
 import { useI18n } from "@/components/ui/I18nProvider";
 import { useToast } from "@/components/ui/Toaster";
 import { setPreferenceAction } from "@/lib/actions/preferences";
+import { useThemeSwitch } from "@/components/ui/useThemeSwitch";
 import type { Theme } from "@/lib/i18n/server";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
@@ -13,11 +14,12 @@ import type { Locale } from "@/lib/i18n/dictionaries";
  * brand or above the sign-in card (signed-in users have them in Settings ›
  * General).
  */
-export function PublicPreferences({ theme }: { theme: Theme }) {
+export function PublicPreferences({ theme: initialTheme }: { theme: Theme }) {
   const { t, locale } = useI18n();
   const toast = useToast();
   const [pending, startTransition] = useTransition();
-  const set = (pref: { locale: Locale } | { theme: Theme }) =>
+  const [theme, switchTheme] = useThemeSwitch(initialTheme);
+  const setLocale = (pref: { locale: Locale }) =>
     startTransition(async () => {
       const result = await setPreferenceAction(pref);
       toast({ tone: result.ok ? "success" : "danger", text: result.message });
@@ -32,8 +34,7 @@ export function PublicPreferences({ theme }: { theme: Theme }) {
         className="icon-btn"
         aria-label={`${t.theme} — ${label}`}
         title={`${t.theme} — ${label}`}
-        disabled={pending}
-        onClick={() => set({ theme: next })}
+        onClick={() => switchTheme(next)}
       >
         <Icon name={theme === "dark" ? "sun" : "moon"} size={18} />
       </button>
@@ -42,7 +43,7 @@ export function PublicPreferences({ theme }: { theme: Theme }) {
         aria-label={t.language}
         value={locale}
         disabled={pending}
-        onChange={(event) => set({ locale: event.target.value as Locale })}
+        onChange={(event) => setLocale({ locale: event.target.value as Locale })}
       >
         <option value="fr">Français</option>
         <option value="en">English</option>

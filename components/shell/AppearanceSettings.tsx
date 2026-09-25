@@ -5,16 +5,18 @@ import { Icon } from "@/components/ui/Icon";
 import { useI18n } from "@/components/ui/I18nProvider";
 import { useToast } from "@/components/ui/Toaster";
 import { setPreferenceAction } from "@/lib/actions/preferences";
+import { useThemeSwitch } from "@/components/ui/useThemeSwitch";
 import type { Theme } from "@/lib/i18n/server";
 import type { Locale } from "@/lib/i18n/dictionaries";
 
 /** Language and theme. `bare` drops the card frame (e.g. inside the account settings modal). */
-export function AppearanceSettings({ theme, bare = false }: { theme: Theme; bare?: boolean }) {
+export function AppearanceSettings({ theme: initialTheme, bare = false }: { theme: Theme; bare?: boolean }) {
   const { t, locale } = useI18n();
   const toast = useToast();
   const [pending, startTransition] = useTransition();
+  const [theme, switchTheme] = useThemeSwitch(initialTheme);
 
-  const set = (pref: { locale: Locale } | { theme: Theme }) =>
+  const set = (pref: { locale: Locale }) =>
     startTransition(async () => {
       const result = await setPreferenceAction(pref);
       toast({ tone: result.ok ? "success" : "danger", text: result.message });
@@ -57,19 +59,12 @@ export function AppearanceSettings({ theme, bare = false }: { theme: Theme; bare
             type="button"
             className="segment"
             aria-pressed={theme === "light"}
-            disabled={pending}
-            onClick={() => set({ theme: "light" })}
+            onClick={() => switchTheme("light")}
           >
             <Icon name="sun" size={16} strokeWidth={2} />
             {t.light}
           </button>
-          <button
-            type="button"
-            className="segment"
-            aria-pressed={theme === "dark"}
-            disabled={pending}
-            onClick={() => set({ theme: "dark" })}
-          >
+          <button type="button" className="segment" aria-pressed={theme === "dark"} onClick={() => switchTheme("dark")}>
             <Icon name="moon" size={16} strokeWidth={2} />
             {t.dark}
           </button>

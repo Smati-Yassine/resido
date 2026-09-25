@@ -2,10 +2,8 @@ import { cookies } from "next/headers";
 import { getDictionary, getPreferences } from "@/lib/i18n/server";
 import { listMembershipsForUser } from "@/lib/domain/memberships/repository";
 import { findResidencesByIds } from "@/lib/domain/residences/repository";
-import { getLotRows } from "@/lib/domain/overview/service";
-import * as lots from "@/lib/domain/lots/service";
 import { toCycleView } from "@/lib/cycle-view";
-import { defaultCycle, loadResidence } from "@/lib/workspace";
+import { defaultCycle, loadResidence, lotRowsFor, activeLotsFor } from "@/lib/workspace";
 import { SIDEBAR_COLLAPSED, SIDEBAR_COOKIE } from "@/lib/ui-prefs";
 import { CurrencyProvider } from "@/components/ui/CurrencyProvider";
 import { ResidenceShell } from "@/components/shell/ResidenceShell";
@@ -25,8 +23,8 @@ export default async function ResidenceLayout({ children, params }: LayoutProps<
   const current = defaultCycle(cycles);
   const [myResidences, lotList, rows] = await Promise.all([
     findResidencesByIds((await listMembershipsForUser(user.userId)).map((m) => m.residenceId)),
-    lots.listLots(session, residenceId, { status: "ACTIVE" }),
-    current && current.status !== "DRAFT" ? getLotRows(session, residenceId, current.id) : Promise.resolve([]),
+    activeLotsFor(session, residenceId),
+    current && current.status !== "DRAFT" ? lotRowsFor(session, residenceId, current.id) : Promise.resolve([]),
   ]);
   const residenceItems = myResidences
     .filter((r) => r.status === "ACTIVE" || r.id === residenceId)

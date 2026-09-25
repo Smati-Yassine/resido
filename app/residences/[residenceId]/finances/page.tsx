@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { loadWorkspace } from "@/lib/workspace";
+import { loadWorkspace, lotRowsFor } from "@/lib/workspace";
 import { getDictionary } from "@/lib/i18n/server";
 import { cycleRange } from "@/lib/cycle-view";
 import { paymentLots } from "@/lib/lot-rows";
 import { computeAllTreasuries } from "@/lib/domain/cycles/service";
-import { getExpenseMonths, getLotRows, totalsFromLotRows } from "@/lib/domain/overview/service";
+import { getExpenseMonths, totalsFromLotRows } from "@/lib/domain/overview/service";
 import { incomeByMethod, incomeInCycle, monthlyFlows } from "@/lib/domain/overview/finance";
 import * as payments from "@/lib/domain/payments/service";
 import { PageHeader } from "@/components/ui/Display";
@@ -29,7 +29,7 @@ export default async function FinancesPage({ params, searchParams }: PageProps<"
   if (cycle.status === "DRAFT") return <DraftCycle base={base} cycle={cycle} t={t} />;
 
   const [rows, paymentResult, months, treasuries] = await Promise.all([
-    getLotRows(session, residenceId, cycle.id),
+    lotRowsFor(session, residenceId, cycle.id),
     payments.listPaymentsForCycle(session, residenceId, cycle.id),
     getExpenseMonths(session, residenceId, cycle.id),
     computeAllTreasuries(residenceId),

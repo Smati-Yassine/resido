@@ -9,7 +9,7 @@ import type { ActionResult } from "@/lib/action-result";
 
 const ONE_YEAR = 60 * 60 * 24 * 365;
 
-/** Stores a language / theme preference in a cookie and re-renders so the server applies it (no flash). */
+/** Stores a language / theme preference in a cookie. A language re-renders the app; a theme is already applied by the client. */
 export async function setPreferenceAction(pref: { locale: Locale } | { theme: Theme }): Promise<ActionResult> {
   const store = await cookies();
   const options = { maxAge: ONE_YEAR, path: "/", sameSite: "lax" as const };
@@ -23,8 +23,9 @@ export async function setPreferenceAction(pref: { locale: Locale } | { theme: Th
     return { ok: true, message: DICTIONARIES[pref.locale].languageSaved };
   }
   if (!THEMES.includes(pref.theme)) return { ok: false, message: DICTIONARIES[locale].errGeneric };
+  // No re-render: the client has already switched the page's theme; the cookie
+  // makes the next server render match.
   store.set(THEME_COOKIE, pref.theme, options);
-  revalidatePath("/", "layout");
   const t = DICTIONARIES[locale];
   return { ok: true, message: interpolate(t.themeSaved, { theme: pref.theme === "dark" ? t.dark : t.light }) };
 }

@@ -2,7 +2,10 @@ import { cache } from "react";
 import { notFound, redirect } from "next/navigation";
 import { requireResidenceSession, requireUser } from "@/lib/session";
 import { findResidenceByKey } from "@/lib/domain/residences/repository";
-import * as cycles from "@/lib/domain/cycles/service";
+import * as cyclesRepo from "@/lib/domain/cycles/repository";
+import * as lots from "@/lib/domain/lots/service";
+import { getLotRows } from "@/lib/domain/overview/service";
+import type { AuthorizedSession } from "@/lib/rbac/permissions";
 import type { Cycle } from "@/lib/domain/cycles/schema";
 import { roleHasPermission, type Permission } from "@/lib/rbac/permissions";
 
@@ -23,14 +26,18 @@ export function residencePath(slug: string, path = ""): string {
  * use the real id; only URLs use the slug. Memoized per request.
  */
 export const loadResidence = cache(async (key: string) => {
-  const user = await requireUser();
-  const found = await findResidenceByKey(key);
+  // Two round trips, not four: who is signed in and which residence, together;
+  // then their membership and its cycles, together. Nothing is returned before
+  // the membership is confirmed.
+  const [user, found] = await Promise.all([requireUser(), findResidenceByKey(key)]);
   if (!found) notFound();
-  // Membership first: a residence the user cannot open stays a 404, never a redirect that reveals its slug.
-  const session = await requireResidenceSession(found.residence.id);
+  const [session, cycleList] = await Promise.all([
+    // Membership first: a residence the user cannot open stays a 404, never a redirect that reveals its slug.
+    requireResidenceSession(found.residence.id),
+    cyclesRepo.listCycles(found.residence.id),
+  ]);
   if (!found.canonical) redirect(residencePath(found.residence.slug));
   const residence = found.residence;
-  const cycleList = await cycles.listCycles(session, residence.id);
   /** What the viewer's role allows — pages hide the buttons for everything else. */
   const can = (permission: Permission) => roleHasPermission(session.role, permission);
   return {
@@ -40,7 +47,7 @@ export const loadResidence = cache(async (key: string) => {
     residenceId: residence.id,
     /** Base URL of this residence's pages, for links. */
     base: residencePath(residence.slug),
-    cycles: cycleList.ok ? cycleList.data : [],
+    cycles: cycleList,
     can,
   };
 });
@@ -55,3 +62,14 @@ export async function loadWorkspace(
   const cycle = loaded.cycles.find((c) => c.id === cycleParam) ?? defaultCycle(loaded.cycles);
   return { ...loaded, cycle, currency: loaded.residence.currency };
 }
+
+/**
+ * Per-request memos for what both the residence layout and its pages read —
+ * the layout's figures (lot count, unpaid badge) come for free to the page.
+ */
+export const lotRowsFor = cache((session: AuthorizedSession, residenceId: string, cycleId: string) =>
+  getLotRows(session, residenceId, cycleId),
+);
+export const activeLotsFor = cache((session: AuthorizedSession, residenceId: string) =>
+  lots.listLots(session, residenceId, { status: "ACTIVE" }),
+);
