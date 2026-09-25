@@ -9,8 +9,9 @@ import { Icon, type IconName } from "@/components/ui/Icon";
 
 /**
  * Home for signed-out visitors. Left: what Résido is — tagline, a preview of
- * the dashboard, four strengths — with the footer at its foot. Right: sign in
- * or create an account, kept in view. On phones the form comes first.
+ * the dashboard, four strengths. Right: theme and language, then sign in or
+ * create an account, kept in view. The footer runs under both. On phones the
+ * form comes first.
  */
 export default async function PublicHomePage() {
   const { t } = await getDictionary();
@@ -24,78 +25,89 @@ export default async function PublicHomePage() {
 
   return (
     <div className="landing">
-      <section className="landing-hero">
-        <svg width="520" height="420" viewBox="0 0 520 420" fill="none" aria-hidden="true" className="auth-hero-arches">
-          <path d="M40 420V200C40 110 110 40 200 40C290 40 360 110 360 200V420" stroke="currentColor" strokeWidth="2" />
-          <path
-            d="M90 420V210C90 150 140 100 200 100C260 100 310 150 310 210V420"
-            stroke="currentColor"
-            strokeWidth="2"
-          />
-          <path
-            d="M140 420V220C140 187 167 160 200 160C233 160 260 187 260 220V420"
-            stroke="currentColor"
-            strokeWidth="2"
-          />
-          <path
-            d="M380 420V300C380 255 415 220 450 220C485 220 520 255 520 300V420"
-            stroke="var(--ochre-light)"
-            strokeWidth="2"
-          />
-        </svg>
+      <div className="landing-main">
+        <section className="landing-hero">
+          <svg
+            width="520"
+            height="420"
+            viewBox="0 0 520 420"
+            fill="none"
+            aria-hidden="true"
+            className="auth-hero-arches"
+          >
+            <path
+              d="M40 420V200C40 110 110 40 200 40C290 40 360 110 360 200V420"
+              stroke="currentColor"
+              strokeWidth="2"
+            />
+            <path
+              d="M90 420V210C90 150 140 100 200 100C260 100 310 150 310 210V420"
+              stroke="currentColor"
+              strokeWidth="2"
+            />
+            <path
+              d="M140 420V220C140 187 167 160 200 160C233 160 260 187 260 220V420"
+              stroke="currentColor"
+              strokeWidth="2"
+            />
+            <path
+              d="M380 420V300C380 255 415 220 450 220C485 220 520 255 520 300V420"
+              stroke="var(--ochre-light)"
+              strokeWidth="2"
+            />
+          </svg>
 
-        <div className="relative flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
+          <div className="relative flex items-center gap-3">
             <span className="brand-mark bg-on-night text-night">R</span>
             <span className="font-display text-2xl font-semibold">Résido</span>
           </div>
-          <div className="hidden lg:block">
-            <PublicPreferences theme={theme} night />
-          </div>
-        </div>
 
-        <div className="relative flex max-w-[640px] flex-col gap-5">
-          <span className="text-[13px] font-bold uppercase tracking-[0.12em] text-ochre-light">{t.landingEyebrow}</span>
-          <h1 className="display text-[40px] leading-[1.05] md:text-[56px]">{t.tagline}</h1>
-          <p className="max-w-[520px] text-[17px] leading-relaxed text-night-soft">{t.taglineText}</p>
-        </div>
-
-        <Preview t={t} />
-
-        <ul className="relative grid max-w-[760px] grid-cols-1 gap-6 sm:grid-cols-2">
-          {features.map((f) => (
-            <li key={f.title} className="flex gap-3.5">
-              <span className="landing-feature-icon">
-                <Icon name={f.icon} size={19} />
-              </span>
-              <span className="flex flex-col gap-1">
-                <span className="font-bold">{t[f.title] as string}</span>
-                <span className="text-sm leading-relaxed text-night-soft">{t[f.text] as string}</span>
-              </span>
-            </li>
-          ))}
-        </ul>
-
-        <SiteFooter t={t} night />
-      </section>
-
-      <aside className="landing-auth">
-        <div className="landing-auth-inner">
-          {/* On phones the form comes first: the brand goes above it. */}
-          <div className="flex items-center justify-between gap-3 lg:hidden">
-            <span className="flex items-center gap-3">
-              <span className="brand-mark">R</span>
-              <span className="font-display text-[22px] font-semibold">Résido</span>
+          <div className="relative flex max-w-[640px] flex-col gap-5">
+            <span className="text-[13px] font-bold uppercase tracking-[0.12em] text-ochre-light">
+              {t.landingEyebrow}
             </span>
-            <PublicPreferences theme={theme} />
+            <h1 className="display text-[40px] leading-[1.05] md:text-[56px]">{t.tagline}</h1>
+            <p className="max-w-[520px] text-[17px] leading-relaxed text-night-soft">{t.taglineText}</p>
           </div>
-          <AuthPanel />
-          <p className="flex items-center gap-2 text-[13px] text-muted">
-            <Icon name="lock" size={15} />
-            {t.authNote}
-          </p>
-        </div>
-      </aside>
+
+          <Preview t={t} />
+
+          <ul className="relative grid max-w-[760px] grid-cols-1 gap-6 sm:grid-cols-2">
+            {features.map((f) => (
+              <li key={f.title} className="flex gap-3.5">
+                <span className="landing-feature-icon">
+                  <Icon name={f.icon} size={19} />
+                </span>
+                <span className="flex flex-col gap-1">
+                  <span className="font-bold">{t[f.title] as string}</span>
+                  <span className="text-sm leading-relaxed text-night-soft">{t[f.text] as string}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <aside className="landing-auth">
+          <div className="landing-auth-inner">
+            {/* Theme and language on top; the brand joins them on phones, where the form comes first. */}
+            <div className="landing-auth-top">
+              <span className="flex items-center gap-3 lg:invisible">
+                <span className="brand-mark">R</span>
+                <span className="font-display text-[22px] font-semibold">Résido</span>
+              </span>
+              <PublicPreferences theme={theme} />
+            </div>
+            <div className="flex flex-1 items-center">
+              <AuthPanel />
+            </div>
+            <p className="flex items-center justify-center gap-2 text-center text-[13px] text-muted">
+              <Icon name="lock" size={15} />
+              {t.authNote}
+            </p>
+          </div>
+        </aside>
+      </div>
+      <SiteFooter t={t} night />
     </div>
   );
 }

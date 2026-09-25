@@ -10,10 +10,10 @@ import type { Locale } from "@/lib/i18n/dictionaries";
 
 /**
  * Light / dark switch and language select for signed-out pages, beside the
- * brand (signed-in users have them in Settings › General). `night` sits on
- * the dark landing panel.
+ * brand or above the sign-in card (signed-in users have them in Settings ›
+ * General).
  */
-export function PublicPreferences({ theme, night = false }: { theme: Theme; night?: boolean }) {
+export function PublicPreferences({ theme }: { theme: Theme }) {
   const { t, locale } = useI18n();
   const toast = useToast();
   const [pending, startTransition] = useTransition();
@@ -26,7 +26,7 @@ export function PublicPreferences({ theme, night = false }: { theme: Theme; nigh
   const label = next === "dark" ? t.dark : t.light;
 
   return (
-    <div className={`flex items-center gap-2 ${night ? "prefs-night" : ""}`}>
+    <div className="flex items-center gap-2">
       <button
         type="button"
         className="icon-btn"
