@@ -5,7 +5,7 @@ import { getDictionary } from "@/lib/i18n/server";
 import { interpolate } from "@/lib/i18n/dictionaries";
 import { formatMoney, formatMonth, percent } from "@/lib/format";
 import { cycleRange } from "@/lib/cycle-view";
-import { outstandingLots, ownerOptions } from "@/lib/lot-rows";
+import { outstandingLots } from "@/lib/lot-rows";
 import { computeCycleTreasury } from "@/lib/domain/cycles/service";
 import { getExpenseMonths, getLotRows, progressByBloc, totalsFromLotRows } from "@/lib/domain/overview/service";
 import { Bar, Kpi, PageHeader } from "@/components/ui/Display";
@@ -19,11 +19,10 @@ export default async function DashboardPage({ params, searchParams }: PageProps<
   if (!cycle) return <NoCycle residenceId={residenceId} base={base} t={t} canCreate={can("cycles:manage")} />;
   if (cycle.status === "DRAFT") return <DraftCycle base={base} cycle={cycle} t={t} />;
 
-  const [rows, treasury, months, ownerList] = await Promise.all([
+  const [rows, treasury, months] = await Promise.all([
     getLotRows(session, residenceId, cycle.id),
     computeCycleTreasury(residenceId, cycle),
     getExpenseMonths(session, residenceId, cycle.id),
-    ownerOptions(session, residenceId),
   ]);
   const totals = totalsFromLotRows(rows);
   const blocs = progressByBloc(rows);
@@ -46,7 +45,7 @@ export default async function DashboardPage({ params, searchParams }: PageProps<
                 <PaymentButton
                   residenceId={residenceId}
                   lots={outstandingLots(rows)}
-                  owners={ownerList}
+                 
                   label={t.addPayment}
                 />
               )}

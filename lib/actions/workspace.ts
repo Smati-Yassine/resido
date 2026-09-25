@@ -114,8 +114,6 @@ export async function recordPaymentAction(_: ActionResult | null, formData: Form
     }
     const method = field(formData, "method") as PaymentMethod;
     const result = await payments.recordPayment(session, residenceId, {
-      ownerId: field(formData, "ownerId") || undefined,
-      payerName: field(formData, "payer") || undefined,
       date: field(formData, "date"),
       method: PAYMENT_METHODS.includes(method) ? method : "CASH",
       note: field(formData, "note") || undefined,

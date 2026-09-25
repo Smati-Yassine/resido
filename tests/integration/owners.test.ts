@@ -83,4 +83,23 @@ describe("owners", () => {
     const { residence } = await residenceWithOpenCycle();
     await expect(owners.listOwners(adminSession(newUserId()), residence.id)).rejects.toThrow();
   });
+
+  it("takes the payer from the units paid: their owner, or the owners' names", async () => {
+    const { session, residence, cycle, lots: l, assessmentOf } = await residenceWithOpenCycle();
+    const one = unwrap(await owners.createOwner(session, residence.id, { name: "First Owner", lotIds: [l.a11.id, l.a12.id] }));
+    unwrap(await owners.createOwner(session, residence.id, { name: "Second Owner", lotIds: [l.b11.id] }));
+    const pay = (codes: string[]) =>
+      payments.recordPayment(session, residence.id, {
+        date: "2026-03-01",
+        method: "CASH",
+        idempotencyKey: key(),
+        allocations: codes.map((c) => ({ assessmentId: assessmentOf(c), amountMillimes: "1" })),
+      });
+
+    expect(unwrap(await pay(["A11", "A12"]))).toMatchObject({ ownerId: one.id, payerName: "First Owner" });
+    expect(unwrap(await pay(["A11", "B11"]))).toMatchObject({ ownerId: null, payerName: "First Owner, Second Owner" });
+    unwrap(await owners.deleteOwner(session, residence.id, one.id));
+    expect(unwrap(await pay(["A12"]))).toMatchObject({ ownerId: null, payerName: null });
+    expect(unwrap(await payments.listPaymentsForCycle(session, residence.id, cycle.id))).toHaveLength(3);
+  });
 });

@@ -51,10 +51,12 @@ the source ledger.
 **Owners.** A lean `owners` collection (name, optional phone) replaces the
 old owner/ownership-history model: `lots.ownerId` points to at most one
 owner. Lots are assigned from the owner form (a checklist that moves a lot
-from its previous owner) or from the owner dropdown on each lot row. In the
-payment form, picking an owner selects all their unpaid lots at full
-remaining amounts; the payment stores `ownerId` and snapshots the name in
-`payerName`. Deleting an owner leaves their lots without one.
+from its previous owner) or from the owner dropdown on each lot row. A
+payment starts from a unit search: the unit found is selected for its full
+remaining due and its owner's other unpaid units are offered unselected.
+There is no payer field: the server takes the owner of the units paid
+(`ownerId` + `payerName` snapshot), or joins the owners' names when units of
+several owners are paid together. Deleting an owner leaves their lots without one.
 
 **Removed modules:** ownerships, receipts, receiptCounters,
 expenseCategories. Legacy indexes that would clash are dropped by

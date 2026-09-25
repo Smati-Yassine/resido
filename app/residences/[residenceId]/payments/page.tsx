@@ -3,7 +3,7 @@ import { interpolate } from "@/lib/i18n/dictionaries";
 import { currencySymbol } from "@/lib/currency";
 import { getDictionary } from "@/lib/i18n/server";
 import { formatDate, formatMoney, formatAmount } from "@/lib/format";
-import { outstandingLots, ownerOptions } from "@/lib/lot-rows";
+import { outstandingLots } from "@/lib/lot-rows";
 import { getLotRows, totalsFromLotRows } from "@/lib/domain/overview/service";
 import * as payments from "@/lib/domain/payments/service";
 import { EmptyState, Kpi, PageHeader } from "@/components/ui/Display";
@@ -16,10 +16,9 @@ export default async function PaymentsPage({ params, searchParams }: PageProps<"
   if (!cycle) return <NoCycle residenceId={residenceId} base={base} t={t} canCreate={can("cycles:manage")} />;
   if (cycle.status === "DRAFT") return <DraftCycle base={base} cycle={cycle} t={t} />;
 
-  const [rows, paymentList, ownerList] = await Promise.all([
+  const [rows, paymentList] = await Promise.all([
     getLotRows(session, residenceId, cycle.id),
     payments.listPaymentsForCycle(session, residenceId, cycle.id),
-    ownerOptions(session, residenceId),
   ]);
   const totals = totalsFromLotRows(rows);
   const codeOf = new Map(rows.map((r) => [r.assessmentId, r]));
@@ -34,7 +33,7 @@ export default async function PaymentsPage({ params, searchParams }: PageProps<"
         actions={
           cycle.status === "OPEN" &&
           can("payments:create") && (
-            <PaymentButton residenceId={residenceId} lots={outstandingLots(rows)} owners={ownerList} />
+            <PaymentButton residenceId={residenceId} lots={outstandingLots(rows)} />
           )
         }
       />

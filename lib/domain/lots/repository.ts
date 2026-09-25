@@ -72,6 +72,14 @@ export async function findLotById(organizationId: string, id: string): Promise<L
   return doc ? toDomain(doc) : null;
 }
 
+export async function findLotsByIds(organizationId: string, ids: string[]): Promise<Lot[]> {
+  if (ids.length === 0) return [];
+  const docs = await (await collection())
+    .find({ organizationId: toObjectId(organizationId), _id: { $in: ids.map(toObjectId) } })
+    .toArray();
+  return docs.map(toDomain);
+}
+
 export interface ListLotsFilter {
   buildingId?: string;
   status?: "ACTIVE" | "INACTIVE";

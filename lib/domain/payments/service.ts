@@ -15,6 +15,7 @@ import * as assessmentsRepo from "@/lib/domain/assessments/repository";
 import { OverAllocationError } from "@/lib/domain/assessments/repository";
 import * as cyclesRepo from "@/lib/domain/cycles/repository";
 import * as ownersRepo from "@/lib/domain/owners/repository";
+import * as lotsRepo from "@/lib/domain/lots/repository";
 
 export type Result<T> =
   | { ok: true; data: T }
@@ -49,8 +50,8 @@ export async function recordPayment(
   const existing = await repo.findPaymentByIdempotencyKey(organizationId, input.idempotencyKey);
   if (existing) return { ok: true, data: existing };
 
-  const owner = input.ownerId ? await ownersRepo.findOwnerById(organizationId, input.ownerId) : null;
-  if (input.ownerId && !owner) return { ok: false, code: "NOT_FOUND", message: "Owner not found" };
+  const explicitOwner = input.ownerId ? await ownersRepo.findOwnerById(organizationId, input.ownerId) : null;
+  if (input.ownerId && !explicitOwner) return { ok: false, code: "NOT_FOUND", message: "Owner not found" };
 
   // Best-effort pre-check for a readable error; the $expr-guarded update in
   // applyPaymentToAssessment is the authoritative, race-free overpay guard.
@@ -81,6 +82,20 @@ export async function recordPayment(
   }
   const totalAmountMillimes = resolved.reduce((sum, a) => sum + a.amountMillimes, 0);
 
+  // Who paid, unless given: the owner of the units paid. One owner → the
+  // payment is theirs; units of several owners → their names, no owner link.
+  let owner = explicitOwner;
+  let payerName = input.payerName || null;
+  if (!owner) {
+    const lots = await lotsRepo.findLotsByIds(organizationId, [...new Set(resolved.map((a) => a.lotId))]);
+    const ownerIds = [...new Set(lots.map((l) => l.ownerId).filter((id): id is string => !!id))];
+    const lotOwners = (await Promise.all(ownerIds.map((id) => ownersRepo.findOwnerById(organizationId, id)))).filter(
+      (o) => o !== null,
+    );
+    if (lotOwners.length === 1) owner = lotOwners[0];
+    else if (lotOwners.length > 1 && !payerName) payerName = lotOwners.map((o) => o.name).join(", ");
+  }
+
   try {
     const payment = await withTransaction(async (dbSession) => {
       for (const allocation of resolved) {
@@ -95,7 +110,7 @@ export async function recordPayment(
         organizationId,
         {
           ownerId: owner?.id ?? null,
-          payerName: owner?.name ?? (input.payerName || null),
+          payerName: owner?.name ?? payerName,
           date: input.date,
           amountMillimes: totalAmountMillimes,
           method: input.method,
@@ -116,7 +131,7 @@ export async function recordPayment(
           metadata: {
             amountMillimes: totalAmountMillimes,
             allocationCount: resolved.length,
-            name: owner?.name ?? input.payerName ?? null,
+            name: owner?.name ?? payerName,
           },
         },
         dbSession,

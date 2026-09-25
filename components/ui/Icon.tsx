@@ -153,6 +153,12 @@ const PATHS = {
       <path d="M14 10l2 2-2 2" />
     </>
   ),
+  search: (
+    <>
+      <circle cx="11" cy="11" r="7" />
+      <path d="M20 20l-3.5-3.5" />
+    </>
+  ),
   compass: (
     <>
       <circle cx="12" cy="12" r="9" />
