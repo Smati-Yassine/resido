@@ -20,10 +20,14 @@ export function Modal({
   children: React.ReactNode;
 }) {
   const panel = useRef<HTMLDivElement>(null);
+  const overlay = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key !== "Escape") return;
+      // Modals can stack (a confirmation over settings): Escape closes the topmost only.
+      const open = document.querySelectorAll(".modal-overlay");
+      if (open[open.length - 1] === overlay.current) onClose();
     };
     document.addEventListener("keydown", onKey);
     const previousOverflow = document.body.style.overflow;
@@ -36,7 +40,7 @@ export function Modal({
   }, [onClose]);
 
   return (
-    <div className="modal-overlay" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+    <div ref={overlay} className="modal-overlay" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <div
         ref={panel}
         className="modal"

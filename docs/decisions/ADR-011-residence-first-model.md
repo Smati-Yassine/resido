@@ -122,8 +122,12 @@ for financial ones); Settings › Journal shows the last 200 entries.
 and Compte (profile, password, sign out all devices, export, purge, delete
 account). Residence settings: Général (name, city, currency, archive /
 delete), Cycles (create, open, close, delete; `/cycles` redirects there),
-Membres, Journal. The cycle switcher in the top bar picks which cycle every
-page shows.
+Membres, Journal — a side navigation and grouped setting rows. One view
+(`ResidenceSettingsView`, data from `loadResidenceSettings`) serves the
+settings page and the settings modal opened by the gear on each card of the
+residences list; the modal loads the data through a server action and
+reloads it after every change made inside (`AfterActionProvider`). The cycle
+switcher in the top bar picks which cycle every page shows.
 
 **Dashboard.** The residence's home shows the viewed cycle at a glance: the
 collection rate on a gauge; what was billed, collected, still owed and the

@@ -8,6 +8,8 @@ import * as residences from "@/lib/domain/residences/service";
 import type { ActionResult } from "@/lib/action-result";
 import { currencySymbol } from "@/lib/currency";
 import { field, guarded } from "./errors";
+import { findMembership } from "@/lib/domain/memberships/repository";
+import { loadResidenceSettings, type ResidenceSettingsData } from "@/lib/settings/residence-settings";
 
 export async function createResidenceAction(
   _: ActionResult<{ slug: string }> | null,
@@ -90,4 +92,17 @@ export async function setResidenceCurrencyAction(residenceId: string, currency: 
     const code = result.data.currency;
     return { ok: true, message: interpolate(t.currencySaved, { currency: `${code} (${currencySymbol(code)})` }) };
   });
+}
+
+/**
+ * The residence settings as data, for the settings modal on the residences
+ * list. Null when the user is no longer a member (they just left it, say).
+ */
+export async function loadResidenceSettingsAction(residenceId: string): Promise<ResidenceSettingsData | null> {
+  const user = await requireUser();
+  const membership = await findMembership(user.userId, residenceId).catch(() => null);
+  if (!membership) return null;
+  const { t, locale } = await getDictionary();
+  const session = await requireResidenceSession(residenceId);
+  return loadResidenceSettings(session, residenceId, t, locale);
 }

@@ -7,6 +7,7 @@ import { Bar, Badge, EmptyState } from "@/components/ui/Display";
 import { useI18n } from "@/components/ui/I18nProvider";
 import { interpolate } from "@/lib/i18n/dictionaries";
 import { DeleteResidenceModal, ResidenceFormModal, type ResidenceDraft } from "./ResidenceModals";
+import { ResidenceSettingsModal } from "./ResidenceSettingsModal";
 import { useArchive } from "./useArchive";
 
 export interface ResidenceCardView extends ResidenceDraft {
@@ -24,7 +25,7 @@ export interface ResidenceCardView extends ResidenceDraft {
 
 type ModalState =
   | { kind: "create" }
-  | { kind: "edit"; residence: ResidenceDraft }
+  | { kind: "settings"; residence: ResidenceDraft }
   | { kind: "delete"; residence: ResidenceDraft }
   | null;
 
@@ -137,17 +138,15 @@ export function HomeView({ residences }: { residences: ResidenceCardView[] }) {
                     {t.open}
                   </Link>
                 )}
-                {r.isAdmin && (
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    aria-label={t.edit}
-                    title={t.edit}
-                    onClick={() => setModal({ kind: "edit", residence: r })}
-                  >
-                    <Icon name="edit" />
-                  </button>
-                )}
+                <button
+                  type="button"
+                  className="icon-btn"
+                  aria-label={`${t.settings} — ${r.name}`}
+                  title={t.settings}
+                  onClick={() => setModal({ kind: "settings", residence: r })}
+                >
+                  <Icon name="settings" />
+                </button>
                 {r.isAdmin && !r.archived && (
                   <button
                     type="button"
@@ -178,7 +177,9 @@ export function HomeView({ residences }: { residences: ResidenceCardView[] }) {
       )}
 
       {modal?.kind === "create" && <ResidenceFormModal onClose={close} />}
-      {modal?.kind === "edit" && <ResidenceFormModal residence={modal.residence} onClose={close} />}
+      {modal?.kind === "settings" && (
+        <ResidenceSettingsModal residenceId={modal.residence.id} residenceName={modal.residence.name} onClose={close} />
+      )}
       {modal?.kind === "delete" && <DeleteResidenceModal residence={modal.residence} onClose={close} />}
     </>
   );

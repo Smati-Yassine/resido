@@ -26,6 +26,8 @@ async function scoped(formData: FormData) {
   const currency = (await findResidenceById(residenceId))?.currency ?? DEFAULT_CURRENCY;
   const done = (message: string): ActionResult => {
     revalidatePath("/residences/[residenceId]", "layout");
+    // The residences list shows each residence's cycle and collection rate.
+    revalidatePath("/residences");
     return { ok: true, message };
   };
   /** Amount with the residence's currency symbol, for toast messages. */

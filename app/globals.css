@@ -157,6 +157,7 @@
   --color-muted: var(--muted);
   --color-line: var(--line);
   --color-line-2: var(--line-2);
+  --color-line-soft: var(--line-soft);
   --color-night: var(--night);
   --color-primary: var(--primary);
   --color-ochre: var(--ochre);
@@ -1028,6 +1029,176 @@
     stroke-width: 1.5;
     stroke-dasharray: 2 4;
     vector-effect: non-scaling-stroke;
+  }
+
+  /* Settings: side navigation, grouped rows, cycle timeline */
+  .settings-layout {
+    display: grid;
+    grid-template-columns: 236px minmax(0, 1fr);
+    gap: 32px;
+    align-items: start;
+  }
+  .settings-nav {
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .settings-nav-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 12px;
+    border: none;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--ink-2);
+    font: inherit;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+  }
+  .settings-nav-item:hover {
+    background: var(--hover);
+  }
+  .settings-nav-item[aria-current="page"] {
+    background: var(--surface);
+    box-shadow: 0 0 0 1px var(--line);
+    color: var(--ink);
+  }
+  .settings-nav-icon {
+    margin-top: 1px;
+    color: var(--muted);
+  }
+  .settings-nav-item[aria-current="page"] .settings-nav-icon {
+    color: var(--primary);
+  }
+  .settings-nav-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .settings-nav-desc {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .settings-group {
+    overflow: hidden;
+  }
+  .settings-group-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 20px 24px;
+  }
+  .settings-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+    gap: 24px;
+    align-items: center;
+    padding: 18px 24px;
+    border-top: 1px solid var(--line-soft);
+  }
+  .settings-row-title {
+    display: block;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .settings-row-text {
+    display: block;
+    margin-top: 2px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .settings-foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 14px 24px;
+    border-top: 1px solid var(--line);
+    background: var(--surface-2);
+  }
+  .settings-group-danger {
+    border-color: var(--danger-line);
+  }
+  .settings-group-danger .settings-group-head .h-card {
+    color: var(--danger);
+  }
+  .identity-tile {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    background: var(--primary-soft);
+    color: var(--primary);
+  }
+  .timeline {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+  .timeline::before {
+    content: "";
+    position: absolute;
+    top: 14px;
+    bottom: 14px;
+    left: 11px;
+    width: 2px;
+    background: var(--line);
+  }
+  .timeline-item {
+    position: relative;
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr);
+    gap: 16px;
+    padding: 8px 0;
+  }
+  .timeline-dot {
+    width: 14px;
+    height: 14px;
+    margin: 22px 0 0 5px;
+    border-radius: 99px;
+    background: var(--stone);
+    box-shadow: 0 0 0 4px var(--surface);
+  }
+  .timeline-dot[data-status="OPEN"] {
+    background: var(--primary);
+  }
+  .timeline-dot[data-status="DRAFT"] {
+    border: 2px dashed var(--stone);
+    background: var(--surface);
+  }
+  @media (max-width: 1023px) {
+    .settings-layout {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 20px;
+    }
+    .settings-nav {
+      position: static;
+      flex-direction: row;
+      flex-wrap: wrap;
+    }
+    .settings-nav-item {
+      width: auto;
+    }
+    .settings-nav-desc {
+      display: none;
+    }
+  }
+  @media (max-width: 767px) {
+    .settings-row {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 10px;
+    }
   }
 
   /* Tables */

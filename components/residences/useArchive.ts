@@ -4,11 +4,13 @@ import { useTransition } from "react";
 import { setResidenceArchivedAction } from "@/lib/actions/residences";
 import { useI18n } from "@/components/ui/I18nProvider";
 import { useToast } from "@/components/ui/Toaster";
+import { useAfterAction } from "@/components/ui/AfterAction";
 
 /** Archive / restore with a toast; archiving offers an Undo. */
 export function useArchive() {
   const { t } = useI18n();
   const toast = useToast();
+  const afterAction = useAfterAction();
   const [pending, startTransition] = useTransition();
 
   const setArchived = (residenceId: string, archived: boolean, after?: () => void) =>
@@ -33,6 +35,7 @@ export function useArchive() {
           : undefined,
       });
       after?.();
+      afterAction();
     });
 
   return { setArchived, pending };

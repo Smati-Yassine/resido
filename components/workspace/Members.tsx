@@ -7,6 +7,7 @@ import { Field } from "@/components/ui/Field";
 import { Badge } from "@/components/ui/Display";
 import { useI18n } from "@/components/ui/I18nProvider";
 import { useToast } from "@/components/ui/Toaster";
+import { useAfterAction } from "@/components/ui/AfterAction";
 import { useActionToast } from "@/components/ui/useActionToast";
 import { addMemberAction, cancelInvitationAction, changeRoleAction, removeMemberAction } from "@/lib/actions/members";
 import { interpolate, type Dictionary } from "@/lib/i18n/dictionaries";
@@ -49,6 +50,10 @@ export function MembersPanel({
       {canManage && <AddMemberForm residenceId={residenceId} />}
 
       <div className="card data-table">
+        <div className="settings-group-head border-b border-line-soft">
+          <h2 className="h-card">{t.members}</h2>
+          <Badge tone="closed">{members.length}</Badge>
+        </div>
         {members.map((m) => {
           const self = m.userId === currentUserId;
           return (
@@ -83,8 +88,11 @@ export function MembersPanel({
 
       {invitations.length > 0 && (
         <div className="flex flex-col gap-2.5">
-          <span className="label-caps">{t.pendingInvitations}</span>
           <div className="card data-table">
+            <div className="settings-group-head border-b border-line-soft">
+              <h2 className="h-card">{t.pendingInvitations}</h2>
+              <Badge tone="draft">{invitations.length}</Badge>
+            </div>
             {invitations.map((i) => (
               <div key={i.id} className="data-row grid-cols-[1fr_200px_180px]">
                 <span className="truncate font-semibold">{i.email}</span>
@@ -149,6 +157,7 @@ function AddMemberForm({ residenceId }: { residenceId: string }) {
 function RoleSelect({ residenceId, member }: { residenceId: string; member: MemberRow }) {
   const { t } = useI18n();
   const toast = useToast();
+  const afterAction = useAfterAction();
   const [pending, startTransition] = useTransition();
   const [shown, setShown] = useOptimistic(member.role);
   return (
@@ -163,6 +172,7 @@ function RoleSelect({ residenceId, member }: { residenceId: string; member: Memb
           setShown(role);
           const result = await changeRoleAction(residenceId, { userId: member.userId, name: member.name }, role);
           toast({ tone: result.ok ? "success" : "danger", text: result.message });
+          if (result.ok) afterAction();
         });
       }}
     >
@@ -178,6 +188,7 @@ function RoleSelect({ residenceId, member }: { residenceId: string; member: Memb
 function CancelInvitationButton({ residenceId, invitationId }: { residenceId: string; invitationId: string }) {
   const { t } = useI18n();
   const toast = useToast();
+  const afterAction = useAfterAction();
   const [pending, startTransition] = useTransition();
   return (
     <button
@@ -188,6 +199,7 @@ function CancelInvitationButton({ residenceId, invitationId }: { residenceId: st
         startTransition(async () => {
           const result = await cancelInvitationAction(residenceId, invitationId);
           toast({ tone: result.ok ? "success" : "danger", text: result.message });
+          if (result.ok) afterAction();
         })
       }
     >

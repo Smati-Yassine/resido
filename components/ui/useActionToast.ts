@@ -3,6 +3,7 @@
 import { startTransition, useActionState, useEffect, useRef } from "react";
 import type { ActionResult } from "@/lib/action-result";
 import { useToast } from "./Toaster";
+import { useAfterAction } from "./AfterAction";
 
 /**
  * Runs a Server Action from a form and reports every outcome as a toast:
@@ -20,6 +21,7 @@ export function useActionToast<T>(
   prepare?: (formData: FormData) => boolean,
 ) {
   const toast = useToast();
+  const afterAction = useAfterAction();
   const onSuccessRef = useRef(onSuccess);
   useEffect(() => {
     onSuccessRef.current = onSuccess;
@@ -31,7 +33,10 @@ export function useActionToast<T>(
   const [, dispatch, pending] = useActionState(async (state: ActionResult<T> | null, formData: FormData) => {
     const result = await action(state, formData);
     toast({ tone: result.ok ? "success" : "danger", text: result.message });
-    if (result.ok) onSuccessRef.current?.(result);
+    if (result.ok) {
+      onSuccessRef.current?.(result);
+      afterAction();
+    }
     return result;
   }, null);
 
