@@ -11,10 +11,10 @@ const CONTACTS: { icon: IconName; href: string; label: (t: Dictionary) => string
   { icon: "linkedin", href: "https://www.linkedin.com/in/smati-yassine/", label: () => "LinkedIn" },
 ];
 
-/** Footer of every signed-out page: legal links, contact icons, language. */
-export function SiteFooter({ t }: { t: Dictionary }) {
+/** Footer of every signed-out page: legal links, contact icons, language. `night` sits on the dark landing panel. */
+export function SiteFooter({ t, night = false }: { t: Dictionary; night?: boolean }) {
   return (
-    <footer className="site-footer">
+    <footer className={`site-footer ${night ? "site-footer-night" : ""}`}>
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
         <span>© {new Date().getFullYear()} Résido</span>
         <Link href="/privacy">{t.privacy}</Link>

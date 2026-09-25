@@ -25,6 +25,9 @@ export default async function ResidencesPage() {
     cycleName: c.currentCycle?.name ?? null,
     cycleIsOpen: c.currentCycle?.status === "OPEN",
     collectionRate: c.collectionRate,
+    outstandingMillimes: c.outstandingMillimes,
+    currency: c.currency,
+    role: c.role,
     isAdmin: c.role === "SYNDIC_ADMIN",
   }));
 
@@ -37,7 +40,7 @@ export default async function ResidencesPage() {
         residences={cards.map((c) => ({ id: c.id, name: c.name }))}
       />
       <main className="flex flex-1 flex-col gap-8 px-6 pb-16 pt-12 md:px-12">
-        <HomeView residences={residences} />
+        <HomeView residences={residences} firstName={user.name.split(" ")[0]} />
       </main>
     </div>
   );

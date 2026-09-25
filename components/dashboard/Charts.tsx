@@ -188,3 +188,28 @@ export function CollectionCurve({
     </div>
   );
 }
+
+/** A small full ring filling up to `value` percent, the figure in its middle — on light cards. */
+export function Ring({ value, size = 76 }: { value: number | null; size?: number }) {
+  const shown = value === null ? 0 : Math.max(0, Math.min(100, value));
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg viewBox="0 0 42 42" className="h-full w-full -rotate-90" aria-hidden="true">
+        <circle className="ring-track" cx="21" cy="21" r="15.915" strokeWidth="4" />
+        {shown > 0 && (
+          <circle
+            className="ring-fill"
+            cx="21"
+            cy="21"
+            r="15.915"
+            strokeWidth="4"
+            strokeDasharray={`${shown} ${100 - shown}`}
+          />
+        )}
+      </svg>
+      <span className="num absolute inset-0 flex items-center justify-center text-[15px] font-bold">
+        {value === null ? "—" : `${value}%`}
+      </span>
+    </div>
+  );
+}

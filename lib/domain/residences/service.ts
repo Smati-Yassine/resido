@@ -126,6 +126,8 @@ export interface ResidenceCard extends Residence {
   currentCycle: Pick<Cycle, "id" | "name" | "status"> | null;
   /** Share of the current cycle's charges collected, 0–100; null without assessments. */
   collectionRate: number | null;
+  /** What the current cycle still has to collect (in the residence's currency); null without assessments. */
+  outstandingMillimes: number | null;
 }
 
 /** The home screen: every residence the user is a member of, with its headline figures. */
@@ -143,10 +145,12 @@ export async function listResidenceCards(userId: string): Promise<ResidenceCard[
       ]);
       const current = cycles.find((c) => c.status === "OPEN") ?? cycles[0] ?? null;
       let collectionRate: number | null = null;
+      let outstandingMillimes: number | null = null;
       if (current && current.status !== "DRAFT") {
         const summary = await assessmentsRepo.summarizeAssessmentsForCycle(residence.id, current.id);
         if (summary.totalAmountMillimes > 0) {
           collectionRate = Math.round((summary.totalPaidMillimes / summary.totalAmountMillimes) * 100);
+          outstandingMillimes = summary.totalAmountMillimes - summary.totalPaidMillimes;
         }
       }
       return {
@@ -156,6 +160,7 @@ export async function listResidenceCards(userId: string): Promise<ResidenceCard[
         blocCount: blocs.length,
         currentCycle: current ? { id: current.id, name: current.name, status: current.status } : null,
         collectionRate,
+        outstandingMillimes,
       };
     }),
   );
