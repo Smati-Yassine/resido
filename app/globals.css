@@ -1111,14 +1111,14 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 16px 24px;
+    padding: 20px 24px;
   }
   .settings-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
     gap: 24px;
     align-items: center;
-    padding: 14px 24px;
+    padding: 18px 24px;
     border-top: 1px solid var(--line-soft);
   }
   .settings-group > .settings-row:first-child {
@@ -1153,7 +1153,7 @@
     display: flex;
     justify-content: flex-end;
     gap: 10px;
-    padding: 12px 24px;
+    padding: 14px 24px;
     border-top: 1px solid var(--line);
     background: var(--surface-2);
   }

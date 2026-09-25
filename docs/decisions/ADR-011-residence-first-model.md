@@ -203,9 +203,8 @@ laid out like Finances: the header, then tabs — Général (`/settings`),
 Cycles, Membres, Journal (`/settings/<tab>`). General puts identity and
 currency side by side, then the danger zone; Cycles and Journal are tables
 (cycles with billed, collected, collection rate and balance, their actions
-behind a "⋯" menu; the journal searchable, filtered by kind, and paged: it
-fills the height left and shows as many one-line rows as fit, so neither the
-page nor the modal scrolls). The tables drop secondary columns when their container is narrow
+behind a "⋯" menu; the journal searchable, filtered by kind, 40 rows at a
+time). The tables drop secondary columns when their container is narrow
 (container queries). The settings modal on the residences list shows the
 same tabs and sections, at the modal's full width.
 

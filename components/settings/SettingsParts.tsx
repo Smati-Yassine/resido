@@ -20,7 +20,7 @@ export function SettingsTabs<K extends string>({
 }) {
   return (
     <div className="flex min-h-[54px] items-end justify-between gap-4 border-b border-line">
-      <nav className="tabs min-w-0 overflow-x-auto border-b-0" aria-label={label}>
+      <nav className="tabs min-w-0 flex-wrap gap-y-2 border-b-0" aria-label={label}>
         {items.map((item) => (
           <button
             key={item.key}

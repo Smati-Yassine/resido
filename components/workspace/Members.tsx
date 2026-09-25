@@ -45,7 +45,7 @@ export function MembersPanel({
   const [removing, setRemoving] = useState<MemberRow | null>(null);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       <p className="text-sm text-muted">{t.membersHelp}</p>
       {canManage && <AddMemberForm residenceId={residenceId} />}
 
