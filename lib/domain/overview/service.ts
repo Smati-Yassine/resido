@@ -1,6 +1,6 @@
 import type { AuthorizedSession } from "@/lib/rbac/permissions";
 import { requirePermission, requireOrganization } from "@/lib/rbac/permissions";
-import type { AssessmentStatus } from "@/lib/domain/assessments/schema";
+import { effectiveOwnerId, type AssessmentStatus } from "@/lib/domain/assessments/schema";
 import type { Cycle } from "@/lib/domain/cycles/schema";
 import type { Expense } from "@/lib/domain/expenses/schema";
 import * as assessmentsRepo from "@/lib/domain/assessments/repository";
@@ -62,7 +62,8 @@ export async function getLotRows(
     .map((a): LotRow => {
       const lot = lotById.get(a.lotId);
       const blocId = lot?.buildingId ?? null;
-      const ownerId = lot?.ownerId ?? null;
+      // Who owned the lot in this cycle, not today.
+      const ownerId = effectiveOwnerId(a, lot?.ownerId ?? null);
       return {
         lotId: a.lotId,
         assessmentId: a.id,

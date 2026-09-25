@@ -12,10 +12,46 @@ import { Bar, Kpi, PageHeader } from "@/components/ui/Display";
 import { ClosedBanner, DraftCycle, NoCycle } from "@/components/workspace/CycleState";
 import { PaymentButton } from "@/components/workspace/PaymentModal";
 import { ExpenseButton } from "@/components/workspace/ExpenseModal";
+import { SetupGuide } from "@/components/workspace/SetupGuide";
+import * as buildings from "@/lib/domain/buildings/service";
+import * as lots from "@/lib/domain/lots/service";
 
 export default async function DashboardPage({ params, searchParams }: PageProps<"/residences/[residenceId]">) {
-  const { session, residenceId, cycle, currency, can, base } = await loadWorkspace(params, searchParams);
+  const { session, residenceId, residence, cycle, cycles, currency, can, base } = await loadWorkspace(
+    params,
+    searchParams,
+  );
   const { t, locale } = await getDictionary();
+
+  // Until a first cycle opens, the dashboard walks a new residence through its setup.
+  if (cycles.every((c) => c.status === "DRAFT")) {
+    const [blocResult, lotResult] = await Promise.all([
+      buildings.listBuildings(session, residenceId),
+      lots.listLots(session, residenceId, { status: "ACTIVE" }),
+    ]);
+    const lotList = lotResult.ok ? lotResult.data : [];
+    return (
+      <>
+        <PageHeader subtitle={residence.city} title={t.dashboard} />
+        <SetupGuide
+          t={t}
+          base={base}
+          residenceId={residenceId}
+          counts={{
+            blocs: blocResult.ok ? blocResult.data.length : 0,
+            lots: lotList.length,
+            assigned: lotList.filter((l) => l.ownerId).length,
+          }}
+          draft={cycles[0] ?? null}
+          can={{
+            lots: can("lots:*"),
+            owners: can("owners:*"),
+            cycles: can("cycles:manage"),
+          }}
+        />
+      </>
+    );
+  }
   if (!cycle) return <NoCycle residenceId={residenceId} base={base} t={t} canCreate={can("cycles:manage")} />;
   if (cycle.status === "DRAFT") return <DraftCycle base={base} cycle={cycle} t={t} />;
 
@@ -38,19 +74,18 @@ export default async function DashboardPage({ params, searchParams }: PageProps<
         subtitle={cycleRange(cycle, t)}
         title={t.dashboard}
         actions={
-          cycle.status === "OPEN" && (
-            <>
-              {can("expenses:create") && <ExpenseButton residenceId={residenceId} variant="ghost" />}
-              {can("payments:create") && (
-                <PaymentButton
-                  residenceId={residenceId}
-                  lots={paymentLots(rows)}
-                 
-                  label={t.addPayment}
-                />
-              )}
-            </>
-          )
+          // A closed cycle stays correctable, so the buttons stay too.
+          <>
+            {can("expenses:create") && <ExpenseButton residenceId={residenceId} variant="ghost" />}
+            {can("payments:create") && (
+              <PaymentButton
+                residenceId={residenceId}
+                lots={paymentLots(rows)}
+
+                label={t.addPayment}
+              />
+            )}
+          </>
         }
       />
 
@@ -58,7 +93,10 @@ export default async function DashboardPage({ params, searchParams }: PageProps<
         <Kpi
           label={t.kpiExpected}
           value={formatMoney(totals.expectedMillimes, currency)}
-          foot={interpolate(t.dtLots, { cur: currencySymbol(currency), count: totals.lotCount })}
+          foot={interpolate(t.dtLots, {
+            cur: currencySymbol(currency),
+            count: totals.lotCount,
+          })}
         />
         <Kpi
           label={t.kpiCollected}
@@ -122,7 +160,11 @@ export default async function DashboardPage({ params, searchParams }: PageProps<
                   <span className="font-semibold">{b.name}</span>
                   <Bar value={blocRate} tone="pos" />
                   <span className="num text-right text-ink-2">
-                    {interpolate(t.blocProgress, { rate: blocRate, paid: b.paidCount, count: b.lotCount })}
+                    {interpolate(t.blocProgress, {
+                      rate: blocRate,
+                      paid: b.paidCount,
+                      count: b.lotCount,
+                    })}
                   </span>
                 </div>
               );

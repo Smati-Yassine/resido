@@ -3,7 +3,7 @@ import { loadWorkspace } from "@/lib/workspace";
 import { getDictionary } from "@/lib/i18n/server";
 import { cycleRange } from "@/lib/cycle-view";
 import { paymentLots } from "@/lib/lot-rows";
-import { computeCycleTreasury } from "@/lib/domain/cycles/service";
+import { computeAllTreasuries } from "@/lib/domain/cycles/service";
 import { getExpenseMonths, getLotRows, totalsFromLotRows } from "@/lib/domain/overview/service";
 import { incomeByMethod, incomeInCycle, monthlyFlows } from "@/lib/domain/overview/finance";
 import * as payments from "@/lib/domain/payments/service";
@@ -21,23 +21,24 @@ type Tab = (typeof TABS)[number];
 
 /** Payments, expenses and the treasury they add up to, on one page: an overview tab, then one tab per list. */
 export default async function FinancesPage({ params, searchParams }: PageProps<"/residences/[residenceId]/finances">) {
-  const { session, residenceId, cycle, currency, can, base } = await loadWorkspace(params, searchParams);
+  const { session, residenceId, cycle, cycles, currency, can, base } = await loadWorkspace(params, searchParams);
   const { tab: tabParam } = await searchParams;
   const tab: Tab = TABS.includes(tabParam as Tab) ? (tabParam as Tab) : "overview";
   const { t, locale } = await getDictionary();
   if (!cycle) return <NoCycle residenceId={residenceId} base={base} t={t} canCreate={can("cycles:manage")} />;
   if (cycle.status === "DRAFT") return <DraftCycle base={base} cycle={cycle} t={t} />;
 
-  const [rows, paymentResult, months, treasury] = await Promise.all([
+  const [rows, paymentResult, months, treasuries] = await Promise.all([
     getLotRows(session, residenceId, cycle.id),
     payments.listPaymentsForCycle(session, residenceId, cycle.id),
     getExpenseMonths(session, residenceId, cycle.id),
-    computeCycleTreasury(residenceId, cycle),
+    computeAllTreasuries(residenceId),
   ]);
+  const treasury = treasuries.get(cycle.id)!;
+  const previous = cycles.find((c) => c.id === cycle.previousCycleId);
   const paymentList = paymentResult.ok ? paymentResult.data : [];
   const expenses = months.flatMap((m) => m.items);
   const lots = paymentLots(rows);
-  const open = cycle.status === "OPEN";
   const tabHref = (key: Tab) => `${base}/finances?${key === "overview" ? "" : `tab=${key}&`}cycle=${cycle.id}`;
 
   const codeOf = new Map(rows.map((r) => [r.assessmentId, r.code]));
@@ -70,7 +71,11 @@ export default async function FinancesPage({ params, searchParams }: PageProps<"
     payments: paymentList.length,
     expenses: expenses.length,
   };
-  const tabLabel: Record<Tab, string> = { overview: t.tabOverview, payments: t.payments, expenses: t.expenses };
+  const tabLabel: Record<Tab, string> = {
+    overview: t.tabOverview,
+    payments: t.payments,
+    expenses: t.expenses,
+  };
 
   return (
     <>
@@ -78,13 +83,12 @@ export default async function FinancesPage({ params, searchParams }: PageProps<"
       <PageHeader
         subtitle={cycleRange(cycle, t)}
         title={t.finances}
+        // A closed cycle stays correctable, so the buttons stay too.
         actions={
-          open && (
-            <>
-              {can("expenses:create") && <ExpenseButton residenceId={residenceId} variant="ghost" />}
-              {can("payments:create") && <PaymentButton residenceId={residenceId} lots={lots} />}
-            </>
-          )
+          <>
+            {can("expenses:create") && <ExpenseButton residenceId={residenceId} variant="ghost" />}
+            {can("payments:create") && <PaymentButton residenceId={residenceId} lots={lots} />}
+          </>
         }
       />
       <TreasuryLedger
@@ -92,7 +96,20 @@ export default async function FinancesPage({ params, searchParams }: PageProps<"
         currency={currency}
         treasury={treasury}
         closed={cycle.status === "CLOSED"}
-        edit={open && can("treasury:*") ? { residenceId, cycleId: cycle.id } : null}
+        edit={
+          can("treasury:*")
+            ? {
+                residenceId,
+                cycleId: cycle.id,
+                previous: previous
+                  ? {
+                      name: previous.name,
+                      closingMillimes: treasuries.get(previous.id)?.closingBalanceMillimes ?? 0,
+                    }
+                  : null,
+              }
+            : null
+        }
       />
       <nav className="tabs" aria-label={t.finances}>
         {TABS.map((key) => (
@@ -130,7 +147,7 @@ export default async function FinancesPage({ params, searchParams }: PageProps<"
           payments={paymentList}
           rows={rows}
           lots={lots}
-          canChange={open && can("payments:cancel")}
+          canChange={can("payments:cancel")}
         />
       )}
       {tab === "expenses" && (
@@ -140,7 +157,7 @@ export default async function FinancesPage({ params, searchParams }: PageProps<"
           currency={currency}
           residenceId={residenceId}
           months={months}
-          canChange={open && can("expenses:cancel")}
+          canChange={can("expenses:cancel")}
         />
       )}
     </>

@@ -32,7 +32,7 @@ function NewCycleModal({ residenceId, onClose }: { residenceId: string; onClose:
   const [onSubmit, pending] = useActionToast(createCycleAction, (result) => {
     onClose();
     const created = result.data as { id: string } | undefined;
-    if (created) router.push(`${base}/cycles?cycle=${created.id}`);
+    if (created) router.push(`${base}/settings?tab=cycles&cycle=${created.id}`);
   });
 
   return (
@@ -209,7 +209,7 @@ function DeleteCycleModal({
   const [onSubmit, pending] = useActionToast(deleteCycleAction, () => {
     onClose();
     // The deleted cycle may be the one in the URL; drop it so the default cycle shows.
-    router.replace(`${base}/cycles`);
+    router.replace(`${base}/settings?tab=cycles`);
   });
   return (
     <Modal title={interpolate(t.deleteCycleTitle, { name: cycleName })} width={460} onClose={onClose}>

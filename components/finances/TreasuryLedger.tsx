@@ -1,13 +1,14 @@
-import type { Dictionary } from "@/lib/i18n/dictionaries";
+import { interpolate, type Dictionary } from "@/lib/i18n/dictionaries";
 import { currencySymbol, type CurrencyCode } from "@/lib/currency";
 import { formatMoney } from "@/lib/format";
 import type { CycleTreasury } from "@/lib/domain/cycles/service";
-import { OpeningBalanceButton } from "@/components/workspace/OpeningBalanceButton";
+import { OpeningBalanceButton, type CarrySource } from "@/components/workspace/OpeningBalanceButton";
 
 /**
  * The cycle's treasury as one strip above the Finances tabs:
- * start + payments − expenses = balance. Only the start is typed in, through
- * the pencil while the cycle is open; the rest follows from the movements.
+ * start + payments − expenses = balance. The start is carried over from the
+ * previous cycle's close or typed in, through the pencil; the rest follows
+ * from the movements.
  */
 export function TreasuryLedger({
   t,
@@ -20,7 +21,11 @@ export function TreasuryLedger({
   currency: CurrencyCode;
   treasury: CycleTreasury;
   closed: boolean;
-  edit: { residenceId: string; cycleId: string } | null;
+  edit: {
+    residenceId: string;
+    cycleId: string;
+    previous: CarrySource | null;
+  } | null;
 }) {
   return (
     <section className="card ledger" aria-label={t.treasury}>
@@ -33,10 +38,15 @@ export function TreasuryLedger({
               residenceId={edit.residenceId}
               cycleId={edit.cycleId}
               openingMillimes={treasury.openingBalanceMillimes}
+              carried={!!treasury.carriedFrom}
+              previous={edit.previous}
             />
           )}
         </div>
         <span className="ledger-value">{formatMoney(treasury.openingBalanceMillimes, currency)}</span>
+        {treasury.carriedFrom && (
+          <span className="text-xs text-muted">{interpolate(t.carriedFrom, { name: treasury.carriedFrom.name })}</span>
+        )}
       </div>
       <div className="ledger-cell">
         <span className="ledger-label">{t.plusIncome}</span>

@@ -39,9 +39,12 @@ export default async function LotsPage({ params, searchParams }: PageProps<"/res
     ? "grid-cols-[minmax(104px,1fr)_minmax(0,0.7fr)_minmax(0,1.5fr)_repeat(3,minmax(0,1.1fr))_minmax(0,0.9fr)_84px]"
     : "grid-cols-[minmax(104px,1fr)_minmax(0,0.7fr)_minmax(0,1.6fr)_repeat(3,minmax(0,1.1fr))_minmax(0,0.9fr)]";
   const plainGrid = canEdit ? "grid-cols-[minmax(104px,1fr)_minmax(0,0.8fr)_minmax(0,1.6fr)_minmax(0,1.3fr)_84px]" : "grid-cols-[minmax(104px,1fr)_minmax(0,0.8fr)_minmax(0,1.6fr)_minmax(0,1.3fr)]";
+  // The edit form starts from the cycle on screen: its charge and its owner for the lot.
+  const rowByLot = new Map((billed ?? []).map((r) => [r.lotId, r]));
   const editable = (lotId: string) => {
     const lot = lotById.get(lotId);
     if (!lot) return <span />;
+    const row = rowByLot.get(lotId);
     return (
       <LotRowActions
         residenceId={residenceId}
@@ -51,8 +54,8 @@ export default async function LotsPage({ params, searchParams }: PageProps<"/res
           id: lot.id,
           code: lot.code,
           buildingId: lot.buildingId,
-          chargeMillimes: lot.chargeMillimes,
-          ownerId: lot.ownerId,
+          chargeMillimes: row?.dueMillimes ?? lot.chargeMillimes,
+          ownerId: row ? row.ownerId : lot.ownerId,
         }}
       />
     );

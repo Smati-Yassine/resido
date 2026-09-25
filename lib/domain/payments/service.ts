@@ -15,6 +15,7 @@ import * as repo from "./repository";
 import { DuplicateIdempotencyKeyError } from "./repository";
 import * as assessmentsRepo from "@/lib/domain/assessments/repository";
 import { OverAllocationError } from "@/lib/domain/assessments/repository";
+import { effectiveOwnerId } from "@/lib/domain/assessments/schema";
 import * as cyclesRepo from "@/lib/domain/cycles/repository";
 import * as ownersRepo from "@/lib/domain/owners/repository";
 import * as lotsRepo from "@/lib/domain/lots/repository";
@@ -30,8 +31,8 @@ export type Result<T> =
 type ResolvedAllocation = { assessmentId: string; lotId: string; cycleId: string; amountMillimes: number };
 
 /**
- * Checks every allocation's assessment exists, belongs to an OPEN cycle and
- * would not be overpaid. `credit` is what the payment being edited already
+ * Checks every allocation's assessment exists, belongs to a billed (OPEN or
+ * CLOSED — a closed cycle stays correctable) cycle and would not be overpaid. `credit` is what the payment being edited already
  * pays per assessment — that part is freed again before the new amounts
  * apply. Best-effort, for a readable error: the $expr-guarded update in
  * applyPaymentToAssessment is the authoritative, race-free overpay guard.
@@ -48,8 +49,8 @@ async function resolveAllocations(
       return { ok: false, code: "NOT_FOUND", message: `Assessment ${allocation.assessmentId} not found` };
     }
     const cycle = await cyclesRepo.findCycleById(organizationId, assessment.cycleId);
-    if (!cycle || cycle.status !== "OPEN") {
-      return { ok: false, code: "CYCLE_NOT_OPEN", message: "Payments can only be recorded on the open cycle" };
+    if (!cycle || cycle.status === "DRAFT") {
+      return { ok: false, code: "CYCLE_NOT_OPEN", message: "Payments go to a billed cycle" };
     }
     const remaining = assessment.amountMillimes - assessment.paidMillimes + (credit.get(assessment.id) ?? 0);
     if (allocation.amountMillimes > remaining) {
@@ -70,8 +71,8 @@ async function resolveAllocations(
 }
 
 /**
- * Who paid, unless given: the owner of the units paid. One owner → the
- * payment is theirs; units of several owners → their names, no owner link.
+ * Who paid, unless given: who owned the units paid in their cycle. One
+ * owner → the payment is theirs; several → their names, no owner link.
  */
 async function resolvePayer(
   organizationId: string,
@@ -85,7 +86,17 @@ async function resolvePayer(
     return { ok: true, data: { owner, payerName: owner.name } };
   }
   const lots = await lotsRepo.findLotsByIds(organizationId, [...new Set(resolved.map((a) => a.lotId))]);
-  const ownerIds = [...new Set(lots.map((l) => l.ownerId).filter((id): id is string => !!id))];
+  const lotOwner = new Map(lots.map((l) => [l.id, l.ownerId]));
+  const assessments = await Promise.all(
+    resolved.map((a) => assessmentsRepo.findAssessmentById(organizationId, a.assessmentId)),
+  );
+  const ownerIds = [
+    ...new Set(
+      assessments
+        .map((a) => (a ? effectiveOwnerId(a, lotOwner.get(a.lotId) ?? null) : null))
+        .filter((id): id is string => !!id),
+    ),
+  ];
   const owners = (await Promise.all(ownerIds.map((id) => ownersRepo.findOwnerById(organizationId, id)))).filter(
     (o) => o !== null,
   );
@@ -96,7 +107,7 @@ async function resolvePayer(
 
 /**
  * Records a payment: checks every allocation's assessment exists, belongs to
- * an OPEN cycle and would not be overpaid, then atomically applies each
+ * a billed cycle and would not be overpaid, then atomically applies each
  * allocation and inserts the payment + audit log. Partial allocations are
  * expected — the lot stays PARTIALLY_PAID until a later payment settles it.
  * Idempotent on `idempotencyKey`: a retried submission returns the original
@@ -196,7 +207,7 @@ export async function listPaymentsForCycle(
  * Edits a payment: its date, method, note and allocations are replaced as a
  * whole. In one transaction the old allocations are taken back off their
  * units and the new ones applied, so no unit is ever over- or under-counted.
- * Only while every unit involved is in the OPEN cycle.
+ * Closed cycles too: their treasury, and the start of the next, follow.
  */
 export async function updatePayment(
   session: AuthorizedSession,
@@ -216,10 +227,6 @@ export async function updatePayment(
   if (payment.status !== "COMPLETED") {
     return { ok: false, code: "ALREADY_VOIDED", message: `Payment is already ${payment.status}` };
   }
-  if (!(await allCyclesOpen(organizationId, payment))) {
-    return { ok: false, code: "CYCLE_NOT_OPEN", message: "Payments of a closed cycle cannot change" };
-  }
-
   const credit = new Map(payment.allocations.map((a) => [a.assessmentId, a.amountMillimes]));
   const resolved = await resolveAllocations(organizationId, input.allocations, credit);
   if (!resolved.ok) return resolved;
@@ -282,15 +289,6 @@ export async function updatePayment(
   }
 }
 
-/** A closed cycle's figures are frozen: its payments can be neither edited nor deleted. */
-async function allCyclesOpen(organizationId: string, payment: Payment): Promise<boolean> {
-  for (const cycleId of new Set(payment.allocations.map((a) => a.cycleId))) {
-    const cycle = await cyclesRepo.findCycleById(organizationId, cycleId);
-    if (!cycle || cycle.status !== "OPEN") return false;
-  }
-  return true;
-}
-
 async function voidPayment(
   session: AuthorizedSession,
   organizationId: string,
@@ -310,10 +308,6 @@ async function voidPayment(
   if (payment.status !== "COMPLETED") {
     return { ok: false, code: "ALREADY_VOIDED", message: `Payment is already ${payment.status}` };
   }
-  if (!(await allCyclesOpen(organizationId, payment))) {
-    return { ok: false, code: "CYCLE_NOT_OPEN", message: "Payments of a closed cycle cannot change" };
-  }
-
   const updated = await withTransaction(async (dbSession) => {
     for (const allocation of payment.allocations) {
       await assessmentsRepo.reversePaymentFromAssessment(

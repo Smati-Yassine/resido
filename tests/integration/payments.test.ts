@@ -69,16 +69,19 @@ describe("payments", () => {
     expect(treasury.incomeMillimes).toBe(100_000);
   });
 
-  it("rejects payments once the cycle is closed", async () => {
+  it("still records a late payment in a closed cycle", async () => {
     const { session, residence, cycle, assessmentOf } = await residenceWithOpenCycle();
     unwrap(await cycles.closeCycle(session, residence.id, { cycleId: cycle.id }));
-    const result = await payments.recordPayment(session, residence.id, {
-      date: "2026-03-02",
-      method: "CASH",
-      idempotencyKey: key(),
-      allocations: [{ assessmentId: assessmentOf("A11"), amountMillimes: "1" }],
-    });
-    expect(result).toMatchObject({ ok: false, code: "CYCLE_NOT_OPEN" });
+    unwrap(
+      await payments.recordPayment(session, residence.id, {
+        date: "2026-03-02",
+        method: "CASH",
+        idempotencyKey: key(),
+        allocations: [{ assessmentId: assessmentOf("A11"), amountMillimes: "1" }],
+      }),
+    );
+    const row = (await overview.getLotRows(session, residence.id, cycle.id)).find((r) => r.code === "A11")!;
+    expect(row).toMatchObject({ paidMillimes: 1_000, status: "PARTIAL" });
   });
 
   it("cancelling a payment restores what the lot owes", async () => {
@@ -157,24 +160,21 @@ describe("editing and deleting payments", () => {
     expect((await lotRow(ctx, "A11")).paidMillimes).toBe(1_000_000);
   });
 
-  it("freezes payments once their cycle is closed", async () => {
+  it("keeps payments of a closed cycle editable", async () => {
     const ctx = await residenceWithOpenCycle();
     const payment = await pay(ctx, [["A11", "100"]]);
     unwrap(await cycles.closeCycle(ctx.session, ctx.residence.id, { cycleId: ctx.cycle.id }));
-    expect(
-      await payments.cancelPayment(ctx.session, ctx.residence.id, { paymentId: payment.id, reason: "x" }),
-    ).toMatchObject({
-      ok: false,
-      code: "CYCLE_NOT_OPEN",
-    });
-    expect(
+    unwrap(
       await payments.updatePayment(ctx.session, ctx.residence.id, {
         paymentId: payment.id,
         date: "2026-03-02",
         method: "CASH",
         allocations: [{ assessmentId: ctx.assessmentOf("A11"), amountMillimes: "50" }],
       }),
-    ).toMatchObject({ ok: false, code: "CYCLE_NOT_OPEN" });
+    );
+    expect((await cycles.computeCycleTreasury(ctx.residence.id, ctx.cycle)).incomeMillimes).toBe(50_000);
+    unwrap(await payments.cancelPayment(ctx.session, ctx.residence.id, { paymentId: payment.id, reason: "x" }));
+    expect((await cycles.computeCycleTreasury(ctx.residence.id, ctx.cycle)).incomeMillimes).toBe(0);
   });
 });
 
@@ -247,7 +247,7 @@ describe("editing and deleting expenses", () => {
     expect(unwrap(await cycles.getCycleTreasury(session, residence.id, cycle.id)).expenseMillimes).toBe(336_000);
   });
 
-  it("freezes expenses once their cycle is closed", async () => {
+  it("keeps expenses of a closed cycle editable", async () => {
     const { session, residence, cycle } = await residenceWithOpenCycle();
     const e = unwrap(
       await expenses.recordExpense(session, residence.id, {
@@ -258,17 +258,17 @@ describe("editing and deleting expenses", () => {
       }),
     );
     unwrap(await cycles.closeCycle(session, residence.id, { cycleId: cycle.id }));
-    expect(await expenses.cancelExpense(session, residence.id, { expenseId: e.id, reason: "x" })).toMatchObject({
-      code: "CYCLE_NOT_OPEN",
-    });
-    expect(
+    unwrap(
       await expenses.updateExpense(session, residence.id, {
         expenseId: e.id,
         label: "y",
         amountMillimes: "5",
         date: "2026-02-01",
       }),
-    ).toMatchObject({ code: "CYCLE_NOT_OPEN" });
+    );
+    expect((await cycles.computeCycleTreasury(residence.id, cycle)).expenseMillimes).toBe(5_000);
+    unwrap(await expenses.cancelExpense(session, residence.id, { expenseId: e.id, reason: "x" }));
+    expect((await cycles.computeCycleTreasury(residence.id, cycle)).expenseMillimes).toBe(0);
   });
 });
 

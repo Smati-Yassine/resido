@@ -24,16 +24,16 @@ export type Result<T> =
     };
 
 /**
- * Expenses are scoped to the organization's currently OPEN cycle at the
- * moment they're recorded (not recomputed later from the date) — see
- * docs/02-domain-model.md and docs/04-financial-model.md #cycle-closing
- * ("no new financial transactions may target a CLOSED cycle"). Idempotent
- * on `idempotencyKey`, same pattern as recordPayment.
+ * Records an expense in `cycleId` — the cycle being viewed, the OPEN one by
+ * default. A CLOSED cycle takes corrections too; drafts bill nothing yet and
+ * take none. The cycle is chosen, not recomputed later from the date.
+ * Idempotent on `idempotencyKey`, same pattern as recordPayment.
  */
 export async function recordExpense(
   session: AuthorizedSession,
   organizationId: string,
   rawInput: CreateExpenseInput,
+  cycleId?: string,
 ): Promise<Result<Expense>> {
   requireOrganization(session, organizationId);
   requirePermission(session, "expenses:create");
@@ -47,9 +47,11 @@ export async function recordExpense(
   const existing = await repo.findExpenseByIdempotencyKey(organizationId, input.idempotencyKey);
   if (existing) return { ok: true, data: existing };
 
-  const openCycle = await cyclesRepo.findOpenCycle(organizationId);
-  if (!openCycle) {
-    return { ok: false, code: "CYCLE_NOT_OPEN", message: "No cycle is currently OPEN for this organization" };
+  const target = cycleId
+    ? await cyclesRepo.findCycleById(organizationId, cycleId)
+    : await cyclesRepo.findOpenCycle(organizationId);
+  if (!target || target.status === "DRAFT") {
+    return { ok: false, code: "CYCLE_NOT_OPEN", message: "Expenses go to a billed cycle" };
   }
 
   try {
@@ -57,7 +59,7 @@ export async function recordExpense(
       const doc = await repo.insertExpense(
         organizationId,
         {
-          cycleId: openCycle.id,
+          cycleId: target.id,
           label: input.label,
           amountMillimes: input.amountMillimes,
           reference: input.reference || null,
@@ -102,13 +104,13 @@ export async function listExpensesForCycle(
   return { ok: true, data: await repo.listExpensesForCycle(organizationId, cycleId) };
 }
 
-/** A closed cycle's figures are frozen: its expenses can be neither edited nor deleted. */
-async function cycleIsOpen(organizationId: string, expense: Expense): Promise<boolean> {
+/** A billed cycle (OPEN or CLOSED) keeps its expenses correctable. */
+async function cycleIsBilled(organizationId: string, expense: Expense): Promise<boolean> {
   const cycle = await cyclesRepo.findCycleById(organizationId, expense.cycleId);
-  return cycle?.status === "OPEN";
+  return !!cycle && cycle.status !== "DRAFT";
 }
 
-/** Edits an expense's label, amount, reference and date — only while its cycle is OPEN. */
+/** Edits an expense's label, amount, reference and date — closed cycles too; the treasury follows. */
 export async function updateExpense(
   session: AuthorizedSession,
   organizationId: string,
@@ -127,7 +129,7 @@ export async function updateExpense(
   if (expense.status !== "RECORDED") {
     return { ok: false, code: "ALREADY_VOIDED", message: `Expense is already ${expense.status}` };
   }
-  if (!(await cycleIsOpen(organizationId, expense))) {
+  if (!(await cycleIsBilled(organizationId, expense))) {
     return { ok: false, code: "CYCLE_NOT_OPEN", message: "Expenses of a closed cycle cannot change" };
   }
 
@@ -179,7 +181,7 @@ async function voidExpense(
   if (expense.status !== "RECORDED") {
     return { ok: false, code: "ALREADY_VOIDED", message: `Expense is already ${expense.status}` };
   }
-  if (!(await cycleIsOpen(organizationId, expense))) {
+  if (!(await cycleIsBilled(organizationId, expense))) {
     return { ok: false, code: "CYCLE_NOT_OPEN", message: "Expenses of a closed cycle cannot change" };
   }
 

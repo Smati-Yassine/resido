@@ -30,14 +30,25 @@ Buildings are presented as *blocs* and bloc names are unique per residence,
 case-insensitively.
 
 **Cycles.** `endDate` is optional: an open-ended cycle runs until it is
-closed, and closing stamps the end date. Opening carries the previous
-cycle's closing balance over as the opening treasury balance. That opening
-balance is the one typed-in treasury figure and stays editable while the
-cycle is OPEN (`setOpeningBalance`). Reopening was removed. A cycle of any
-status can be deleted: its assessments, payments and expenses go with it, and
-every previous/next link to it is repointed. A later cycle keeps the opening
-balance it already carried over. ADR-005 is
-amended accordingly.
+closed, and closing stamps the end date. At most one cycle is OPEN — the
+current one. Closing ends a cycle but does not freeze it: payments,
+expenses, charges and owners of a CLOSED cycle stay correctable (a late
+payment, a mistake found in the next year), and viewing a cycle through the
+cycle switcher shows and edits that cycle's data. Only DRAFT cycles take no
+money, since they bill nothing yet. Reopening was removed. A cycle of any
+status can be deleted: its assessments, payments and expenses go with it,
+and every previous/next link to it is repointed. ADR-005 is amended
+accordingly.
+
+**Treasury carry-over.** A cycle's starting balance is either CARRIED — the
+previous cycle's closing balance, computed live, so a correction in 2025
+moves 2026's start — or MANUAL, a typed-in amount (`cycles.openingSource`).
+Opening a cycle sets CARRIED when there is a previous cycle. The pencil on
+the Finances treasury strip switches between the two, for open and closed
+cycles alike. Every cycle's treasury is computed in one pass along the chain
+(`computeAllTreasuries`); the closing balance stored at close is kept for the
+record only. Cycles opened before `openingSource` existed count as CARRIED
+when their stored start still equals the previous cycle's closing snapshot.
 
 **Payments.** A payment covers one or more lots, each fully or partly, as
 before. It carries an optional payer name and free-text `note`. Methods are
@@ -49,14 +60,26 @@ reference. There are no categories; expenses are read month by month, like
 the source ledger.
 
 **Owners.** A lean `owners` collection (name, optional phone) replaces the
-old owner/ownership-history model: `lots.ownerId` points to at most one
-owner. Lots are assigned from the owner form (a checklist that moves a lot
-from its previous owner) or from the owner dropdown on each lot row. A
+old owner/ownership-history model. Ownership is kept per cycle: each
+assessment records who owned its lot in that cycle (`assessments.ownerId`),
+and `lots.ownerId` is who will own the lot in cycles still to open. Opening
+a cycle copies each lot's owner onto its assessment. Lots are assigned from
+the owner form (a checklist) or from a lot's Edit form, and a change applies
+from the cycle being viewed onward: that cycle and each later one that still
+had the same owner — it stops at the first cycle where someone else already
+owned the lot — and the lot's own owner when it reaches the latest cycle
+(`lots/ownership.ts`). So a sale recorded in 2027 leaves 2026 with its
+owner, and a correction to 2026 reaches 2027 only if 2027 had the same owner.
+Assessments created before `ownerId` existed follow the lot's owner until it
+first changes, which pins them to it. A charge edited in a cycle applies to
+that cycle, and to the lot's charge for cycles still to open only when no
+later cycle is billed. A
 payment starts from a unit search: the unit found is selected for its full
 remaining due and its owner's other unpaid units are offered unselected.
-There is no payer field: the server takes the owner of the units paid
+There is no payer field: the server takes the units' owner in their cycle
 (`ownerId` + `payerName` snapshot), or joins the owners' names when units of
-several owners are paid together. Deleting an owner leaves their lots without one.
+several owners are paid together. Deleting an owner leaves their lots
+without one, in every cycle.
 
 **Removed modules:** ownerships, receipts, receiptCounters,
 expenseCategories. Legacy indexes that would clash are dropped by
@@ -92,8 +115,12 @@ for financial ones); Settings › Journal shows the last 200 entries.
 **Settings layout.** Account settings (user menu): Général (language, theme)
 and Compte (profile, password, sign out all devices, export, purge, delete
 account). Residence settings: Général (name, city, currency, archive /
-delete), Membres, Journal. Cycles are not a setting: they have their own
-page in the residence sidebar.
+delete), Cycles (create, open, close, delete; `/cycles` redirects there),
+Membres, Journal. The cycle switcher in the top bar picks which cycle every
+page shows.
+
+**First steps.** Until a first cycle opens, the dashboard is a setup guide:
+blocs and lots, their owners, the year's cycle, then opening it.
 
 **Residence shell.** Inside a residence the top bar is the signed-in bar of
 `/residences` (brand, user menu) plus a residence switcher and the cycle
@@ -125,8 +152,8 @@ flash.
 
 ## Consequences
 
-- Ownership history (who owned a lot before) is not kept; past payments
-  keep the payer's name.
+- Ownership history is the per-cycle owner on each assessment; there is no
+  finer history within a cycle. Past payments keep the payer's name.
 - Class names must not collide with Tailwind utilities, which win over
   component classes (`table`, `table-row`… are reserved; hence
   `data-table`).

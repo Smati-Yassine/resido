@@ -2,7 +2,7 @@ import { ObjectId, type ClientSession } from "mongodb";
 import { getDb } from "@/lib/db/client";
 import { COLLECTIONS } from "@/lib/db/collections";
 import { fromObjectId, toObjectId } from "@/lib/db/ids";
-import type { Cycle, CycleStatus } from "./schema";
+import type { Cycle, CycleStatus, OpeningSource } from "./schema";
 
 interface CycleDoc {
   _id: ObjectId;
@@ -16,6 +16,7 @@ interface CycleDoc {
   createdBy: ObjectId;
   closedBy: ObjectId | null;
   openingTreasuryBalanceMillimes: number | null;
+  openingSource?: OpeningSource;
   closingTreasuryBalanceMillimes: number | null;
   previousCycleId: ObjectId | null;
   nextCycleId: ObjectId | null;
@@ -34,6 +35,7 @@ function toDomain(doc: CycleDoc): Cycle {
     createdBy: fromObjectId(doc.createdBy),
     closedBy: doc.closedBy ? fromObjectId(doc.closedBy) : null,
     openingTreasuryBalanceMillimes: doc.openingTreasuryBalanceMillimes,
+    openingSource: doc.openingSource,
     closingTreasuryBalanceMillimes: doc.closingTreasuryBalanceMillimes,
     previousCycleId: doc.previousCycleId ? fromObjectId(doc.previousCycleId) : null,
     nextCycleId: doc.nextCycleId ? fromObjectId(doc.nextCycleId) : null,
@@ -94,7 +96,7 @@ export async function listCycles(organizationId: string): Promise<Cycle[]> {
 export async function markCycleOpen(
   organizationId: string,
   cycleId: string,
-  input: { openedAt: Date; openingTreasuryBalanceMillimes: number },
+  input: { openedAt: Date; openingTreasuryBalanceMillimes: number; openingSource: OpeningSource },
   session: ClientSession,
 ): Promise<Cycle | null> {
   try {
@@ -107,6 +109,7 @@ export async function markCycleOpen(
           status: "OPEN",
           openedAt: input.openedAt,
           openingTreasuryBalanceMillimes: input.openingTreasuryBalanceMillimes,
+          openingSource: input.openingSource,
         },
       },
       { returnDocument: "after", session },
@@ -166,16 +169,25 @@ export async function linkNextCycle(
   );
 }
 
+/**
+ * Sets where a billed (OPEN or CLOSED) cycle's starting balance comes from:
+ * a typed-in amount, or — CARRIED — the previous cycle's closing balance.
+ */
 export async function setOpeningBalance(
   organizationId: string,
   cycleId: string,
-  openingTreasuryBalanceMillimes: number,
+  opening: { source: "MANUAL"; amountMillimes: number } | { source: "CARRIED" },
 ): Promise<Cycle | null> {
   const result = await (
     await collection()
   ).findOneAndUpdate(
-    { _id: toObjectId(cycleId), organizationId: toObjectId(organizationId), status: "OPEN" },
-    { $set: { openingTreasuryBalanceMillimes } },
+    { _id: toObjectId(cycleId), organizationId: toObjectId(organizationId), status: { $in: ["OPEN", "CLOSED"] } },
+    {
+      $set:
+        opening.source === "MANUAL"
+          ? { openingSource: "MANUAL", openingTreasuryBalanceMillimes: opening.amountMillimes }
+          : { openingSource: "CARRIED" },
+    },
     { returnDocument: "after" },
   );
   return result ? toDomain(result) : null;

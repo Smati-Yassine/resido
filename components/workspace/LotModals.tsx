@@ -9,6 +9,9 @@ import { ModalButton } from "./ModalButton";
 import { useCurrency } from "@/components/ui/CurrencyProvider";
 import { toInputAmount } from "@/lib/format";
 import { ModalActions } from "./ModalActions";
+import { Notice } from "@/components/ui/Display";
+import { interpolate } from "@/lib/i18n/dictionaries";
+import { useViewedCycle, ViewedCycleField } from "@/components/shell/ViewedCycle";
 
 export function NewBlocButton({ residenceId }: { residenceId: string }) {
   const { t } = useI18n();
@@ -78,13 +81,15 @@ export function LotModal({
   onClose: () => void;
 }) {
   const { t } = useI18n();
-  const { code: currency } = useCurrency();
+  const { code: currency, symbol } = useCurrency();
+  const cycle = useViewedCycle();
   const [onSubmit, pending] = useActionToast(createLotAction, onClose);
   return (
     <Modal title={lot ? t.editLot : t.addLot} subtitle={lot ? t.editLotHelp : t.lotHelp} onClose={onClose}>
       <form onSubmit={onSubmit} className="flex flex-col gap-5">
         <input type="hidden" name="residenceId" value={residenceId} />
         {lot && <input type="hidden" name="lotId" value={lot.id} />}
+        <ViewedCycleField />
         <Field label={t.lotCode}>
           <input className="input" name="code" defaultValue={lot?.code} placeholder={t.lotCodePlaceholder} required />
         </Field>
@@ -97,7 +102,7 @@ export function LotModal({
             ))}
           </select>
         </Field>
-        <Field label={t.annualCharge}>
+        <Field label={interpolate(t.annualCharge, { cur: symbol })}>
           <MoneyInput
             name="charge"
             defaultValue={lot ? toInputAmount(lot.chargeMillimes, currency) : undefined}
@@ -114,6 +119,9 @@ export function LotModal({
             ))}
           </select>
         </Field>
+        {lot && cycle && cycle.status !== "DRAFT" && (
+          <Notice icon="calendar">{interpolate(t.lotCycleNote, { name: cycle.name })}</Notice>
+        )}
         <ModalActions onCancel={onClose} submitLabel={lot ? t.saveChanges : t.addLot} pending={pending} />
       </form>
     </Modal>

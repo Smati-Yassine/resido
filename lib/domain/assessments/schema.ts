@@ -10,6 +10,12 @@ export interface Assessment {
   organizationId: string;
   cycleId: string;
   lotId: string;
+  /**
+   * Who owned the lot in this cycle. Undefined on assessments created before
+   * ownership was kept per cycle: those follow the lot's owner (see
+   * effectiveOwnerId) until the lot's owner first changes, which pins them.
+   */
+  ownerId?: string | null;
   amountMillimes: number;
   calculationMethod: AssessmentCalculationMethod;
   calculationInputs?: Record<string, unknown>;
@@ -17,4 +23,9 @@ export interface Assessment {
   status: AssessmentStatus;
   paidMillimes: number;
   notes?: string;
+}
+
+/** Who owned the lot in the assessment's cycle. */
+export function effectiveOwnerId(assessment: Assessment, lotOwnerId: string | null): string | null {
+  return assessment.ownerId === undefined ? lotOwnerId : assessment.ownerId;
 }

@@ -33,9 +33,15 @@ export type CycleIdInput = z.infer<typeof cycleIdInputSchema>;
 /** The treasury "start point" (docs/01-excel-analysis.md, "Solde depart"): the only typed-in treasury figure. */
 export const setOpeningBalanceInputSchema = z.object({
   cycleId: objectIdSchema,
-  openingTreasuryBalanceMillimes: nonNegativeMillimesInputSchema,
+  /** Follow the previous cycle's closing balance instead of a typed-in amount. */
+  carry: z.boolean().default(false),
+  openingTreasuryBalanceMillimes: nonNegativeMillimesInputSchema.optional(),
 });
 export type SetOpeningBalanceInput = z.input<typeof setOpeningBalanceInputSchema>;
+
+/** Where a cycle's starting balance comes from: the previous cycle's close, or a typed-in amount. */
+export const OPENING_SOURCES = ["CARRIED", "MANUAL"] as const;
+export type OpeningSource = (typeof OPENING_SOURCES)[number];
 
 export interface Cycle {
   id: string;
@@ -49,9 +55,15 @@ export interface Cycle {
   closedAt: Date | null;
   createdBy: string;
   closedBy: string | null;
-  /** Set when the cycle opens (carried over from the previous cycle's close) and editable until it closes. */
+  /**
+   * The typed-in starting balance. Used as is when `openingSource` is MANUAL;
+   * when CARRIED the start follows the previous cycle's closing balance live,
+   * so correcting a past cycle flows into the next one.
+   */
   openingTreasuryBalanceMillimes: number | null;
-  /** Snapshotted at close time: opening + income - expenses for the cycle. */
+  /** Undefined for cycles opened before the field existed (see isCarried in the service). */
+  openingSource?: OpeningSource;
+  /** Snapshotted at close time (opening + income - expenses) for the record; the live figure is computed. */
   closingTreasuryBalanceMillimes: number | null;
   previousCycleId: string | null;
   nextCycleId: string | null;

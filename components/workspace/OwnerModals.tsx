@@ -10,6 +10,8 @@ import { deleteOwnerAction, saveOwnerAction } from "@/lib/actions/workspace";
 import { interpolate } from "@/lib/i18n/dictionaries";
 import { ModalButton } from "./ModalButton";
 import { ModalActions } from "./ModalActions";
+import { Notice } from "@/components/ui/Display";
+import { useViewedCycle, ViewedCycleField } from "@/components/shell/ViewedCycle";
 
 export interface OwnerDraft {
   id: string;
@@ -83,6 +85,7 @@ function OwnerModal({
   onClose: () => void;
 }) {
   const { t } = useI18n();
+  const cycle = useViewedCycle();
   const [picked, setPicked] = useState<Set<string>>(() => new Set(owner?.lotIds ?? []));
   const [onSubmit, pending] = useActionToast(saveOwnerAction, onClose);
   const toggle = (id: string) =>
@@ -98,6 +101,7 @@ function OwnerModal({
       <form onSubmit={onSubmit} className="flex flex-col gap-5">
         <input type="hidden" name="residenceId" value={residenceId} />
         {owner && <input type="hidden" name="ownerId" value={owner.id} />}
+        <ViewedCycleField />
         {[...picked].map((id) => (
           <input key={id} type="hidden" name="lotIds" value={id} />
         ))}
@@ -157,6 +161,9 @@ function OwnerModal({
             </div>
           )}
         </div>
+        {cycle && cycle.status !== "DRAFT" && (
+          <Notice icon="calendar">{interpolate(t.ownerCycleNote, { name: cycle.name })}</Notice>
+        )}
         <ModalActions onCancel={onClose} submitLabel={owner ? t.save : t.create} pending={pending} />
       </form>
     </Modal>

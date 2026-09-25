@@ -95,7 +95,7 @@ export async function listLots(organizationId: string, filter: ListLotsFilter = 
   return docs.map(toDomain);
 }
 
-/** Sets (or clears, with null) the owner of one lot. */
+/** Sets (or clears, with null) who will own the lot in cycles still to open (see lots/ownership.ts). */
 export async function setLotOwner(
   organizationId: string,
   lotId: string,
@@ -144,7 +144,7 @@ export async function replaceOwnerLots(
 export async function updateLot(
   organizationId: string,
   lotId: string,
-  patch: { buildingId: string; code: string; chargeMillimes: number; ownerId: string | null },
+  patch: { buildingId: string; code: string; chargeMillimes: number },
   session: ClientSession,
 ): Promise<Lot | null> {
   try {
@@ -157,7 +157,6 @@ export async function updateLot(
           buildingId: toObjectId(patch.buildingId),
           code: patch.code,
           chargeMillimes: patch.chargeMillimes,
-          ownerId: patch.ownerId ? toObjectId(patch.ownerId) : null,
           updatedAt: new Date(),
         },
       },

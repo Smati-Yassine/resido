@@ -28,15 +28,15 @@ export function CycleSwitcher({
   const selected = cycles.find((c) => c.id === selectedId);
 
   const manage = (
-    <Link href={`${base}/cycles`} className="menu-item h-10 py-0 text-sm font-bold text-primary" onClick={close}>
+    <Link href={`${base}/settings?tab=cycles`} className="menu-item h-10 py-0 text-sm font-bold text-primary" onClick={close}>
       {t.manageCycles}
     </Link>
   );
 
-  // No cycle yet: the button leads straight to the cycles page.
+  // No cycle yet: the button leads straight to Settings › Cycles.
   if (!selected) {
     return (
-      <Link href={`${base}/cycles`} className="btn btn-ghost btn-sm gap-2.5 bg-surface">
+      <Link href={`${base}/settings?tab=cycles`} className="btn btn-ghost btn-sm gap-2.5 bg-surface">
         <Icon name="calendar" size={16} />
         {t.noCycle}
       </Link>

@@ -13,7 +13,11 @@ describe("blocs and lots", () => {
   it("bills a lot added mid-cycle in the open cycle", async () => {
     const { session, residence, blocB, cycle } = await residenceWithOpenCycle();
     unwrap(
-      await lots.createLot(session, residence.id, { buildingId: blocB.id, code: "B12", chargeMillimes: "750.500" }),
+      await lots.createLot(session, residence.id, {
+        buildingId: blocB.id,
+        code: "B12",
+        chargeMillimes: "750.500",
+      }),
     );
 
     const rows = await overview.getLotRows(session, residence.id, cycle.id);
@@ -33,13 +37,19 @@ describe("blocs and lots", () => {
       chargeMillimes: "10",
     });
     expect(lot).toMatchObject({ ok: false, code: "DUPLICATE_CODE" });
-    const bloc = await buildings.createBuilding(session, residence.id, { name: "bloc a" });
+    const bloc = await buildings.createBuilding(session, residence.id, {
+      name: "bloc a",
+    });
     expect(bloc).toMatchObject({ ok: false, code: "DUPLICATE_NAME" });
   });
 
   it("rejects a zero charge", async () => {
     const { session, residence, blocA } = await residenceWithOpenCycle();
-    const lot = await lots.createLot(session, residence.id, { buildingId: blocA.id, code: "A99", chargeMillimes: "0" });
+    const lot = await lots.createLot(session, residence.id, {
+      buildingId: blocA.id,
+      code: "A99",
+      chargeMillimes: "0",
+    });
     expect(lot.ok).toBe(false);
   });
 });
@@ -56,9 +66,17 @@ describe("editing and deleting lots", () => {
         ownerId: null,
       }),
     );
-    expect(updated).toMatchObject({ code: "B99", buildingId: blocB.id, chargeMillimes: 1_250_000 });
+    expect(updated).toMatchObject({
+      code: "B99",
+      buildingId: blocB.id,
+      chargeMillimes: 1_250_000,
+    });
     const row = (await overview.getLotRows(session, residence.id, cycle.id)).find((r) => r.lotId === l.a11.id)!;
-    expect(row).toMatchObject({ code: "B99", blocName: "Bloc B", dueMillimes: 1_250_000 });
+    expect(row).toMatchObject({
+      code: "B99",
+      blocName: "Bloc B",
+      dueMillimes: 1_250_000,
+    });
   });
 
   it("refuses a charge below what the lot already paid, and a duplicate code", async () => {
@@ -71,20 +89,46 @@ describe("editing and deleting lots", () => {
         allocations: [{ assessmentId: assessmentOf("A11"), amountMillimes: "800" }],
       }),
     );
-    const base = { lotId: l.a11.id, buildingId: blocA.id, code: "A11", ownerId: null };
-    expect(await lots.updateLot(session, residence.id, { ...base, chargeMillimes: "700" })).toMatchObject({
+    const base = {
+      lotId: l.a11.id,
+      buildingId: blocA.id,
+      code: "A11",
+      ownerId: null,
+    };
+    expect(
+      await lots.updateLot(session, residence.id, {
+        ...base,
+        chargeMillimes: "700",
+      }),
+    ).toMatchObject({
       code: "CHARGE_BELOW_PAID",
     });
-    expect(await lots.updateLot(session, residence.id, { ...base, code: "A12", chargeMillimes: "1000" })).toMatchObject({
+    expect(
+      await lots.updateLot(session, residence.id, {
+        ...base,
+        code: "A12",
+        chargeMillimes: "1000",
+      }),
+    ).toMatchObject({
       code: "DUPLICATE_CODE",
     });
   });
 
   it("deletes a lot only when it has no history", async () => {
     const { session, residence, cycle, blocA, assessmentOf, lots: l } = await residenceWithOpenCycle();
-    const fresh = unwrap(await lots.createLot(session, residence.id, { buildingId: blocA.id, code: "A99", chargeMillimes: "10" }));
+    const fresh = unwrap(
+      await lots.createLot(session, residence.id, {
+        buildingId: blocA.id,
+        code: "A99",
+        chargeMillimes: "10",
+      }),
+    );
     unwrap(await lots.deleteLot(session, residence.id, fresh.id));
-    expect((await overview.getLotRows(session, residence.id, cycle.id)).map((r) => r.code)).toEqual(["A11", "A12", "B11"]);
+    expect((await overview.getLotRows(session, residence.id, cycle.id)).map((r) => r.code)).toEqual([
+      "A11",
+      "A12",
+      "B11",
+    ]);
 
     unwrap(
       await payments.recordPayment(session, residence.id, {
@@ -105,7 +149,12 @@ describe("cycles", () => {
   it("opens with one assessment per lot at its annual charge", async () => {
     const { session, residence, cycle } = await residenceWithOpenCycle();
     const totals = overview.totalsFromLotRows(await overview.getLotRows(session, residence.id, cycle.id));
-    expect(totals).toMatchObject({ expectedMillimes: 4_500_000, collectedMillimes: 0, lotCount: 3, unpaid: 3 });
+    expect(totals).toMatchObject({
+      expectedMillimes: 4_500_000,
+      collectedMillimes: 0,
+      lotCount: 3,
+      unpaid: 3,
+    });
     expect(cycle.endDate).toBeNull();
     expect(cycle.openingTreasuryBalanceMillimes).toBe(0);
   });
@@ -113,7 +162,11 @@ describe("cycles", () => {
   it("accepts a fixed end date but rejects one before the start", async () => {
     const { session, residence } = await residenceWithOpenCycle();
     const ok = unwrap(
-      await cycles.createCycle(session, residence.id, { name: "2027", startDate: "2027-01-01", endDate: "2027-12-31" }),
+      await cycles.createCycle(session, residence.id, {
+        name: "2027",
+        startDate: "2027-01-01",
+        endDate: "2027-12-31",
+      }),
     );
     expect(ok.endDate?.toISOString().slice(0, 10)).toBe("2027-12-31");
     const bad = await cycles.createCycle(session, residence.id, {
@@ -126,7 +179,12 @@ describe("cycles", () => {
 
   it("allows only one open cycle", async () => {
     const { session, residence } = await residenceWithOpenCycle();
-    const next = unwrap(await cycles.createCycle(session, residence.id, { name: "2027", startDate: "2027-01-01" }));
+    const next = unwrap(
+      await cycles.createCycle(session, residence.id, {
+        name: "2027",
+        startDate: "2027-01-01",
+      }),
+    );
     expect(await cycles.openCycle(session, residence.id, { cycleId: next.id })).toMatchObject({
       ok: false,
       code: "ANOTHER_CYCLE_OPEN",
@@ -163,17 +221,83 @@ describe("cycles", () => {
     expect(closed.closingTreasuryBalanceMillimes).toBe(2_868_328);
     expect(closed.endDate).not.toBeNull();
 
-    // A closed cycle's opening balance is frozen.
-    const frozen = await cycles.setOpeningBalance(session, residence.id, {
-      cycleId: cycle.id,
-      openingTreasuryBalanceMillimes: "1",
-    });
-    expect(frozen.ok).toBe(false);
-
-    const next = unwrap(await cycles.createCycle(session, residence.id, { name: "2027", startDate: "2027-01-01" }));
+    const next = unwrap(
+      await cycles.createCycle(session, residence.id, {
+        name: "2027",
+        startDate: "2027-01-01",
+      }),
+    );
     const opened = unwrap(await cycles.openCycle(session, residence.id, { cycleId: next.id }));
     expect(opened.openingTreasuryBalanceMillimes).toBe(2_868_328);
     expect(opened.previousCycleId).toBe(cycle.id);
+    expect((await cycles.computeCycleTreasury(residence.id, opened)).carriedFrom).toMatchObject({ name: "2026" });
+  });
+
+  it("keeps a closed cycle correctable, and the next cycle's start follows it", async () => {
+    const { session, residence, cycle, assessmentOf } = await residenceWithOpenCycle();
+    unwrap(
+      await cycles.setOpeningBalance(session, residence.id, {
+        cycleId: cycle.id,
+        openingTreasuryBalanceMillimes: "100",
+      }),
+    );
+    unwrap(await cycles.closeCycle(session, residence.id, { cycleId: cycle.id }));
+    const next = unwrap(
+      await cycles.createCycle(session, residence.id, {
+        name: "2027",
+        startDate: "2027-01-01",
+      }),
+    );
+    const opened = unwrap(await cycles.openCycle(session, residence.id, { cycleId: next.id }));
+    const startOf2027 = async () => (await cycles.computeCycleTreasury(residence.id, opened)).openingBalanceMillimes;
+    expect(await startOf2027()).toBe(100_000);
+
+    // A late payment and an expense recorded in the closed 2026…
+    unwrap(
+      await payments.recordPayment(session, residence.id, {
+        date: "2026-12-30",
+        method: "CASH",
+        idempotencyKey: key(),
+        allocations: [{ assessmentId: assessmentOf("A11"), amountMillimes: "300" }],
+      }),
+    );
+    unwrap(
+      await expenses.recordExpense(
+        session,
+        residence.id,
+        {
+          label: "STEG",
+          amountMillimes: "50",
+          date: "2026-12-31",
+          idempotencyKey: key(),
+        },
+        cycle.id,
+      ),
+    );
+    // …move 2026's closing balance and, carried over, 2027's start.
+    expect(await startOf2027()).toBe(350_000);
+
+    // Typed in, 2027's start stops following; carrying again resumes.
+    unwrap(
+      await cycles.setOpeningBalance(session, residence.id, {
+        cycleId: next.id,
+        openingTreasuryBalanceMillimes: "10",
+      }),
+    );
+    unwrap(
+      await cycles.setOpeningBalance(session, residence.id, {
+        cycleId: cycle.id,
+        openingTreasuryBalanceMillimes: "0",
+      }),
+    );
+    expect(await startOf2027()).toBe(10_000);
+    unwrap(
+      await cycles.setOpeningBalance(session, residence.id, {
+        cycleId: next.id,
+        carry: true,
+      }),
+    );
+    expect(await startOf2027()).toBe(250_000);
   });
 
   it("deletes a cycle with its charges, payments and expenses, and relinks the chain", async () => {
@@ -195,7 +319,12 @@ describe("cycles", () => {
       }),
     );
     unwrap(await cycles.closeCycle(session, residence.id, { cycleId: cycle.id }));
-    const next = unwrap(await cycles.createCycle(session, residence.id, { name: "2027", startDate: "2027-01-01" }));
+    const next = unwrap(
+      await cycles.createCycle(session, residence.id, {
+        name: "2027",
+        startDate: "2027-01-01",
+      }),
+    );
     expect(next.previousCycleId).toBe(cycle.id);
 
     unwrap(await cycles.deleteCycle(session, residence.id, { cycleId: cycle.id }));
@@ -213,7 +342,12 @@ describe("cycles", () => {
 
   it("can delete the open cycle, freeing a draft to open", async () => {
     const { session, residence, cycle } = await residenceWithOpenCycle();
-    const draft = unwrap(await cycles.createCycle(session, residence.id, { name: "2027", startDate: "2027-01-01" }));
+    const draft = unwrap(
+      await cycles.createCycle(session, residence.id, {
+        name: "2027",
+        startDate: "2027-01-01",
+      }),
+    );
     unwrap(await cycles.deleteCycle(session, residence.id, { cycleId: cycle.id }));
     expect((await cycles.openCycle(session, residence.id, { cycleId: draft.id })).ok).toBe(true);
   });

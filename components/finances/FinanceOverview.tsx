@@ -71,7 +71,11 @@ export function FinanceOverview({
               </span>
             </div>
           </div>
-          {flows.length === 0 ? <p className="text-sm text-muted">{t.noMovementsYet}</p> : <FlowChart flows={flows} t={t} locale={locale} currency={currency} />}
+          {flows.length === 0 ? (
+            <p className="text-sm text-muted">{t.noMovementsYet}</p>
+          ) : (
+            <FlowChart flows={flows} t={t} locale={locale} currency={currency} />
+          )}
         </section>
 
         <section className="card card-pad flex flex-col gap-4">
@@ -137,7 +141,9 @@ export function FinanceOverview({
                   <div
                     key={m.method}
                     className={METHOD_FILL[i % METHOD_FILL.length]}
-                    style={{ width: `${methodTotal ? (m.totalMillimes / methodTotal) * 100 : 0}%` }}
+                    style={{
+                      width: `${methodTotal ? (m.totalMillimes / methodTotal) * 100 : 0}%`,
+                    }}
                   />
                 ))}
               </div>
@@ -182,7 +188,12 @@ export function FinanceOverview({
                     <span className="num shrink-0 font-semibold">{money(e.amountMillimes)}</span>
                   </div>
                   <div className="bar">
-                    <div className="bar-fill bar-fill-ochre" style={{ width: `${(e.amountMillimes / maxExpense) * 100}%` }} />
+                    <div
+                      className="bar-fill bar-fill-ochre"
+                      style={{
+                        width: `${(e.amountMillimes / maxExpense) * 100}%`,
+                      }}
+                    />
                   </div>
                 </li>
               ))}
@@ -298,16 +309,11 @@ function BalanceChart({
           <polyline className="chart-line" points={line} />
         </svg>
         <span className="num absolute left-0 top-0 text-xs text-muted">{formatAmount(hi, currency)}</span>
-        {lo < 0 && (
-          <span className="num absolute bottom-0 left-0 text-xs text-neg">{formatAmount(lo, currency)}</span>
-        )}
+        {lo < 0 && <span className="num absolute bottom-0 left-0 text-xs text-neg">{formatAmount(lo, currency)}</span>}
       </div>
       <div className="flex justify-between text-xs text-muted">
         {labels.map((label, i) => (
-          <span
-            key={i}
-            className={i === 0 || i === labels.length - 1 || labels.length <= 8 ? "" : "hidden md:inline"}
-          >
+          <span key={i} className={i === 0 || i === labels.length - 1 || labels.length <= 8 ? "" : "hidden md:inline"}>
             {label}
           </span>
         ))}

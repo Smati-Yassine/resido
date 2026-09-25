@@ -1,11 +1,13 @@
 import Link from "next/link";
-import { loadWorkspace } from "@/lib/workspace";
-import { getDictionary } from "@/lib/i18n/server";
+import type { Dictionary } from "@/lib/i18n/dictionaries";
+import type { AuthorizedSession } from "@/lib/rbac/permissions";
+import type { CurrencyCode } from "@/lib/currency";
+import type { Cycle } from "@/lib/domain/cycles/schema";
 import { formatAmount } from "@/lib/format";
 import { toCycleView } from "@/lib/cycle-view";
-import { computeCycleTreasury } from "@/lib/domain/cycles/service";
+import { computeAllTreasuries } from "@/lib/domain/cycles/service";
 import { getLotRows, totalsFromLotRows } from "@/lib/domain/overview/service";
-import { Badge, EmptyState, PageHeader } from "@/components/ui/Display";
+import { Badge, EmptyState } from "@/components/ui/Display";
 import {
   CloseCycleButton,
   DeleteCycleButton,
@@ -13,19 +15,31 @@ import {
   OpenCycleButton,
 } from "@/components/workspace/CycleControls";
 
-/** Every cycle of the residence, newest first: create, open, close, delete, or jump into one. */
-export default async function CyclesPage({ params, searchParams }: PageProps<"/residences/[residenceId]/cycles">) {
-  const { session, residenceId, cycles, currency, can, base } = await loadWorkspace(params, searchParams);
-  const { t } = await getDictionary();
-  const canManageCycles = can("cycles:manage");
-
+/** Settings › Cycles: every cycle of the residence, newest first — create, open, close, delete, or jump into one. */
+export async function CyclesPanel({
+  t,
+  session,
+  residenceId,
+  cycles,
+  currency,
+  base,
+  canManageCycles,
+}: {
+  t: Dictionary;
+  session: AuthorizedSession;
+  residenceId: string;
+  cycles: Cycle[];
+  currency: CurrencyCode;
+  base: string;
+  canManageCycles: boolean;
+}) {
+  const treasuries = await computeAllTreasuries(residenceId);
   return (
     <>
-      <PageHeader
-        subtitle={t.cyclesHelp}
-        title={t.cycles}
-        actions={canManageCycles && <NewCycleButton residenceId={residenceId} />}
-      />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-muted">{t.cyclesHelp}</p>
+        {canManageCycles && <NewCycleButton residenceId={residenceId} />}
+      </div>
       {cycles.length === 0 ? (
         <EmptyState title={t.noCycleTitle} text={t.noCycleText} />
       ) : (
@@ -37,7 +51,7 @@ export default async function CyclesPage({ params, searchParams }: PageProps<"/r
               const [totals, treasury] = billed
                 ? await Promise.all([
                     getLotRows(session, residenceId, cycle.id).then(totalsFromLotRows),
-                    computeCycleTreasury(residenceId, cycle),
+                    Promise.resolve(treasuries.get(cycle.id)!),
                   ])
                 : [null, null];
               const hasOpen = cycles.some((c) => c.status === "OPEN");

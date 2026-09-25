@@ -15,8 +15,8 @@ import { AnotherCycleOpenError } from "./repository";
 import * as assessmentsRepo from "@/lib/domain/assessments/repository";
 import * as lotsRepo from "@/lib/domain/lots/repository";
 import { writeAuditLog } from "@/lib/audit/log";
-import { sumCompletedPaymentsForCycle } from "@/lib/domain/payments/repository";
-import { sumRecordedExpensesForCycle } from "@/lib/domain/expenses/repository";
+import { sumCompletedPaymentsByCycle } from "@/lib/domain/payments/repository";
+import { sumRecordedExpensesByCycle } from "@/lib/domain/expenses/repository";
 
 export type Result<T> =
   | { ok: true; data: T }
@@ -76,9 +76,10 @@ export async function listCycles(session: AuthorizedSession, organizationId: str
 }
 
 /**
- * Opens a DRAFT cycle: bills every active lot its annual charge (one
- * assessment each) and carries the previous cycle's closing balance over as
- * the opening treasury balance — all atomically. At most one cycle is OPEN
+ * Opens a DRAFT cycle: bills every active lot its annual charge and records
+ * its current owner (one assessment each), and starts the treasury from the
+ * previous cycle's closing balance (CARRIED, so it keeps following that
+ * cycle) — all atomically. At most one cycle is OPEN
  * per residence (unique partial index, surfaced as ANOTHER_CYCLE_OPEN).
  */
 export async function openCycle(
@@ -99,15 +100,21 @@ export async function openCycle(
   }
 
   const activeLots = await lotsRepo.listLots(organizationId, { status: "ACTIVE" });
-  const previous = cycle.previousCycleId ? await repo.findCycleById(organizationId, cycle.previousCycleId) : null;
-  const openingTreasuryBalanceMillimes = previous?.closingTreasuryBalanceMillimes ?? 0;
+  const previousTreasury = cycle.previousCycleId
+    ? (await computeAllTreasuries(organizationId)).get(cycle.previousCycleId)
+    : undefined;
+  const openingTreasuryBalanceMillimes = previousTreasury?.closingBalanceMillimes ?? 0;
 
   try {
     const opened = await withTransaction(async (dbSession) => {
       const updated = await repo.markCycleOpen(
         organizationId,
         cycle.id,
-        { openedAt: new Date(), openingTreasuryBalanceMillimes },
+        {
+          openedAt: new Date(),
+          openingTreasuryBalanceMillimes,
+          openingSource: previousTreasury ? "CARRIED" : "MANUAL",
+        },
         dbSession,
       );
       if (!updated) throw new ConflictDuringOpenError();
@@ -116,6 +123,7 @@ export async function openCycle(
         cycle.id,
         activeLots.map((lot) => ({
           lotId: lot.id,
+          ownerId: lot.ownerId,
           amountMillimes: lot.chargeMillimes,
           calculationMethod: "FIXED" as const,
           dueDate: cycle.startDate,
@@ -149,7 +157,11 @@ export async function openCycle(
 
 class ConflictDuringOpenError extends Error {}
 
-/** Closes the OPEN cycle and snapshots its closing balance; an open-ended cycle's end date becomes today. */
+/**
+ * Closes the OPEN cycle — it stops being the current one, and the next can
+ * open. Its data stays correctable; the closing balance is snapshotted for
+ * the record. An open-ended cycle's end date becomes today.
+ */
 export async function closeCycle(
   session: AuthorizedSession,
   organizationId: string,
@@ -229,7 +241,11 @@ export async function deleteCycle(
   return { ok: true, data: cycle };
 }
 
-/** Types in the cycle's starting treasury balance. Only while the cycle is OPEN — a CLOSED cycle's figures are frozen. */
+/**
+ * Sets a billed cycle's starting treasury balance: a typed-in amount, or
+ * `carry` to follow the previous cycle's closing balance again. Closed
+ * cycles too — a correction flows into the cycles after it.
+ */
 export async function setOpeningBalance(
   session: AuthorizedSession,
   organizationId: string,
@@ -240,20 +256,28 @@ export async function setOpeningBalance(
 
   const parsed = setOpeningBalanceInputSchema.safeParse(rawInput);
   if (!parsed.success) return validationError(parsed.error);
+  const { cycleId, carry, openingTreasuryBalanceMillimes } = parsed.data;
+  if (carry) {
+    const cycle = await repo.findCycleById(organizationId, cycleId);
+    if (!cycle?.previousCycleId) return { ok: false, code: "CONFLICT", message: "No previous cycle to carry from" };
+  } else if (openingTreasuryBalanceMillimes === undefined) {
+    return { ok: false, code: "VALIDATION_ERROR", message: "Amount required" };
+  }
 
   const updated = await repo.setOpeningBalance(
     organizationId,
-    parsed.data.cycleId,
-    parsed.data.openingTreasuryBalanceMillimes,
+    cycleId,
+    carry ? { source: "CARRIED" } : { source: "MANUAL", amountMillimes: openingTreasuryBalanceMillimes! },
   );
-  if (!updated) return { ok: false, code: "CONFLICT", message: "Cycle is not OPEN" };
+  if (!updated) return { ok: false, code: "CONFLICT", message: "Cycle is not billed" };
+  const treasury = (await computeAllTreasuries(organizationId)).get(updated.id)!;
   await writeAuditLog({
     organizationId,
     actorUserId: session.userId,
     action: "OPENING_BALANCE_SET",
     entityType: "cycle",
     entityId: updated.id,
-    metadata: { name: updated.name, amountMillimes: parsed.data.openingTreasuryBalanceMillimes },
+    metadata: { name: updated.name, amountMillimes: treasury.openingBalanceMillimes, carried: carry },
   });
   return { ok: true, data: updated };
 }
@@ -263,20 +287,60 @@ export interface CycleTreasury {
   incomeMillimes: number;
   expenseMillimes: number;
   closingBalanceMillimes: number;
+  /** The cycle whose closing balance this one starts from, when carried over. */
+  carriedFrom: { id: string; name: string } | null;
+}
+
+/**
+ * Whether a cycle's start follows its previous cycle's close. Cycles opened
+ * before `openingSource` existed count as carried when their stored start
+ * still equals the previous cycle's closing snapshot — i.e. nobody retyped it.
+ */
+function isCarried(cycle: Cycle, previous: Cycle | undefined): boolean {
+  if (!previous) return false;
+  if (cycle.status === "DRAFT") return true;
+  if (cycle.openingSource) return cycle.openingSource === "CARRIED";
+  return (
+    previous.closingTreasuryBalanceMillimes !== null &&
+    cycle.openingTreasuryBalanceMillimes === previous.closingTreasuryBalanceMillimes
+  );
+}
+
+/**
+ * Every cycle's treasury (start + payments − expenses = balance), oldest
+ * first along the chain, so a carried start is the live closing balance of
+ * the cycle before — a correction in 2025 moves 2026's start with it.
+ */
+export async function computeAllTreasuries(organizationId: string): Promise<Map<string, CycleTreasury>> {
+  const [cycles, income, expense] = await Promise.all([
+    repo.listCycles(organizationId),
+    sumCompletedPaymentsByCycle(organizationId),
+    sumRecordedExpensesByCycle(organizationId),
+  ]);
+  const byId = new Map(cycles.map((c) => [c.id, c]));
+  const result = new Map<string, CycleTreasury>();
+  for (const cycle of [...cycles].reverse()) {
+    const previous = cycle.previousCycleId ? byId.get(cycle.previousCycleId) : undefined;
+    const previousTreasury = previous ? result.get(previous.id) : undefined;
+    const carried = !!previousTreasury && isCarried(cycle, previous);
+    const opening = carried ? previousTreasury!.closingBalanceMillimes : (cycle.openingTreasuryBalanceMillimes ?? 0);
+    const incomeMillimes = income.get(cycle.id) ?? 0;
+    const expenseMillimes = expense.get(cycle.id) ?? 0;
+    result.set(cycle.id, {
+      openingBalanceMillimes: opening,
+      incomeMillimes,
+      expenseMillimes,
+      closingBalanceMillimes: opening + incomeMillimes - expenseMillimes,
+      carriedFrom: carried && previous ? { id: previous.id, name: previous.name } : null,
+    });
+  }
+  return result;
 }
 
 export async function computeCycleTreasury(organizationId: string, cycle: Cycle): Promise<CycleTreasury> {
-  const opening = cycle.openingTreasuryBalanceMillimes ?? 0;
-  const [income, expense] = await Promise.all([
-    sumCompletedPaymentsForCycle(organizationId, cycle.id),
-    sumRecordedExpensesForCycle(organizationId, cycle.id),
-  ]);
-  return {
-    openingBalanceMillimes: opening,
-    incomeMillimes: income,
-    expenseMillimes: expense,
-    closingBalanceMillimes: opening + income - expense,
-  };
+  const treasury = (await computeAllTreasuries(organizationId)).get(cycle.id);
+  if (!treasury) throw new Error(`Cycle ${cycle.id} not found`);
+  return treasury;
 }
 
 /**
@@ -291,7 +355,7 @@ export async function getCycleTreasury(
 ): Promise<Result<CycleTreasury>> {
   requireOrganization(session, organizationId);
   requirePermission(session, "treasury:read");
-  const cycle = await repo.findCycleById(organizationId, cycleId);
-  if (!cycle) return { ok: false, code: "NOT_FOUND", message: "Cycle not found" };
-  return { ok: true, data: await computeCycleTreasury(organizationId, cycle) };
+  const treasury = (await computeAllTreasuries(organizationId)).get(cycleId);
+  if (!treasury) return { ok: false, code: "NOT_FOUND", message: "Cycle not found" };
+  return { ok: true, data: treasury };
 }

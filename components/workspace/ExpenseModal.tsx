@@ -10,6 +10,7 @@ import { toInputAmount, todayIso } from "@/lib/format";
 import { useCurrency } from "@/components/ui/CurrencyProvider";
 import { ModalButton } from "./ModalButton";
 import { ModalActions } from "./ModalActions";
+import { ViewedCycleField } from "@/components/shell/ViewedCycle";
 
 export function ExpenseButton({
   residenceId,
@@ -56,7 +57,7 @@ export function ExpenseModal({
       <form onSubmit={onSubmit} className="flex flex-col gap-5">
         <input type="hidden" name="residenceId" value={residenceId} />
         <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
-        {expense && <input type="hidden" name="expenseId" value={expense.id} />}
+        {expense ? <input type="hidden" name="expenseId" value={expense.id} /> : <ViewedCycleField />}
         <Field label={t.expLabel}>
           <input
             className="input"

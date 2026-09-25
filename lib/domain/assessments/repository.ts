@@ -9,6 +9,7 @@ interface AssessmentDoc {
   organizationId: ObjectId;
   cycleId: ObjectId;
   lotId: ObjectId;
+  ownerId?: ObjectId | null;
   amountMillimes: number;
   calculationMethod: AssessmentCalculationMethod;
   calculationInputs?: Record<string, unknown>;
@@ -24,6 +25,7 @@ function toDomain(doc: AssessmentDoc): Assessment {
     organizationId: fromObjectId(doc.organizationId),
     cycleId: fromObjectId(doc.cycleId),
     lotId: fromObjectId(doc.lotId),
+    ownerId: doc.ownerId === undefined ? undefined : doc.ownerId ? fromObjectId(doc.ownerId) : null,
     amountMillimes: doc.amountMillimes,
     calculationMethod: doc.calculationMethod,
     calculationInputs: doc.calculationInputs,
@@ -41,6 +43,7 @@ async function collection() {
 
 export interface InsertAssessmentInput {
   lotId: string;
+  ownerId: string | null;
   amountMillimes: number;
   calculationMethod: AssessmentCalculationMethod;
   calculationInputs?: Record<string, unknown>;
@@ -59,6 +62,7 @@ export async function insertAssessments(
     organizationId: toObjectId(organizationId),
     cycleId: toObjectId(cycleId),
     lotId: toObjectId(input.lotId),
+    ownerId: input.ownerId ? toObjectId(input.ownerId) : null,
     amountMillimes: input.amountMillimes,
     calculationMethod: input.calculationMethod,
     calculationInputs: input.calculationInputs,
@@ -238,4 +242,54 @@ export async function deleteAssessment(
   await (
     await collection()
   ).deleteOne({ _id: toObjectId(assessmentId), organizationId: toObjectId(organizationId) }, { session });
+}
+
+/**
+ * Pins the lot's legacy assessments (no ownerId yet) to `ownerId` — the
+ * owner they have implicitly followed so far — before its ownership changes.
+ */
+export async function pinLegacyOwner(
+  organizationId: string,
+  lotId: string,
+  ownerId: string | null,
+  session: ClientSession,
+): Promise<void> {
+  await (
+    await collection()
+  ).updateMany(
+    { organizationId: toObjectId(organizationId), lotId: toObjectId(lotId), ownerId: { $exists: false } },
+    { $set: { ownerId: ownerId ? toObjectId(ownerId) : null } },
+    { session },
+  );
+}
+
+export async function setAssessmentsOwner(
+  organizationId: string,
+  assessmentIds: string[],
+  ownerId: string | null,
+  session: ClientSession,
+): Promise<void> {
+  if (assessmentIds.length === 0) return;
+  await (
+    await collection()
+  ).updateMany(
+    { organizationId: toObjectId(organizationId), _id: { $in: assessmentIds.map(toObjectId) } },
+    { $set: { ownerId: ownerId ? toObjectId(ownerId) : null } },
+    { session },
+  );
+}
+
+/** A deleted owner leaves every cycle: their lots' assessments keep no owner. */
+export async function clearOwnerEverywhere(
+  organizationId: string,
+  ownerId: string,
+  session: ClientSession,
+): Promise<void> {
+  await (
+    await collection()
+  ).updateMany(
+    { organizationId: toObjectId(organizationId), ownerId: toObjectId(ownerId) },
+    { $set: { ownerId: null } },
+    { session },
+  );
 }

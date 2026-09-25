@@ -9,8 +9,9 @@ import { findUsersByIds } from "@/lib/domain/users/service";
 import { EmptyState, PageHeader } from "@/components/ui/Display";
 import { GeneralSettings } from "@/components/workspace/Settings";
 import { MembersPanel } from "@/components/workspace/Members";
+import { CyclesPanel } from "@/components/settings/CyclesPanel";
 
-const TABS = ["general", "members", "journal"] as const;
+const TABS = ["general", "cycles", "members", "journal"] as const;
 type Tab = (typeof TABS)[number];
 
 export default async function SettingsPage({ params, searchParams }: PageProps<"/residences/[residenceId]/settings">) {
@@ -19,6 +20,7 @@ export default async function SettingsPage({ params, searchParams }: PageProps<"
     residenceId,
     residence,
     cycle: viewed,
+    cycles,
     currency,
     can, base } = await loadWorkspace(params, searchParams);
   const { tab: tabParam } = await searchParams;
@@ -27,6 +29,7 @@ export default async function SettingsPage({ params, searchParams }: PageProps<"
 
   const tabLabel: Record<Tab, string> = {
     general: t.tabGeneral,
+    cycles: t.cycles,
     members: t.members,
     journal: t.journal,
   };
@@ -52,6 +55,18 @@ export default async function SettingsPage({ params, searchParams }: PageProps<"
         <GeneralSettings
           residence={{ id: residence.id, name: residence.name, city: residence.city, currency: residence.currency }}
           canManage={can("*")}
+        />
+      )}
+
+      {tab === "cycles" && (
+        <CyclesPanel
+          t={t}
+          session={session}
+          residenceId={residenceId}
+          cycles={cycles}
+          currency={currency}
+          base={base}
+          canManageCycles={can("cycles:manage")}
         />
       )}
 

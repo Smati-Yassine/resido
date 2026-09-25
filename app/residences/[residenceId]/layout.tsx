@@ -12,6 +12,7 @@ import { ResidenceShell } from "@/components/shell/ResidenceShell";
 import { ResidenceSwitcher } from "@/components/shell/ResidenceSwitcher";
 import { CycleSwitcher } from "@/components/shell/CycleSwitcher";
 import { UserMenu } from "@/components/shell/UserMenu";
+import { ViewedCycleProvider } from "@/components/shell/ViewedCycle";
 
 /** Inside a residence: the signed-in top bar with residence + cycle switchers, over a collapsible sidebar. */
 export default async function ResidenceLayout({ children, params }: LayoutProps<"/residences/[residenceId]">) {
@@ -33,35 +34,42 @@ export default async function ResidenceLayout({ children, params }: LayoutProps<
   const lotCount = lotList.ok ? lotList.data.length : 0;
 
   return (
-    <ResidenceShell
-      base={base}
-      initialCollapsed={collapsed}
-      lotCount={lotCount}
-      // Lots still owing something in the current cycle — the Encaissements badge.
-      unpaidCount={rows.filter((r) => r.status !== "PAID").length}
-      switchers={
-        <>
-          <ResidenceSwitcher
-            current={{ id: residence.id, name: residence.name, city: residence.city, slug: residence.slug }}
-            lotCount={lotCount}
-            residences={residenceItems}
-          />
-          <span className="header-divider" aria-hidden="true" />
-          <CycleSwitcher
-            cycles={cycles.map((c) => toCycleView(c, t))}
-            defaultCycleId={current?.id ?? null}
-          />
-        </>
-      }
-      userMenu={
-        <UserMenu
-          user={{ name: user.name, email: user.email }}
-          theme={theme}
-          residences={myResidences.map((r) => ({ id: r.id, name: r.name }))}
-        />
-      }
+    <ViewedCycleProvider
+      cycles={cycles.map((c) => ({ id: c.id, name: c.name, status: c.status }))}
+      defaultCycleId={current?.id ?? null}
     >
-      <CurrencyProvider code={residence.currency}>{children}</CurrencyProvider>
-    </ResidenceShell>
+      <ResidenceShell
+        base={base}
+        initialCollapsed={collapsed}
+        lotCount={lotCount}
+        // Lots still owing something in the current cycle — the Encaissements badge.
+        unpaidCount={rows.filter((r) => r.status !== "PAID").length}
+        switchers={
+          <>
+            <ResidenceSwitcher
+              current={{
+                id: residence.id,
+                name: residence.name,
+                city: residence.city,
+                slug: residence.slug,
+              }}
+              lotCount={lotCount}
+              residences={residenceItems}
+            />
+            <span className="header-divider" aria-hidden="true" />
+            <CycleSwitcher cycles={cycles.map((c) => toCycleView(c, t))} defaultCycleId={current?.id ?? null} />
+          </>
+        }
+        userMenu={
+          <UserMenu
+            user={{ name: user.name, email: user.email }}
+            theme={theme}
+            residences={myResidences.map((r) => ({ id: r.id, name: r.name }))}
+          />
+        }
+      >
+        <CurrencyProvider code={residence.currency}>{children}</CurrencyProvider>
+      </ResidenceShell>
+    </ViewedCycleProvider>
   );
 }

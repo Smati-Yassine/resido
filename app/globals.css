@@ -877,6 +877,45 @@
     color: var(--badge-partial-fg);
   }
 
+  /* Setup guide: numbered steps, done / current / to do */
+  .setup-step {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 20px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--surface);
+  }
+  .setup-step[data-state="current"] {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-ring);
+  }
+  .setup-step[data-state="todo"] {
+    opacity: 0.6;
+  }
+  .setup-num {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 99px;
+    background: var(--track);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--muted);
+  }
+  .setup-step[data-state="current"] .setup-num {
+    background: var(--primary);
+    color: var(--on-primary);
+  }
+  .setup-step[data-state="done"] .setup-num {
+    background: var(--badge-paid-bg);
+    color: var(--badge-paid-fg);
+  }
+
   /* Tables */
   .data-table {
     overflow: hidden;
@@ -1043,6 +1082,16 @@
     padding: 24px;
     background: var(--overlay);
     animation: fade-in 0.15s ease;
+    /* A modal opens from wherever its button sits (a table row, a label):
+       it must not inherit that spot's text styling. */
+    font-size: 16px;
+    font-weight: 400;
+    font-variant-numeric: normal;
+    letter-spacing: normal;
+    text-align: left;
+    text-transform: none;
+    white-space: normal;
+    color: var(--ink);
   }
   .modal {
     display: flex;

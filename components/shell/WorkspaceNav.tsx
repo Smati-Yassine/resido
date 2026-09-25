@@ -7,7 +7,7 @@ import { useI18n } from "@/components/ui/I18nProvider";
 import { interpolate, type Dictionary } from "@/lib/i18n/dictionaries";
 import { useResidenceBase } from "./ResidenceLink";
 
-type SectionKey = "dashboard" | "finances" | "cycles" | "lots" | "owners" | "settings";
+type SectionKey = "dashboard" | "finances" | "lots" | "owners" | "settings";
 
 interface Section {
   key: SectionKey;
@@ -19,10 +19,7 @@ const S = (key: SectionKey, path: string, icon: IconName): Section => ({ key, pa
 
 /** The residence's sections, in their sidebar groups; settings sits apart at the bottom. */
 const GROUPS: { label: keyof Dictionary; sections: Section[] }[] = [
-  {
-    label: "navOverview",
-    sections: [S("dashboard", "", "dashboard"), S("finances", "/finances", "treasury"), S("cycles", "/cycles", "calendar")],
-  },
+  { label: "navOverview", sections: [S("dashboard", "", "dashboard"), S("finances", "/finances", "treasury")] },
   { label: "navProperty", sections: [S("lots", "/lots", "lots"), S("owners", "/owners", "owners")] },
 ];
 const SETTINGS = S("settings", "/settings", "settings");

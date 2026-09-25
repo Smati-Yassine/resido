@@ -80,7 +80,12 @@ export async function createLotAction(_: ActionResult | null, formData: FormData
     const content = { buildingId, code, chargeMillimes: field(formData, "charge").replace(",", ".") };
     const ownerId = field(formData, "ownerId");
     const result = lotId
-      ? await lots.updateLot(session, residenceId, { ...content, lotId, ownerId: ownerId || null })
+      ? await lots.updateLot(
+          session,
+          residenceId,
+          { ...content, lotId, ownerId: ownerId || null },
+          field(formData, "cycleId") || null,
+        )
       : await lots.createLot(session, residenceId, { ...content, ownerId: ownerId || undefined });
     if (!result.ok) {
       if (result.code === "DUPLICATE_CODE") return { ok: false, message: interpolate(t.errLotDuplicate, { code }) };
@@ -150,7 +155,7 @@ export async function recordPaymentAction(_: ActionResult | null, formData: Form
         });
     if (!result.ok) {
       if (result.code === "CYCLE_NOT_OPEN")
-        return { ok: false, message: paymentId ? t.errPaymentLocked : t.errCycleNotOpen };
+        return { ok: false, message: t.errCycleNotOpen };
       if (result.code === "OVER_ALLOCATION")
         return { ok: false, message: interpolate(t.errAmount, { example: example(480) }) };
       return { ok: false, message: t.errGeneric };
@@ -171,7 +176,7 @@ export async function deletePaymentAction(_: ActionResult | null, formData: Form
       paymentId: field(formData, "paymentId"),
       reason: t.deletePaymentReason,
     });
-    if (!result.ok) return { ok: false, message: result.code === "CYCLE_NOT_OPEN" ? t.errPaymentLocked : t.errGeneric };
+    if (!result.ok) return { ok: false, message: result.code === "CYCLE_NOT_OPEN" ? t.errCycleNotOpen : t.errGeneric };
     return done(interpolate(t.paymentDeleted, { amount: money(result.data.amountMillimes) }));
   });
 }
@@ -194,13 +199,15 @@ export async function recordExpenseAction(_: ActionResult | null, formData: Form
     const expenseId = field(formData, "expenseId");
     const result = expenseId
       ? await expenses.updateExpense(session, residenceId, { ...content, expenseId })
-      : await expenses.recordExpense(session, residenceId, {
-          ...content,
-          idempotencyKey: field(formData, "idempotencyKey"),
-        });
+      : await expenses.recordExpense(
+          session,
+          residenceId,
+          { ...content, idempotencyKey: field(formData, "idempotencyKey") },
+          field(formData, "cycleId") || undefined,
+        );
     if (!result.ok) {
       if (result.code === "CYCLE_NOT_OPEN")
-        return { ok: false, message: expenseId ? t.errExpenseLocked : t.errCycleNotOpen };
+        return { ok: false, message: t.errCycleNotOpen };
       return { ok: false, message: t.errGeneric };
     }
     return done(
@@ -217,19 +224,31 @@ export async function deleteExpenseAction(_: ActionResult | null, formData: Form
       expenseId: field(formData, "expenseId"),
       reason: t.deleteExpenseReason,
     });
-    if (!result.ok) return { ok: false, message: result.code === "CYCLE_NOT_OPEN" ? t.errExpenseLocked : t.errGeneric };
+    if (!result.ok) return { ok: false, message: result.code === "CYCLE_NOT_OPEN" ? t.errCycleNotOpen : t.errGeneric };
     return done(interpolate(t.expenseDeleted, { amount: money(result.data.amountMillimes) }));
   });
 }
 
+/** Types in a cycle's starting balance, or — `mode=carry` — makes it follow the previous cycle's close again. */
 export async function setOpeningBalanceAction(_: ActionResult | null, formData: FormData): Promise<ActionResult> {
   const { residenceId, session, t, done, currency, money, example } = await scoped(formData);
   const raw = field(formData, "amount").replace(",", ".");
+  const cycleId = field(formData, "cycleId");
   return guarded(t, async () => {
+    if (field(formData, "mode") === "carry") {
+      const result = await cycles.setOpeningBalance(session, residenceId, { cycleId, carry: true });
+      if (!result.ok) return { ok: false, message: t.errGeneric };
+      const treasury = await cycles.getCycleTreasury(session, residenceId, cycleId);
+      return done(
+        interpolate(t.startCarried, {
+          amount: money(treasury.ok ? treasury.data.openingBalanceMillimes : 0),
+        }),
+      );
+    }
     const amount = parseAmount(raw, currency, true);
     if (amount === null) return { ok: false, message: interpolate(t.errStart, { example: example(2204.33) }) };
     const result = await cycles.setOpeningBalance(session, residenceId, {
-      cycleId: field(formData, "cycleId"),
+      cycleId,
       openingTreasuryBalanceMillimes: raw,
     });
     if (!result.ok)
@@ -308,9 +327,11 @@ export async function saveOwnerAction(_: ActionResult | null, formData: FormData
   const input = ownerInput(formData);
   return guarded(t, async () => {
     if (!input.name) return { ok: false, message: t.errOwnerName };
+    // Units are assigned in the cycle on screen, and from it onward.
+    const cycleId = field(formData, "cycleId") || null;
     const result = ownerId
-      ? await owners.updateOwner(session, residenceId, ownerId, input)
-      : await owners.createOwner(session, residenceId, input);
+      ? await owners.updateOwner(session, residenceId, ownerId, input, cycleId)
+      : await owners.createOwner(session, residenceId, input, cycleId);
     if (!result.ok) return { ok: false, message: t.errGeneric };
     return done(
       interpolate(ownerId ? t.ownerUpdated : t.ownerCreated, { name: result.data.name, count: input.lotIds.length }),

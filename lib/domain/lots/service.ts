@@ -16,6 +16,7 @@ import * as cyclesRepo from "@/lib/domain/cycles/repository";
 import * as assessmentsRepo from "@/lib/domain/assessments/repository";
 import * as ownersRepo from "@/lib/domain/owners/repository";
 import * as paymentsRepo from "@/lib/domain/payments/repository";
+import { changeLotOwner, defaultCycleId } from "./ownership";
 
 export type Result<T> =
   | { ok: true; data: T }
@@ -79,6 +80,7 @@ export async function createLot(
           [
             {
               lotId: created.id,
+              ownerId: created.ownerId,
               amountMillimes: created.chargeMillimes,
               calculationMethod: "FIXED",
               dueDate: new Date(),
@@ -109,14 +111,17 @@ export async function listLots(
 }
 
 /**
- * Edits a lot: bloc, code, annual charge, owner. A new charge also becomes
- * what the OPEN cycle bills the lot — refused if that is less than what the
- * lot has already paid in it. Closed cycles keep the charge they billed.
+ * Edits a lot as seen in one cycle (`cycleId`, the open one by default).
+ * Code and bloc are the lot's own. The charge is what that cycle bills — refused
+ * below what the lot already paid in it — and becomes the lot's charge for
+ * cycles still to open when no later cycle is billed. The owner changes from
+ * that cycle onward (see changeLotOwner); earlier cycles keep theirs.
  */
 export async function updateLot(
   session: AuthorizedSession,
   organizationId: string,
   rawInput: UpdateLotInput,
+  cycleId?: string | null,
 ): Promise<Result<Lot>> {
   requireOrganization(session, organizationId);
   requirePermission(session, "lots:*");
@@ -135,11 +140,15 @@ export async function updateLot(
     return { ok: false, code: "NOT_FOUND", message: "Owner not found" };
   }
 
-  const openCycle = await cyclesRepo.findOpenCycle(organizationId);
-  const openAssessment = openCycle ? await assessmentsRepo.findAssessment(organizationId, openCycle.id, lot.id) : null;
-  if (openAssessment && input.chargeMillimes < openAssessment.paidMillimes) {
+  const fromCycleId = cycleId === undefined ? await defaultCycleId(organizationId) : cycleId;
+  const cycles = await cyclesRepo.listCycles(organizationId);
+  const viewed = cycles.find((c) => c.id === fromCycleId && c.status !== "DRAFT") ?? null;
+  const assessment = viewed ? await assessmentsRepo.findAssessment(organizationId, viewed.id, lot.id) : null;
+  if (assessment && input.chargeMillimes < assessment.paidMillimes) {
     return { ok: false, code: "CHARGE_BELOW_PAID", message: "The new charge is below what is already paid" };
   }
+  const laterCycleBilled =
+    !!viewed && cycles.some((c) => c.status !== "DRAFT" && c.startDate.getTime() > viewed.startDate.getTime());
 
   try {
     const updated = await withTransaction(async (dbSession) => {
@@ -149,21 +158,21 @@ export async function updateLot(
         {
           buildingId: input.buildingId,
           code: input.code,
-          chargeMillimes: input.chargeMillimes,
-          ownerId: input.ownerId,
+          chargeMillimes: laterCycleBilled ? lot.chargeMillimes : input.chargeMillimes,
         },
         dbSession,
       );
       if (!doc) throw new Error("Lot disappeared");
-      if (openAssessment && openAssessment.amountMillimes !== input.chargeMillimes) {
-        const assessment = await assessmentsRepo.setAssessmentAmount(
+      if (assessment && assessment.amountMillimes !== input.chargeMillimes) {
+        const changed = await assessmentsRepo.setAssessmentAmount(
           organizationId,
-          openAssessment.id,
+          assessment.id,
           input.chargeMillimes,
           dbSession,
         );
-        if (!assessment) throw new ChargeBelowPaidError();
+        if (!changed) throw new ChargeBelowPaidError();
       }
+      await changeLotOwner(organizationId, lot, input.ownerId, fromCycleId, dbSession);
       await writeAuditLog(
         {
           organizationId,
@@ -171,13 +180,14 @@ export async function updateLot(
           action: "LOT_UPDATED",
           entityType: "lot",
           entityId: lot.id,
-          metadata: { code: doc.code, chargeMillimes: doc.chargeMillimes },
+          metadata: { code: doc.code, chargeMillimes: input.chargeMillimes, cycle: viewed?.name },
         },
         dbSession,
       );
       return doc;
     });
-    return { ok: true, data: updated };
+    // Re-read after commit: the owner may have changed alongside.
+    return { ok: true, data: (await repo.findLotById(organizationId, lot.id)) ?? updated };
   } catch (error) {
     if (error instanceof DuplicateLotCodeError) return { ok: false, code: "DUPLICATE_CODE", message: error.message };
     if (error instanceof ChargeBelowPaidError) {

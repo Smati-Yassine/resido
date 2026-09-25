@@ -121,17 +121,17 @@ export async function markExpenseVoided(
   return result ? toDomain(result) : null;
 }
 
-/** Sums RECORDED expenses for a cycle — the "Depense" side of the cycle's treasury. */
-export async function sumRecordedExpensesForCycle(organizationId: string, cycleId: string): Promise<number> {
+/** RECORDED expenses summed per cycle, for every cycle of the residence at once. */
+export async function sumRecordedExpensesByCycle(organizationId: string): Promise<Map<string, number>> {
   const result = await (
     await collection()
   )
-    .aggregate<{ total: number }>([
-      { $match: { organizationId: toObjectId(organizationId), cycleId: toObjectId(cycleId), status: "RECORDED" } },
-      { $group: { _id: null, total: { $sum: "$amountMillimes" } } },
+    .aggregate<{ _id: ObjectId; total: number }>([
+      { $match: { organizationId: toObjectId(organizationId), status: "RECORDED" } },
+      { $group: { _id: "$cycleId", total: { $sum: "$amountMillimes" } } },
     ])
     .toArray();
-  return result[0]?.total ?? 0;
+  return new Map(result.map((r) => [fromObjectId(r._id), r.total]));
 }
 
 /** Rewrites a RECORDED expense (edit). Null if it is no longer RECORDED. */

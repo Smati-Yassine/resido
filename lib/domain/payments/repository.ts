@@ -143,31 +143,18 @@ export async function markPaymentVoided(
   return result ? toDomain(result) : null;
 }
 
-/**
- * Sums the portion of COMPLETED payments allocated to assessments in a given
- * cycle — the "Recette" side of the cycle's treasury (docs/01-excel-analysis.md
- * Sheet5). Uses allocation amounts, not whole-payment amounts, so a payment
- * spanning multiple cycles attributes correctly to each.
- */
-export async function sumCompletedPaymentsForCycle(organizationId: string, cycleId: string): Promise<number> {
-  const cycleObjectId = toObjectId(cycleId);
+/** The COMPLETED payments' allocations summed per cycle, for every cycle of the residence at once. */
+export async function sumCompletedPaymentsByCycle(organizationId: string): Promise<Map<string, number>> {
   const result = await (
     await collection()
   )
-    .aggregate<{ total: number }>([
-      {
-        $match: {
-          organizationId: toObjectId(organizationId),
-          status: "COMPLETED",
-          "allocations.cycleId": cycleObjectId,
-        },
-      },
+    .aggregate<{ _id: ObjectId; total: number }>([
+      { $match: { organizationId: toObjectId(organizationId), status: "COMPLETED" } },
       { $unwind: "$allocations" },
-      { $match: { "allocations.cycleId": cycleObjectId } },
-      { $group: { _id: null, total: { $sum: "$allocations.amountMillimes" } } },
+      { $group: { _id: "$allocations.cycleId", total: { $sum: "$allocations.amountMillimes" } } },
     ])
     .toArray();
-  return result[0]?.total ?? 0;
+  return new Map(result.map((r) => [fromObjectId(r._id), r.total]));
 }
 
 /** Rewrites a COMPLETED payment's content (edit). Null if it is no longer COMPLETED. */
