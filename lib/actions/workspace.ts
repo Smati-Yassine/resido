@@ -169,15 +169,41 @@ export async function recordExpenseAction(_: ActionResult | null, formData: Form
     if (!label) return { ok: false, message: t.errExpLabel };
     if (parseAmount(rawAmount, currency) === null)
       return { ok: false, message: interpolate(t.errAmount, { example: example(480) }) };
-    const result = await expenses.recordExpense(session, residenceId, {
+    const content = {
       label,
       amountMillimes: rawAmount,
       reference: field(formData, "reference") || undefined,
       date: field(formData, "date"),
-      idempotencyKey: field(formData, "idempotencyKey"),
+    };
+    // With an expenseId the form edits that expense; without, it records a new one.
+    const expenseId = field(formData, "expenseId");
+    const result = expenseId
+      ? await expenses.updateExpense(session, residenceId, { ...content, expenseId })
+      : await expenses.recordExpense(session, residenceId, {
+          ...content,
+          idempotencyKey: field(formData, "idempotencyKey"),
+        });
+    if (!result.ok) {
+      if (result.code === "CYCLE_NOT_OPEN")
+        return { ok: false, message: expenseId ? t.errExpenseLocked : t.errCycleNotOpen };
+      return { ok: false, message: t.errGeneric };
+    }
+    return done(
+      interpolate(expenseId ? t.expenseUpdated : t.expenseRecorded, { amount: money(result.data.amountMillimes) }),
+    );
+  });
+}
+
+/** Deletes an expense: it leaves the expense list and the treasury (recorded as a cancellation). */
+export async function deleteExpenseAction(_: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  const { residenceId, session, t, done, money } = await scoped(formData);
+  return guarded(t, async () => {
+    const result = await expenses.cancelExpense(session, residenceId, {
+      expenseId: field(formData, "expenseId"),
+      reason: t.deleteExpenseReason,
     });
-    if (!result.ok) return { ok: false, message: result.code === "CYCLE_NOT_OPEN" ? t.errCycleNotOpen : t.errGeneric };
-    return done(interpolate(t.expenseRecorded, { amount: money(result.data.amountMillimes) }));
+    if (!result.ok) return { ok: false, message: result.code === "CYCLE_NOT_OPEN" ? t.errExpenseLocked : t.errGeneric };
+    return done(interpolate(t.expenseDeleted, { amount: money(result.data.amountMillimes) }));
   });
 }
 

@@ -7,6 +7,7 @@ import { getExpenseMonths } from "@/lib/domain/overview/service";
 import { EmptyState, PageHeader } from "@/components/ui/Display";
 import { ClosedBanner, DraftCycle, NoCycle } from "@/components/workspace/CycleState";
 import { ExpenseButton } from "@/components/workspace/ExpenseModal";
+import { ExpenseRowActions } from "@/components/workspace/ExpenseRowActions";
 
 export default async function ExpensesPage({ params, searchParams }: PageProps<"/residences/[residenceId]/expenses">) {
   const { session, residenceId, cycle, currency, can, base } = await loadWorkspace(params, searchParams);
@@ -17,6 +18,9 @@ export default async function ExpensesPage({ params, searchParams }: PageProps<"
   const months = await getExpenseMonths(session, residenceId, cycle.id);
   const count = months.reduce((n, m) => n + m.items.length, 0);
   const total = months.reduce((n, m) => n + m.totalMillimes, 0);
+  // Expenses can change only while the cycle is open, and only for roles that may undo them.
+  const canChange = cycle.status === "OPEN" && can("expenses:cancel");
+  const grid = canChange ? "grid-cols-[110px_1fr_240px_140px_84px]" : "grid-cols-[110px_1fr_240px_140px]";
 
   return (
     <>
@@ -42,11 +46,23 @@ export default async function ExpensesPage({ params, searchParams }: PageProps<"
                 </span>
               </div>
               {m.items.map((e) => (
-                <div key={e.id} className="data-row grid-cols-[110px_1fr_240px_140px]">
+                <div key={e.id} className={`data-row ${grid}`}>
                   <span className="text-[13px] text-muted">{formatDate(e.date)}</span>
                   <span className="font-semibold">{e.label}</span>
                   <span className="text-[13px] text-muted">{e.reference ?? ""}</span>
                   <span className="num text-right font-bold">{formatMoney(e.amountMillimes, currency)}</span>
+                  {canChange && (
+                    <ExpenseRowActions
+                      residenceId={residenceId}
+                      expense={{
+                        id: e.id,
+                        label: e.label,
+                        amountMillimes: e.amountMillimes,
+                        reference: e.reference,
+                        date: e.date.toISOString().slice(0, 10),
+                      }}
+                    />
+                  )}
                 </div>
               ))}
             </section>

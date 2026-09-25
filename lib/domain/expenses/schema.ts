@@ -25,6 +25,12 @@ export const createExpenseInputSchema = z.object({
 // z.input — money/date fields arrive as raw strings from forms.
 export type CreateExpenseInput = z.input<typeof createExpenseInputSchema>;
 
+/** Editing replaces an expense's label, amount, reference and date. */
+export const updateExpenseInputSchema = createExpenseInputSchema.omit({ idempotencyKey: true }).extend({
+  expenseId: objectIdSchema,
+});
+export type UpdateExpenseInput = z.input<typeof updateExpenseInputSchema>;
+
 export const voidExpenseInputSchema = z.object({
   expenseId: objectIdSchema,
   reason: nonEmptyStringSchema,

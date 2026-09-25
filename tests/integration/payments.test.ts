@@ -161,7 +161,9 @@ describe("editing and deleting payments", () => {
     const ctx = await residenceWithOpenCycle();
     const payment = await pay(ctx, [["A11", "100"]]);
     unwrap(await cycles.closeCycle(ctx.session, ctx.residence.id, { cycleId: ctx.cycle.id }));
-    expect(await payments.cancelPayment(ctx.session, ctx.residence.id, { paymentId: payment.id, reason: "x" })).toMatchObject({
+    expect(
+      await payments.cancelPayment(ctx.session, ctx.residence.id, { paymentId: payment.id, reason: "x" }),
+    ).toMatchObject({
       ok: false,
       code: "CYCLE_NOT_OPEN",
     });
@@ -210,6 +212,63 @@ describe("expenses", () => {
       idempotencyKey: key(),
     });
     expect(result).toMatchObject({ ok: false, code: "CYCLE_NOT_OPEN" });
+  });
+});
+
+describe("editing and deleting expenses", () => {
+  it("edits an expense and deletes another, and the treasury follows", async () => {
+    const { session, residence, cycle } = await residenceWithOpenCycle();
+    const record = async (label: string, amount: string) =>
+      unwrap(
+        await expenses.recordExpense(session, residence.id, {
+          label,
+          amountMillimes: amount,
+          date: "2026-02-01",
+          idempotencyKey: key(),
+        }),
+      );
+    const a = await record("STEG", "300");
+    const b = await record("Typo", "50");
+
+    const edited = unwrap(
+      await expenses.updateExpense(session, residence.id, {
+        expenseId: a.id,
+        label: "STEG ascenseur",
+        amountMillimes: "336",
+        reference: "Chèque 12",
+        date: "2026-03-01",
+      }),
+    );
+    expect(edited).toMatchObject({ label: "STEG ascenseur", amountMillimes: 336_000, reference: "Chèque 12" });
+    unwrap(await expenses.cancelExpense(session, residence.id, { expenseId: b.id, reason: "typo" }));
+
+    const months = await overview.getExpenseMonths(session, residence.id, cycle.id);
+    expect(months.map((m) => [m.month, m.totalMillimes])).toEqual([["2026-03", 336_000]]);
+    expect(unwrap(await cycles.getCycleTreasury(session, residence.id, cycle.id)).expenseMillimes).toBe(336_000);
+  });
+
+  it("freezes expenses once their cycle is closed", async () => {
+    const { session, residence, cycle } = await residenceWithOpenCycle();
+    const e = unwrap(
+      await expenses.recordExpense(session, residence.id, {
+        label: "x",
+        amountMillimes: "10",
+        date: "2026-02-01",
+        idempotencyKey: key(),
+      }),
+    );
+    unwrap(await cycles.closeCycle(session, residence.id, { cycleId: cycle.id }));
+    expect(await expenses.cancelExpense(session, residence.id, { expenseId: e.id, reason: "x" })).toMatchObject({
+      code: "CYCLE_NOT_OPEN",
+    });
+    expect(
+      await expenses.updateExpense(session, residence.id, {
+        expenseId: e.id,
+        label: "y",
+        amountMillimes: "5",
+        date: "2026-02-01",
+      }),
+    ).toMatchObject({ code: "CYCLE_NOT_OPEN" });
   });
 });
 

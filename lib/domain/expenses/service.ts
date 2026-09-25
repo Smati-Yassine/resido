@@ -5,6 +5,8 @@ import { writeAuditLog } from "@/lib/audit/log";
 import {
   createExpenseInputSchema,
   voidExpenseInputSchema,
+  updateExpenseInputSchema,
+  type UpdateExpenseInput,
   type CreateExpenseInput,
   type VoidExpenseInput,
   type Expense,
@@ -100,6 +102,64 @@ export async function listExpensesForCycle(
   return { ok: true, data: await repo.listExpensesForCycle(organizationId, cycleId) };
 }
 
+/** A closed cycle's figures are frozen: its expenses can be neither edited nor deleted. */
+async function cycleIsOpen(organizationId: string, expense: Expense): Promise<boolean> {
+  const cycle = await cyclesRepo.findCycleById(organizationId, expense.cycleId);
+  return cycle?.status === "OPEN";
+}
+
+/** Edits an expense's label, amount, reference and date — only while its cycle is OPEN. */
+export async function updateExpense(
+  session: AuthorizedSession,
+  organizationId: string,
+  rawInput: UpdateExpenseInput,
+): Promise<Result<Expense>> {
+  requireOrganization(session, organizationId);
+  requirePermission(session, "expenses:cancel");
+
+  const parsed = updateExpenseInputSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    return { ok: false, code: "VALIDATION_ERROR", message: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+  const input = parsed.data;
+  const expense = await repo.findExpenseById(organizationId, input.expenseId);
+  if (!expense) return { ok: false, code: "NOT_FOUND", message: "Expense not found" };
+  if (expense.status !== "RECORDED") {
+    return { ok: false, code: "ALREADY_VOIDED", message: `Expense is already ${expense.status}` };
+  }
+  if (!(await cycleIsOpen(organizationId, expense))) {
+    return { ok: false, code: "CYCLE_NOT_OPEN", message: "Expenses of a closed cycle cannot change" };
+  }
+
+  const updated = await withTransaction(async (dbSession) => {
+    const doc = await repo.replaceExpenseContent(
+      organizationId,
+      expense.id,
+      {
+        label: input.label,
+        amountMillimes: input.amountMillimes,
+        reference: input.reference || null,
+        date: input.date,
+      },
+      dbSession,
+    );
+    if (!doc) throw new Error("Expense was no longer RECORDED");
+    await writeAuditLog(
+      {
+        organizationId,
+        actorUserId: session.userId,
+        action: "EXPENSE_UPDATED",
+        entityType: "expense",
+        entityId: expense.id,
+        metadata: { label: doc.label, amountMillimes: doc.amountMillimes },
+      },
+      dbSession,
+    );
+    return doc;
+  });
+  return { ok: true, data: updated };
+}
+
 async function voidExpense(
   session: AuthorizedSession,
   organizationId: string,
@@ -119,6 +179,9 @@ async function voidExpense(
   if (expense.status !== "RECORDED") {
     return { ok: false, code: "ALREADY_VOIDED", message: `Expense is already ${expense.status}` };
   }
+  if (!(await cycleIsOpen(organizationId, expense))) {
+    return { ok: false, code: "CYCLE_NOT_OPEN", message: "Expenses of a closed cycle cannot change" };
+  }
 
   const updated = await withTransaction(async (dbSession) => {
     const voided = await repo.markExpenseVoided(
@@ -137,7 +200,12 @@ async function voidExpense(
         action: "EXPENSE_CANCELLED",
         entityType: "expense",
         entityId: expense.id,
-        metadata: { reason: parsed.data.reason, targetStatus },
+        metadata: {
+          reason: parsed.data.reason,
+          targetStatus,
+          label: expense.label,
+          amountMillimes: expense.amountMillimes,
+        },
       },
       dbSession,
     );

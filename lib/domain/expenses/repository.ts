@@ -133,3 +133,20 @@ export async function sumRecordedExpensesForCycle(organizationId: string, cycleI
     .toArray();
   return result[0]?.total ?? 0;
 }
+
+/** Rewrites a RECORDED expense (edit). Null if it is no longer RECORDED. */
+export async function replaceExpenseContent(
+  organizationId: string,
+  expenseId: string,
+  input: { label: string; amountMillimes: number; reference: string | null; date: Date },
+  session: ClientSession,
+): Promise<Expense | null> {
+  const result = await (
+    await collection()
+  ).findOneAndUpdate(
+    { _id: toObjectId(expenseId), organizationId: toObjectId(organizationId), status: "RECORDED" },
+    { $set: input },
+    { returnDocument: "after", session },
+  );
+  return result ? toDomain(result) : null;
+}
