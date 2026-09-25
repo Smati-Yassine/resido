@@ -22,13 +22,13 @@ export default async function TreasuryPage({ params, searchParams }: PageProps<"
     );
   }
   const treasury = await computeCycleTreasury(residenceId, cycle);
-  const operator = "text-center font-display text-[34px] text-stone";
+  const operator = "hidden text-center font-display text-[34px] text-stone min-[1320px]:block";
 
   return (
     <>
       <ClosedBanner cycle={cycle} t={t} />
       {header}
-      <div className="card grid grid-cols-[1.25fr_40px_1fr_40px_1fr_40px_1.2fr] items-center gap-2 rounded-[20px] p-10">
+      <div className="card grid grid-cols-1 items-center gap-6 rounded-[20px] p-8 sm:grid-cols-2 min-[1320px]:grid-cols-[minmax(0,1.25fr)_40px_minmax(0,1fr)_40px_minmax(0,1fr)_40px_minmax(0,1.2fr)] min-[1320px]:gap-2 min-[1320px]:p-10">
         <div className="flex flex-col gap-2">
           <label htmlFor="start-balance" className="label-caps text-[13px]">
             {t.startBalance}

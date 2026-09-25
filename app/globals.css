@@ -751,6 +751,17 @@
     text-transform: uppercase;
     color: var(--muted);
   }
+  /* Columns shrink instead of pushing the table wider; plain-text cells end in "…". */
+  .data-head > *,
+  .data-row > * {
+    min-width: 0;
+  }
+  .data-head > :not(:has(*)),
+  .data-row > :not(:has(*)) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .data-row {
     border-bottom: 1px solid var(--line-soft);
     font-size: 14px;

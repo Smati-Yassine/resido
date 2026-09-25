@@ -34,10 +34,11 @@ export default async function LotsPage({ params, searchParams }: PageProps<"/res
   const canEdit = can("lots:*");
   const blocOptions = blocs.map((b) => ({ id: b.id, name: b.name }));
   const lotById = new Map(lotList.map((l) => [l.id, l]));
+  const ownerName = (id?: string | null) => ownerOptions.find((o) => o.id === id)?.name;
   const billedGrid = canEdit
-    ? "grid-cols-[1fr_0.8fr_1.5fr_1.1fr_1.1fr_1.1fr_0.9fr_84px]"
-    : "grid-cols-[1fr_0.8fr_1.6fr_1.1fr_1.1fr_1.1fr_0.9fr]";
-  const plainGrid = canEdit ? "grid-cols-[1fr_0.8fr_1.6fr_1.3fr_84px]" : "grid-cols-[1fr_0.8fr_1.6fr_1.3fr]";
+    ? "grid-cols-[minmax(104px,1fr)_minmax(0,0.7fr)_minmax(0,1.5fr)_repeat(3,minmax(0,1.1fr))_minmax(0,0.9fr)_84px]"
+    : "grid-cols-[minmax(104px,1fr)_minmax(0,0.7fr)_minmax(0,1.6fr)_repeat(3,minmax(0,1.1fr))_minmax(0,0.9fr)]";
+  const plainGrid = canEdit ? "grid-cols-[minmax(104px,1fr)_minmax(0,0.8fr)_minmax(0,1.6fr)_minmax(0,1.3fr)_84px]" : "grid-cols-[minmax(104px,1fr)_minmax(0,0.8fr)_minmax(0,1.6fr)_minmax(0,1.3fr)]";
   const editable = (lotId: string) => {
     const lot = lotById.get(lotId);
     if (!lot) return <span />;
@@ -117,9 +118,11 @@ export default async function LotsPage({ params, searchParams }: PageProps<"/res
           </div>
           {billed.map((row) => (
             <div key={row.assessmentId} className={`data-row num ${billedGrid}`}>
-              <span className="font-bold">{row.code}</span>
+              <span className="font-bold whitespace-normal">{row.code}</span>
               <span className="text-muted">{row.blocName}</span>
-              <span className="truncate text-ink-2">{row.ownerName ?? "—"}</span>
+              <span className="truncate text-ink-2" title={row.ownerName ?? undefined}>
+                {row.ownerName ?? "—"}
+              </span>
               <span className="text-right">{formatMoney(row.dueMillimes, currency)}</span>
               <span className="text-pos text-right">{formatMoney(row.paidMillimes, currency)}</span>
               <span className="text-right font-semibold">
@@ -146,10 +149,10 @@ export default async function LotsPage({ params, searchParams }: PageProps<"/res
               </div>
               {lotList.map((lot) => (
                 <div key={lot.id} className={`data-row num ${plainGrid}`}>
-                  <span className="font-bold">{lot.code}</span>
+                  <span className="font-bold whitespace-normal">{lot.code}</span>
                   <span className="text-muted">{lot.buildingId ? blocName.get(lot.buildingId) : ""}</span>
-                  <span className="truncate text-ink-2">
-                    {ownerOptions.find((o) => o.id === lot.ownerId)?.name ?? "—"}
+                  <span className="truncate text-ink-2" title={ownerName(lot.ownerId)}>
+                    {ownerName(lot.ownerId) ?? "—"}
                   </span>
                   <span className="text-right">{formatMoney(lot.chargeMillimes, currency)}</span>
                   {canEdit && editable(lot.id)}

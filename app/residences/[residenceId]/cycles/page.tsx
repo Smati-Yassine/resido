@@ -44,9 +44,9 @@ export default async function CyclesPage({ params, searchParams }: PageProps<"/r
               return (
                 <div
                   key={cycle.id}
-                  className="card card-lift grid grid-cols-[1.4fr_1fr_1fr_1fr_350px] items-center gap-4 px-6 py-5"
+                  className="card card-lift grid grid-cols-3 items-center gap-4 px-6 py-5 xl:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))_auto]"
                 >
-                  <div className="flex flex-col gap-1">
+                  <div className="col-span-3 flex flex-col gap-1 xl:col-span-1">
                     <div className="flex items-center gap-2.5">
                       <span className="text-lg font-bold">{cycle.name}</span>
                       <Badge tone={view.badge}>{view.statusLabel}</Badge>
@@ -71,7 +71,7 @@ export default async function CyclesPage({ params, searchParams }: PageProps<"/r
                       {treasury ? formatAmount(treasury.closingBalanceMillimes, currency) : "—"}
                     </span>
                   </div>
-                  <div className="flex justify-end gap-2">
+                  <div className="col-span-3 flex flex-wrap justify-end gap-2 xl:col-span-1">
                     {canManageCycles && cycle.status === "OPEN" && treasury && (
                       <CloseCycleButton
                         residenceId={residenceId}
