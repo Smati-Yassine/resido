@@ -34,7 +34,10 @@ export interface User {
   sessionVersion: number;
 }
 
-const BCRYPT_COST = 12;
+// 10 rounds (OWASP's minimum) keeps a sign-in near 100 ms with bcryptjs; 12 took
+// about 300 ms, more on serverless CPUs. Hashes carry their own cost, so
+// passwords saved at 12 still verify.
+const BCRYPT_COST = 10;
 
 const passwordSchema = z.string().min(8, "PASSWORD_TOO_SHORT").max(200);
 const normalizedEmailSchema = z.string().trim().toLowerCase().pipe(emailSchema);

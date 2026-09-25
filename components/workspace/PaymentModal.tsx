@@ -13,7 +13,7 @@ import { formatAmount, formatMoney, toInputAmount, todayIso } from "@/lib/format
 import { useCurrency } from "@/components/ui/CurrencyProvider";
 import { fitsCurrency, type CurrencyCode } from "@/lib/currency";
 import { fromDecimalString, millimes, toDecimalString } from "@/lib/money";
-import { PAYMENT_METHODS } from "@/lib/domain/payments/schema";
+import { PAYMENT_METHODS } from "@/lib/domain/payments/methods";
 import { ModalButton } from "./ModalButton";
 import { ModalActions } from "./ModalActions";
 import { fold } from "@/lib/text";

@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { objectIdSchema, dateSchema, idempotencyKeySchema, millimesInputSchema } from "@/lib/validation/primitives";
+import { PAYMENT_METHODS, type PaymentMethod } from "./methods";
 
-export const PAYMENT_METHODS = ["CASH", "BANK_TRANSFER", "CHECK"] as const;
-export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+export { PAYMENT_METHODS, type PaymentMethod };
 
 export const PAYMENT_STATUSES = ["COMPLETED", "CANCELLED", "REVERSED"] as const;
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
