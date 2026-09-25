@@ -133,7 +133,7 @@ export default async function DashboardPage({ params, searchParams }: PageProps<
         <section className="card card-pad flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <h2 className="h-card">{t.treasury}</h2>
-            <Link href={`${base}/treasury${cycleQuery}`} className="btn btn-link">
+            <Link href={`${base}/finances${cycleQuery}`} className="btn btn-link">
               {t.detail}
             </Link>
           </div>
@@ -164,7 +164,7 @@ export default async function DashboardPage({ params, searchParams }: PageProps<
       <section className="card card-pad flex flex-col gap-3.5">
         <div className="flex items-center justify-between">
           <h2 className="h-card">{t.expensesByMonth}</h2>
-          <Link href={`${base}/expenses${cycleQuery}`} className="btn btn-link">
+          <Link href={`${base}/finances?tab=expenses&cycle=${cycle.id}`} className="btn btn-link">
             {t.allExpenses} →
           </Link>
         </div>

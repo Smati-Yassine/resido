@@ -97,9 +97,17 @@ page in the residence sidebar.
 
 **Residence shell.** Inside a residence the top bar is the signed-in bar of
 `/residences` (brand, user menu) plus a residence switcher and the cycle
-switcher. The sidebar is light, grouped (Vue d'ensemble, Copropriété,
-Finances, then Paramètres) and collapses to an icon strip; the choice is a
-cookie (`resido-sidebar`) read on the server so reloads keep it.
+switcher. The sidebar is light, grouped (Vue d'ensemble, Copropriété, then
+Paramètres) and collapses to an icon strip; the choice is a cookie
+(`resido-sidebar`) read on the server so reloads keep it.
+
+**Finances.** Payments, expenses and treasury are one page (`/finances`).
+The treasury is a strip above the tabs (start + payments − expenses =
+balance), with the starting balance edited from a pencil there. The tabs
+are Aperçu (money in and out by month, balance over time, payment methods,
+what is still to collect, largest expenses, latest movements), Encaissements
+and Dépenses (`?tab=payments|expenses`). The old `/payments`, `/expenses` and
+`/treasury` URLs redirect to the matching tab.
 
 **Currency.** Amounts stay integer thousandths of the currency
 unit. Each residence has a currency (TND, EUR, USD, GBP, CAD, CHF, MAD, DZD)

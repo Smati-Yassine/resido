@@ -58,6 +58,16 @@ export function formatMonth(month: string, locale: Locale): string {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
+/** A short month for chart axes, e.g. "janv. 26". */
+export function formatMonthShort(month: string, locale: Locale): string {
+  const label = new Intl.DateTimeFormat(INTL_LOCALE[locale], {
+    month: "short",
+    year: "2-digit",
+    timeZone: "UTC",
+  }).format(new Date(`${month}-01T00:00:00Z`));
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
 /** Today as "YYYY-MM-DD", the value format of <input type="date">. */
 export function todayIso(): string {
   return new Date().toISOString().slice(0, 10);

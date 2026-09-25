@@ -7,7 +7,7 @@ import { useI18n } from "@/components/ui/I18nProvider";
 import { interpolate, type Dictionary } from "@/lib/i18n/dictionaries";
 import { useResidenceBase } from "./ResidenceLink";
 
-type SectionKey = "dashboard" | "cycles" | "lots" | "owners" | "payments" | "expenses" | "treasury" | "settings";
+type SectionKey = "dashboard" | "finances" | "cycles" | "lots" | "owners" | "settings";
 
 interface Section {
   key: SectionKey;
@@ -19,12 +19,11 @@ const S = (key: SectionKey, path: string, icon: IconName): Section => ({ key, pa
 
 /** The residence's sections, in their sidebar groups; settings sits apart at the bottom. */
 const GROUPS: { label: keyof Dictionary; sections: Section[] }[] = [
-  { label: "navOverview", sections: [S("dashboard", "", "dashboard"), S("cycles", "/cycles", "calendar")] },
-  { label: "navProperty", sections: [S("lots", "/lots", "lots"), S("owners", "/owners", "owners")] },
   {
-    label: "navFinances",
-    sections: [S("payments", "/payments", "income"), S("expenses", "/expenses", "expense"), S("treasury", "/treasury", "treasury")],
+    label: "navOverview",
+    sections: [S("dashboard", "", "dashboard"), S("finances", "/finances", "treasury"), S("cycles", "/cycles", "calendar")],
   },
+  { label: "navProperty", sections: [S("lots", "/lots", "lots"), S("owners", "/owners", "owners")] },
 ];
 const SETTINGS = S("settings", "/settings", "settings");
 
@@ -93,7 +92,7 @@ export function SideNav({
                 s,
                 s.key === "lots" ? (
                   <span className="side-count">{lotCount}</span>
-                ) : s.key === "payments" && unpaidCount > 0 ? (
+                ) : s.key === "finances" && unpaidCount > 0 ? (
                   <span className="side-count side-count-warn" title={interpolate(t.unpaidLots, { count: unpaidCount })}>
                     {unpaidCount}
                   </span>
