@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
 import { Badge } from "@/components/ui/Display";
 import { useI18n } from "@/components/ui/I18nProvider";
@@ -11,24 +11,24 @@ import { useSection, useWorkspaceHref } from "./WorkspaceNav";
 import { useResidenceBase } from "./ResidenceLink";
 
 /** The cycle being viewed, in the top bar; switching keeps the current section. */
-export function CycleSwitcher({
-  cycles,
-  defaultCycleId,
-}: {
-  cycles: CycleView[];
-  defaultCycleId: string | null;
-}) {
+export function CycleSwitcher({ cycles, defaultCycleId }: { cycles: CycleView[]; defaultCycleId: string | null }) {
   const { t } = useI18n();
   const { open, toggle, close, ref } = usePopover();
   const params = useSearchParams();
+  const pathname = usePathname();
   const base = useResidenceBase();
   const section = useSection();
   const href = useWorkspaceHref();
-  const selectedId = cycles.some((c) => c.id === params.get("cycle")) ? params.get("cycle") : defaultCycleId;
-  const selected = cycles.find((c) => c.id === selectedId);
+  const param = params.get("cycle");
+  const selected =
+    cycles.find((c) => c.slug === param || c.id === param) ?? cycles.find((c) => c.id === defaultCycleId);
 
   const manage = (
-    <Link href={`${base}/settings?tab=cycles`} className="menu-item h-10 py-0 text-sm font-bold text-primary" onClick={close}>
+    <Link
+      href={`${base}/settings/cycles`}
+      className="menu-item h-10 py-0 text-sm font-bold text-primary"
+      onClick={close}
+    >
       {t.manageCycles}
     </Link>
   );
@@ -36,14 +36,15 @@ export function CycleSwitcher({
   // No cycle yet: the button leads straight to Settings › Cycles.
   if (!selected) {
     return (
-      <Link href={`${base}/settings?tab=cycles`} className="btn btn-ghost btn-sm gap-2.5 bg-surface">
+      <Link href={`${base}/settings/cycles`} className="btn btn-ghost btn-sm gap-2.5 bg-surface">
         <Icon name="calendar" size={16} />
         {t.noCycle}
       </Link>
     );
   }
-  // From settings, picking a cycle goes to its dashboard; elsewhere it stays on the same section.
-  const targetPath = section.path === "/settings" ? "" : section.path;
+  // From settings, picking a cycle goes to its dashboard; elsewhere it stays on the same page
+  // (the same tab too: /finances/expenses stays /finances/expenses).
+  const targetPath = section.path === "/settings" ? "" : pathname.slice(base.length);
 
   return (
     <div ref={ref} className="relative">
@@ -70,7 +71,8 @@ export function CycleSwitcher({
             <Link
               key={c.id}
               role="menuitem"
-              href={href(targetPath, c.id)}
+              // The current cycle needs no ?cycle= at all.
+              href={href(targetPath, c.id === defaultCycleId ? null : c.slug)}
               className="menu-item py-2.5"
               aria-current={c.id === selected.id}
               onClick={close}

@@ -6,11 +6,14 @@ import * as cyclesRepo from "@/lib/domain/cycles/repository";
 import * as lots from "@/lib/domain/lots/service";
 import { getLotRows } from "@/lib/domain/overview/service";
 import type { AuthorizedSession } from "@/lib/rbac/permissions";
+import { withSlugs, type SluggedCycle } from "@/lib/cycle-slugs";
+
+export { withSlugs, type SluggedCycle };
 import type { Cycle } from "@/lib/domain/cycles/schema";
 import { roleHasPermission, type Permission } from "@/lib/rbac/permissions";
 
 /** The cycle a residence opens on: the OPEN one, else the most recent. */
-export function defaultCycle(list: Cycle[]): Cycle | null {
+export function defaultCycle<C extends Cycle>(list: C[]): C | null {
   return list.find((c) => c.status === "OPEN") ?? list[0] ?? null;
 }
 
@@ -47,7 +50,7 @@ export const loadResidence = cache(async (key: string) => {
     residenceId: residence.id,
     /** Base URL of this residence's pages, for links. */
     base: residencePath(residence.slug),
-    cycles: cycleList,
+    cycles: withSlugs(cycleList),
     can,
   };
 });
@@ -59,8 +62,16 @@ export async function loadWorkspace(
   const { residenceId: key } = await params;
   const { cycle: cycleParam } = await searchParams;
   const loaded = await loadResidence(key);
-  const cycle = loaded.cycles.find((c) => c.id === cycleParam) ?? defaultCycle(loaded.cycles);
-  return { ...loaded, cycle, currency: loaded.residence.currency };
+  // `?cycle=` names a cycle by its slug; an id, from links made before slugs, still works.
+  const viewed = loaded.cycles.find((c) => c.slug === cycleParam || c.id === cycleParam);
+  const current = defaultCycle(loaded.cycles);
+  const cycle = viewed ?? current;
+  /**
+   * A link inside the residence that keeps the cycle on screen — with no
+   * `?cycle=` at all when it is the residence's current one.
+   */
+  const href = (path = "") => `${loaded.base}${path}${cycle && cycle.id !== current?.id ? `?cycle=${cycle.slug}` : ""}`;
+  return { ...loaded, cycle, currency: loaded.residence.currency, href };
 }
 
 /**
@@ -73,3 +84,20 @@ export const lotRowsFor = cache((session: AuthorizedSession, residenceId: string
 export const activeLotsFor = cache((session: AuthorizedSession, residenceId: string) =>
   lots.listLots(session, residenceId, { status: "ACTIVE" }),
 );
+
+/**
+ * The tab a page shows, from its path (`/finances/payments`, `/settings/cycles`;
+ * none = the first tab). A link from before, with `?tab=`, is redirected to
+ * that path; an unknown tab is a 404.
+ */
+export function tabFromPath<T extends string>(
+  segments: string[] | undefined,
+  tabs: readonly T[],
+  legacyTab: string | string[] | undefined,
+  hrefFor: (tab: T) => string,
+): T {
+  if (typeof legacyTab === "string" && tabs.includes(legacyTab as T)) redirect(hrefFor(legacyTab as T));
+  if (!segments || segments.length === 0) return tabs[0];
+  if (segments.length > 1 || !tabs.includes(segments[0] as T) || segments[0] === tabs[0]) notFound();
+  return segments[0] as T;
+}

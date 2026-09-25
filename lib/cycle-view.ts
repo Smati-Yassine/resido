@@ -6,6 +6,8 @@ import type { BadgeTone } from "@/components/ui/Display";
 /** What the UI shows for a cycle, precomputed on the server so client components stay locale-agnostic. */
 export interface CycleView {
   id: string;
+  /** The cycle's name in URLs (`?cycle=2026-2027`). */
+  slug: string;
   name: string;
   status: CycleStatus;
   statusLabel: string;
@@ -20,9 +22,10 @@ export function cycleRange(cycle: Cycle, t: Dictionary): string {
   return cycle.endDate ? `${start} → ${formatDate(cycle.endDate)}` : interpolate(t.sinceNoEnd, { start });
 }
 
-export function toCycleView(cycle: Cycle, t: Dictionary): CycleView {
+export function toCycleView(cycle: Cycle & { slug: string }, t: Dictionary): CycleView {
   return {
     id: cycle.id,
+    slug: cycle.slug,
     name: cycle.name,
     status: cycle.status,
     statusLabel: t[`status${cycle.status}`],

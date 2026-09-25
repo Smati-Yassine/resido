@@ -19,6 +19,7 @@ import { useCurrency } from "@/components/ui/CurrencyProvider";
 import { Icon } from "@/components/ui/Icon";
 import { ModalButton } from "./ModalButton";
 import { useResidenceBase } from "@/components/shell/ResidenceLink";
+import { useViewedCycle } from "@/components/shell/ViewedCycle";
 import { ModalActions } from "./ModalActions";
 
 export function NewCycleButton({ residenceId, label }: { residenceId: string; label?: string }) {
@@ -234,10 +235,11 @@ function DeleteCycleModal({
   const router = useRouter();
   const base = useResidenceBase();
   const params = useSearchParams();
+  const viewed = useViewedCycle();
   const [onSubmit, pending] = useActionToast(deleteCycleAction, () => {
     onClose();
     // Only when the URL names the deleted cycle: drop it, in place, so the default cycle shows.
-    if (params.get("cycle") === cycleId) router.replace(`${base}/settings?tab=cycles`, { scroll: false });
+    if (params.get("cycle") && viewed?.id === cycleId) router.replace(`${base}/settings/cycles`, { scroll: false });
   });
   return (
     <Modal

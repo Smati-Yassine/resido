@@ -33,7 +33,7 @@ export default async function ResidenceLayout({ children, params }: LayoutProps<
 
   return (
     <ViewedCycleProvider
-      cycles={cycles.map((c) => ({ id: c.id, name: c.name, status: c.status }))}
+      cycles={cycles.map((c) => ({ id: c.id, slug: c.slug, name: c.name, status: c.status }))}
       defaultCycleId={current?.id ?? null}
     >
       <ResidenceShell

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { loadWorkspace, lotRowsFor } from "@/lib/workspace";
+import { loadWorkspace, lotRowsFor, tabFromPath } from "@/lib/workspace";
 import { getDictionary } from "@/lib/i18n/server";
 import { cycleRange } from "@/lib/cycle-view";
 import { paymentLots } from "@/lib/lot-rows";
@@ -19,11 +19,18 @@ import { ExpensesTable } from "@/components/finances/ExpensesTable";
 const TABS = ["overview", "payments", "expenses"] as const;
 type Tab = (typeof TABS)[number];
 
-/** Payments, expenses and the treasury they add up to, on one page: an overview tab, then one tab per list. */
-export default async function FinancesPage({ params, searchParams }: PageProps<"/residences/[residenceId]/finances">) {
-  const { session, residenceId, cycle, cycles, currency, can, base } = await loadWorkspace(params, searchParams);
-  const { tab: tabParam } = await searchParams;
-  const tab: Tab = TABS.includes(tabParam as Tab) ? (tabParam as Tab) : "overview";
+/**
+ * Payments, expenses and the treasury they add up to, on one page: the
+ * overview at /finances, then one tab per list — /finances/payments,
+ * /finances/expenses.
+ */
+export default async function FinancesPage({
+  params,
+  searchParams,
+}: PageProps<"/residences/[residenceId]/finances/[[...tab]]">) {
+  const { session, residenceId, cycle, cycles, currency, can, base, href } = await loadWorkspace(params, searchParams);
+  const tabHref = (key: Tab) => href(key === "overview" ? "/finances" : `/finances/${key}`);
+  const tab = tabFromPath((await params).tab, TABS, (await searchParams).tab, tabHref);
   const { t, locale } = await getDictionary();
   if (!cycle) return <NoCycle residenceId={residenceId} base={base} t={t} canCreate={can("cycles:manage")} />;
   if (cycle.status === "DRAFT") return <DraftCycle base={base} cycle={cycle} t={t} />;
@@ -39,7 +46,6 @@ export default async function FinancesPage({ params, searchParams }: PageProps<"
   const paymentList = paymentResult.ok ? paymentResult.data : [];
   const expenses = months.flatMap((m) => m.items);
   const lots = paymentLots(rows);
-  const tabHref = (key: Tab) => `${base}/finances?${key === "overview" ? "" : `tab=${key}&`}cycle=${cycle.id}`;
 
   const codeOf = new Map(rows.map((r) => [r.assessmentId, r.code]));
   const movements: Movement[] = [
@@ -134,7 +140,7 @@ export default async function FinancesPage({ params, searchParams }: PageProps<"
           hrefs={{
             payments: tabHref("payments"),
             expenses: tabHref("expenses"),
-            lots: `${base}/lots?cycle=${cycle.id}`,
+            lots: href("/lots"),
           }}
         />
       )}

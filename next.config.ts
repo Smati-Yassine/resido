@@ -13,12 +13,12 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/residences/:residence/payments",
-        destination: "/residences/:residence/finances?tab=payments",
+        destination: "/residences/:residence/finances/payments",
         permanent: true,
       },
       {
         source: "/residences/:residence/expenses",
-        destination: "/residences/:residence/finances?tab=expenses",
+        destination: "/residences/:residence/finances/expenses",
         permanent: true,
       },
       {
@@ -29,7 +29,7 @@ const nextConfig: NextConfig = {
       // Cycles moved into Settings.
       {
         source: "/residences/:residence/cycles",
-        destination: "/residences/:residence/settings?tab=cycles",
+        destination: "/residences/:residence/settings/cycles",
         permanent: true,
       },
     ];

@@ -38,7 +38,7 @@ export function useWorkspaceHref() {
   const base = useResidenceBase();
   const params = useSearchParams();
   const cycle = params.get("cycle");
-  return (path: string, cycleId: string | null = cycle) => `${base}${path}${cycleId ? `?cycle=${cycleId}` : ""}`;
+  return (path: string, cycleSlug: string | null = cycle) => `${base}${path}${cycleSlug ? `?cycle=${cycleSlug}` : ""}`;
 }
 
 /**
@@ -90,7 +90,10 @@ export function SideNav({
                 s.key === "lots" ? (
                   <span className="side-count">{lotCount}</span>
                 ) : s.key === "finances" && unpaidCount > 0 ? (
-                  <span className="side-count side-count-warn" title={interpolate(t.unpaidLots, { count: unpaidCount })}>
+                  <span
+                    className="side-count side-count-warn"
+                    title={interpolate(t.unpaidLots, { count: unpaidCount })}
+                  >
                     {unpaidCount}
                   </span>
                 ) : undefined,

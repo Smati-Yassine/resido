@@ -21,7 +21,7 @@ import { SetupGuide } from "@/components/workspace/SetupGuide";
 import { CollectionCurve, Delta, Donut, Gauge } from "@/components/dashboard/Charts";
 import * as buildings from "@/lib/domain/buildings/service";
 export default async function DashboardPage({ params, searchParams }: PageProps<"/residences/[residenceId]">) {
-  const { session, residenceId, residence, cycle, cycles, currency, can, base } = await loadWorkspace(
+  const { session, residenceId, residence, cycle, cycles, currency, can, base, href } = await loadWorkspace(
     params,
     searchParams,
   );
@@ -116,7 +116,6 @@ export default async function DashboardPage({ params, searchParams }: PageProps<
   const debtors = topDebtors(rows, 6);
   const maxDebt = Math.max(1, ...debtors.map((d) => d.outstandingMillimes));
   const maxMonth = Math.max(1, ...months.map((m) => m.totalMillimes));
-  const cycleQuery = `?cycle=${cycle.id}`;
   const money = (millimes: number) => formatAmount(millimes, currency);
   const blocGroups = blocs.map((b) => ({ ...b, rows: rows.filter((r) => r.blocId === b.blocId) }));
 
@@ -198,7 +197,7 @@ export default async function DashboardPage({ params, searchParams }: PageProps<
             unit={currencySymbol(currency)}
             foot={interpolate(t.startWas, { amount: money(treasury.openingBalanceMillimes) })}
             delta={<Delta value={percentChange(treasury.closingBalanceMillimes, before?.balanceMillimes)} label={vs} />}
-            href={`${base}/finances${cycleQuery}`}
+            href={href("/finances")}
           />
         </div>
       </div>
@@ -225,7 +224,7 @@ export default async function DashboardPage({ params, searchParams }: PageProps<
         <section className="card card-pad flex flex-col gap-5">
           <div className="flex items-center justify-between">
             <h2 className="h-card">{t.lotState}</h2>
-            <Link href={`${base}/lots${cycleQuery}`} className="btn btn-link">
+            <Link href={href("/lots")} className="btn btn-link">
               {t.seeLots}
             </Link>
           </div>
@@ -300,7 +299,7 @@ export default async function DashboardPage({ params, searchParams }: PageProps<
                   {b.rows.map((r) => (
                     <Link
                       key={r.assessmentId}
-                      href={`${base}/lots${cycleQuery}`}
+                      href={href("/lots")}
                       className="lot-tile"
                       data-status={r.status}
                       title={interpolate(t.lotTileTitle, {
@@ -357,7 +356,7 @@ export default async function DashboardPage({ params, searchParams }: PageProps<
         <section className="card card-pad flex flex-col gap-4 xl:col-span-2">
           <div className="flex items-center justify-between">
             <h2 className="h-card">{t.expensesByMonth}</h2>
-            <Link href={`${base}/finances?tab=expenses&cycle=${cycle.id}`} className="btn btn-link">
+            <Link href={href("/finances/expenses")} className="btn btn-link">
               {t.allExpenses} →
             </Link>
           </div>
@@ -392,7 +391,7 @@ export default async function DashboardPage({ params, searchParams }: PageProps<
         <section className="card card-pad flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <h2 className="h-card">{t.recentActivity}</h2>
-            <Link href={`${base}/settings?tab=journal${cycleQuery.replace("?", "&")}`} className="btn btn-link">
+            <Link href={href("/settings/journal")} className="btn btn-link">
               {t.seeJournal}
             </Link>
           </div>

@@ -144,6 +144,16 @@ tiles by bloc; the largest balances due by owner; expenses by month; and the
 latest journal entries. Charts are plain server-rendered SVG coloured by the
 design system's classes.
 
+**URLs.** Addresses name things, never ids: `/residences/<residence
+slug>/<page>[/<tab>]?cycle=<cycle slug>` — e.g.
+`/residences/haifa-4/finances/expenses?cycle=2025-2026`. Tabs are path
+segments (`/finances/payments`, `/finances/expenses`, `/settings/cycles`,
+`/settings/members`, `/settings/journal`). A cycle's slug comes from its
+name (a repeated name gets -2, -3… in date order) and `?cycle=` is left out
+for the residence's current cycle. Older forms — `?tab=`, a cycle id,
+`/payments`, `/expenses`, `/treasury`, `/cycles` — still work and are
+rewritten to these.
+
 **First steps.** Until a first cycle opens, the dashboard is a setup guide:
 blocs and lots, their owners, the year's cycle, then opening it.
 

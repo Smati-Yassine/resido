@@ -383,7 +383,7 @@ function CyclesSection({ data }: { data: ResidenceSettingsData }) {
                     <OpenCycleButton residenceId={residence.id} cycleId={cycle.id} />
                   )}
                   {cycle.status !== "DRAFT" && (
-                    <Link href={`${residence.base}?cycle=${cycle.id}`} className="btn btn-ghost">
+                    <Link href={`${residence.base}?cycle=${cycle.slug}`} className="btn btn-ghost">
                       {t.view}
                     </Link>
                   )}

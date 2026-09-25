@@ -1,3 +1,4 @@
+import { slugify as slugifyText } from "@/lib/text";
 import { ObjectId, type ClientSession } from "mongodb";
 import { getDb } from "@/lib/db/client";
 import { COLLECTIONS } from "@/lib/db/collections";
@@ -40,15 +41,7 @@ async function collection() {
 
 /** "Résidence Les Jasmins" → "residence-les-jasmins". */
 export function slugify(name: string): string {
-  const base = name
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 60)
-    .replace(/-+$/, "");
-  return base || "residence";
+  return slugifyText(name, "residence");
 }
 
 /**
@@ -59,7 +52,9 @@ export function slugify(name: string): string {
 async function uniqueSlug(name: string, excludeId?: ObjectId): Promise<string> {
   const base = slugify(name);
   const taken = new Set<string>();
-  const docs = await (await collection())
+  const docs = await (
+    await collection()
+  )
     .find(
       {
         ...(excludeId ? { _id: { $ne: excludeId } } : {}),
@@ -153,7 +148,10 @@ export async function updateResidence(
 export async function normalizeAllSlugs(): Promise<{ changed: number }> {
   const residences = await collection();
   let changed = 0;
-  for (const doc of await residences.find({}, { projection: { name: 1, slug: 1 } }).sort({ createdAt: 1 }).toArray()) {
+  for (const doc of await residences
+    .find({}, { projection: { name: 1, slug: 1 } })
+    .sort({ createdAt: 1 })
+    .toArray()) {
     const wanted = await uniqueSlug(doc.name, doc._id);
     if (wanted === doc.slug) continue;
     await residences.updateOne(

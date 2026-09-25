@@ -44,7 +44,7 @@ export function DraftCycle({ base, cycle, t }: { base: string; cycle: Cycle; t: 
         <Link href={`${base}`} className="btn btn-ghost">
           {t.viewCurrentCycle}
         </Link>
-        <Link href={`${base}/settings?tab=cycles&cycle=${cycle.id}`} className="btn btn-primary">
+        <Link href={`${base}/settings/cycles`} className="btn btn-primary">
           {t.cycles}
         </Link>
       </div>

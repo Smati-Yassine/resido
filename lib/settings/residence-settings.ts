@@ -5,7 +5,7 @@ import type { CurrencyCode } from "@/lib/currency";
 import type { BadgeTone } from "@/components/ui/Display";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { toCycleView } from "@/lib/cycle-view";
-import { residencePath } from "@/lib/workspace";
+import { residencePath, withSlugs } from "@/lib/workspace";
 import { findResidenceById } from "@/lib/domain/residences/repository";
 import * as cycles from "@/lib/domain/cycles/service";
 import * as members from "@/lib/domain/members/service";
@@ -20,6 +20,8 @@ export type SettingsTab = (typeof SETTINGS_TABS)[number];
 
 export interface SettingsCycle {
   id: string;
+  /** The cycle's name in URLs. */
+  slug: string;
   name: string;
   status: "DRAFT" | "OPEN" | "CLOSED";
   statusLabel: string;
@@ -76,7 +78,7 @@ export async function loadResidenceSettings(
     cycles.computeAllTreasuries(residenceId),
     listAuditLog(residenceId),
   ]);
-  const cycleList = cycleResult.ok ? cycleResult.data : [];
+  const cycleList = withSlugs(cycleResult.ok ? cycleResult.data : []);
 
   const settingsCycles = await Promise.all(
     cycleList.map(async (cycle): Promise<SettingsCycle> => {
@@ -86,6 +88,7 @@ export async function loadResidenceSettings(
       const summary = billed ? await summarizeAssessmentsForCycle(residenceId, cycle.id) : null;
       return {
         id: cycle.id,
+        slug: cycle.slug,
         name: cycle.name,
         status: cycle.status,
         statusLabel: view.statusLabel,

@@ -39,10 +39,7 @@ export function UserMenu({
         <Icon name="chevronDown" size={16} strokeWidth={2} />
       </button>
       {open && (
-        <div
-          role="menu"
-          className="popover absolute right-0 top-[52px] z-20 flex w-[260px] flex-col gap-0.5"
-        >
+        <div role="menu" className="popover absolute right-0 top-[52px] z-20 flex w-[260px] flex-col gap-0.5">
           <div className="flex flex-col gap-0.5 px-3 pb-2 pt-1.5">
             <span className="text-sm font-bold">{user.name}</span>
             <span className="truncate text-xs text-muted">{user.email}</span>

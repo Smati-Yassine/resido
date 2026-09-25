@@ -47,39 +47,39 @@ export function ResidenceShell({
 
   return (
     <ResidenceBaseProvider base={base}>
-    <div className="shell" data-collapsed={collapsed}>
-      <header className="shell-header">
-        <Link href="/residences" className="shell-brand" aria-label={t.allResidences}>
-          <span className="brand-mark shrink-0">R</span>
-          <span className="shell-brand-name font-display text-[22px] font-semibold">Résido</span>
-        </Link>
-        <div className="flex min-w-0 flex-1 items-center gap-3 px-6">{switchers}</div>
-        <div className="pr-6">{userMenu}</div>
-      </header>
+      <div className="shell" data-collapsed={collapsed}>
+        <header className="shell-header">
+          <Link href="/residences" className="shell-brand" aria-label={t.allResidences}>
+            <span className="brand-mark shrink-0">R</span>
+            <span className="shell-brand-name font-display text-[22px] font-semibold">Résido</span>
+          </Link>
+          <div className="flex min-w-0 flex-1 items-center gap-3 px-6">{switchers}</div>
+          <div className="pr-6">{userMenu}</div>
+        </header>
 
-      <div className="flex min-h-0 flex-1">
-        <aside className="side">
-          <SideNav
-            lotCount={lotCount}
-            unpaidCount={unpaidCount}
-            footer={
-              <button
-                type="button"
-                className="side-item text-muted"
-                title={toggleLabel}
-                aria-label={toggleLabel}
-                aria-expanded={!collapsed}
-                onClick={toggle}
-              >
-                <Icon name={collapsed ? "panelExpand" : "panelCollapse"} size={19} />
-                <span className="side-text">{t.collapseMenu}</span>
-              </button>
-            }
-          />
-        </aside>
-        <main className="scroll flex min-w-0 flex-1 flex-col gap-6 px-10 pb-12 pt-8">{children}</main>
+        <div className="flex min-h-0 flex-1">
+          <aside className="side">
+            <SideNav
+              lotCount={lotCount}
+              unpaidCount={unpaidCount}
+              footer={
+                <button
+                  type="button"
+                  className="side-item text-muted"
+                  title={toggleLabel}
+                  aria-label={toggleLabel}
+                  aria-expanded={!collapsed}
+                  onClick={toggle}
+                >
+                  <Icon name={collapsed ? "panelExpand" : "panelCollapse"} size={19} />
+                  <span className="side-text">{t.collapseMenu}</span>
+                </button>
+              }
+            />
+          </aside>
+          <main className="scroll flex min-w-0 flex-1 flex-col gap-6 px-10 pb-12 pt-8">{children}</main>
+        </div>
       </div>
-    </div>
     </ResidenceBaseProvider>
   );
 }
