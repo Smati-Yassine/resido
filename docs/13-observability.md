@@ -1,5 +1,13 @@
 # 13 — Observability
 
+**In place** (operations in [runbook.md](runbook.md)): structured JSON logs
+through `lib/log.ts` (keys that may hold a secret or personal data are
+blanked); every server error logged by `instrumentation.ts`
+(`request_error`, with the digest users see); sign-in failures and
+throttling logged (`signin_failed`, `signin_throttled`); `/api/health`
+answers 503 when the database does not. Not yet: an error-tracking service
+(Sentry or similar) and metrics dashboards beyond the host's and Atlas's.
+
 ## Logging
 
 Structured (JSON) server-side logging for every mutation and every error,

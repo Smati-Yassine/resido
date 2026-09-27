@@ -15,7 +15,11 @@
     "seed": "tsx scripts/seed.ts",
     "ensure-indexes": "tsx scripts/ensure-indexes.ts",
     "dev:db": "node scripts/dev-mongo.mjs",
-    "normalize-slugs": "tsx scripts/normalize-slugs.ts"
+    "normalize-slugs": "tsx scripts/normalize-slugs.ts",
+    "backup": "tsx scripts/backup.ts",
+    "restore": "tsx scripts/restore.ts",
+    "restore:drill": "tsx scripts/restore-drill.ts",
+    "load-test": "node scripts/load-test.mjs"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.9.0",

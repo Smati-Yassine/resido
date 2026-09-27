@@ -45,6 +45,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# database backups hold personal data — never commit (scripts/backup.ts)
+/backups/
+
 # local ephemeral dev database (scripts/dev-mongo.mjs)
 .devdb-uri.txt
 

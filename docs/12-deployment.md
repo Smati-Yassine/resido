@@ -93,6 +93,9 @@ migration tool is needed given the native-driver approach
 
 ## Backups & disaster recovery
 
+Procedures, scripts and the drill: [runbook.md](runbook.md#backups-and-the-restore-drill)
+(`npm run backup`, `npm run restore`, `npm run restore:drill`).
+
 Atlas continuous backups with point-in-time recovery; a documented restore
 drill (restore to a scratch cluster, verify a sample organization's balances
 reconcile) is part of Phase 9 hardening, not deferred indefinitely given this
