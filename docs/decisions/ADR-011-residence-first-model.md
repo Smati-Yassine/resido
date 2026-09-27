@@ -216,10 +216,10 @@ instead when pop-ups are blocked). Documents: `property` (every lot by bloc
 with owners, phones, charge, paid, remaining, status and methods; subtotals;
 landscape), `payments` and `expenses` (by month, subtotals, total; payments
 also by method), `finances` (a cover — treasury, waterfall, monthly flows,
-methods, largest expenses — then both lists) and `report` (a cover — the
-collection gauge, the four figures against the previous cycle, treasury,
-lots by status, monthly flows, collection by bloc, largest debtors — then
-the ledger and both lists). The PDF palette in `lib/print/pdf/theme.ts`
+methods, largest expenses — then both lists) and `report` (a simple cover — the
+collection gauge, the four figures each with what it means, the treasury as
+four lines, collection by bloc as a table — then the ledger and both lists).
+Pages carry no footer. The PDF palette in `lib/print/pdf/theme.ts`
 mirrors the light tokens (paper is always light); the fonts are static TTF
 instances of Manrope and Fraunces in `lib/print/fonts`, traced into that
 route's function.

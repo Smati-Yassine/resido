@@ -1,10 +1,9 @@
 import { Page, Text, View } from "@react-pdf/renderer";
 import { interpolate } from "@/lib/i18n/dictionaries";
 import { formatMonthShort, percent } from "@/lib/format";
-import { percentChange } from "@/lib/domain/overview/finance";
 import type { PrintData } from "@/lib/print/load";
-import { Bar, Donut, FlowsChart, Gauge, Rings, StackedBar, Waterfall } from "./charts";
-import { amount, Delta, Footer, Mark, money, type PdfCtx, Swatch } from "./parts";
+import { Bar, Donut, FlowsChart, Gauge, Rings, Waterfall } from "./charts";
+import { amount, Mark, money, type PdfCtx, Swatch } from "./parts";
 import { METHOD_COLORS } from "./sheets";
 import { C, S } from "./theme";
 
@@ -197,31 +196,63 @@ function FlowsCard({ ctx, data, height }: { ctx: PdfCtx; data: PrintData; height
   );
 }
 
+/** A card title and, under it, one plain sentence saying what the card shows. */
+function Explained({ title, text }: { title: string; text: string }) {
+  return (
+    <View style={{ marginBottom: 10 }}>
+      <Text style={S.cardTitle}>{title}</Text>
+      <Text style={{ fontSize: 7.5, color: C.muted }}>{text}</Text>
+    </View>
+  );
+}
+
 /**
- * The residence report's first page: the cycle in one look — collection
- * gauge, the four figures against the cycle before, the treasury from
- * opening to balance, the lots by status, money in and out by month,
- * collection by bloc and who owes the most.
+ * The residence report's first page, kept simple: the collection rate, the
+ * four figures of the cycle (each with what it means), the treasury as four
+ * lines, and each bloc's collection as a small table.
  */
 export function ReportCover({ ctx, data }: { ctx: PdfCtx; data: PrintData }) {
   const { t } = ctx;
-  const { totals, treasury, before } = data;
+  const { totals, treasury } = data;
   const closed = ctx.cycle.status === "CLOSED";
   const rate = percent(totals.collectedMillimes, totals.expectedMillimes);
-  const vs = before
-    ? interpolate(data.toDate ? t.vsPreviousToDate : t.vsPrevious, { name: before.name })
-    : t.coverFirstCycle;
-  const unit = amount(ctx, 0).split(" ").pop()!;
-  const change = (now: number, then: number | undefined) => (before ? percentChange(now, then) : null);
-  const statusParts = [
-    { key: "paid", value: totals.paid, color: C.olive, label: t.paidPlural },
-    { key: "partial", value: totals.partial, color: C.partial, label: t.partialPlural },
-    { key: "unpaid", value: totals.unpaid, color: C.stone, label: t.unpaidPlural },
+  const unit = amount(ctx, 0).split("\u00a0").pop()!;
+  const blocs = data.blocProgress;
+  const cols = [
+    { label: t.colBloc, flex: 1.6, align: "left" as const },
+    { label: t.colLots, flex: 0.6, align: "right" as const },
+    { label: t.kpiExpected, flex: 1.3, align: "right" as const },
+    { label: t.kpiCollected, flex: 1.3, align: "right" as const },
+    { label: t.kpiOutstanding, flex: 1.3, align: "right" as const },
+    { label: t.kpiRate, flex: 1.6, align: "right" as const },
   ];
-  const methodTotal = data.methods.reduce((n, m) => n + m.totalMillimes, 0);
-  const blocs = data.blocProgress.slice(0, 6);
-  const maxDebt = Math.max(1, ...data.debtors.map((d) => d.outstandingMillimes));
-  const half = (WIDTH - GAP) / 2;
+  const cell = (i: number, content: React.ReactNode, bold = false) => (
+    <View
+      key={i}
+      style={{
+        flex: cols[i].flex,
+        paddingHorizontal: 4,
+        alignItems: cols[i].align === "right" ? "flex-end" : "flex-start",
+      }}
+    >
+      {typeof content === "string" ? (
+        <Text style={{ fontWeight: bold ? 800 : 400, textAlign: cols[i].align }}>{content}</Text>
+      ) : (
+        content
+      )}
+    </View>
+  );
+  const treasuryLines: [string, string, string, boolean][] = [
+    [t.startBalance, t.coverStartText, money(ctx, treasury.openingBalanceMillimes), false],
+    [t.plusIncome, t.coverInText, `+ ${money(ctx, treasury.incomeMillimes)}`, false],
+    [t.minusExpenses, t.coverOutText, `− ${money(ctx, treasury.expenseMillimes)}`, false],
+    [
+      closed ? t.closingBalance : t.currentBalance,
+      t.coverBalanceText,
+      money(ctx, treasury.closingBalanceMillimes),
+      true,
+    ],
+  ];
 
   return (
     <Page size="A4" wrap={false} style={[S.page, { paddingTop: 0, paddingHorizontal: 0 }]}>
@@ -239,160 +270,118 @@ export function ReportCover({ ctx, data }: { ctx: PdfCtx; data: PrintData }) {
         }
       />
 
-      <View style={{ paddingHorizontal: 32, marginTop: -30, gap: GAP }}>
+      <View style={{ paddingHorizontal: 32, marginTop: -30, gap: 12 }}>
         <View style={{ flexDirection: "row", gap: 8 }}>
           <Kpi
             label={t.kpiExpected}
             value={money(ctx, totals.expectedMillimes)}
             unit={unit}
             accent={C.primary}
-            delta={<Delta change={change(totals.expectedMillimes, before?.expectedMillimes)} vs={vs} goodWhenUp />}
+            delta={
+              <Text style={{ fontSize: 6.8, color: C.muted }}>
+                {interpolate(t.coverExpectedText, { count: totals.lotCount })}
+              </Text>
+            }
           />
           <Kpi
             label={t.kpiCollected}
             value={money(ctx, totals.collectedMillimes)}
             unit={unit}
             accent={C.olive}
-            delta={<Delta change={change(totals.collectedMillimes, before?.collectedMillimes)} vs={vs} goodWhenUp />}
+            delta={<Text style={{ fontSize: 6.8, color: C.muted }}>{t.coverCollectedText}</Text>}
           />
           <Kpi
             label={t.kpiOutstanding}
             value={money(ctx, totals.outstandingMillimes)}
             unit={unit}
             accent={C.ochre}
-            delta={
-              <Delta
-                change={change(totals.outstandingMillimes, before?.outstandingMillimes)}
-                vs={vs}
-                goodWhenUp={false}
-              />
-            }
+            delta={<Text style={{ fontSize: 6.8, color: C.muted }}>{t.coverOutstandingText}</Text>}
           />
           <Kpi
             label={t.kpiBalance}
             value={money(ctx, treasury.closingBalanceMillimes)}
             unit={unit}
             accent={C.night}
-            delta={
-              <Delta change={change(treasury.closingBalanceMillimes, before?.balanceMillimes)} vs={vs} goodWhenUp />
-            }
+            delta={<Text style={{ fontSize: 6.8, color: C.muted }}>{t.coverBalanceText}</Text>}
           />
         </View>
 
-        <View style={{ flexDirection: "row", gap: GAP }}>
-          <View style={[S.card, { flex: 1.4 }]}>
-            <CardHead title={t.treasurySummary} hint={t.coverWaterfall} />
-            <Waterfall
-              steps={treasurySteps(ctx, data, closed)}
-              width={(WIDTH - GAP) * (1.4 / 2.4) - 25.5}
-              height={70}
-            />
-          </View>
-          <View style={[S.card, { flex: 1 }]}>
-            <CardHead title={t.coverStatus} />
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-              <Donut parts={statusParts} size={74} center={String(totals.lotCount)} centerLabel={t.lots} />
-              <View style={{ flex: 1, gap: 5 }}>
-                {statusParts.map((p) => (
-                  <Swatch
-                    key={p.key}
-                    color={p.color}
-                    label={p.label}
-                    value={`${p.value} · ${percent(p.value, totals.lotCount)} %`}
-                  />
-                ))}
+        <View style={S.card}>
+          <Explained title={t.treasurySummary} text={t.coverTreasuryText} />
+          {treasuryLines.map(([label, text, value, total]) => (
+            <View
+              key={label}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                paddingVertical: 6,
+                borderTopWidth: total ? 1 : 0.5,
+                borderTopColor: total ? C.ink : C.lineSoft,
+              }}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontWeight: total ? 800 : 600, fontSize: total ? 9.5 : 8.5 }}>{label}</Text>
+                <Text style={{ fontSize: 7, color: C.muted, marginTop: 1 }}>{text}</Text>
               </View>
-            </View>
-            <View style={{ marginTop: 10, paddingTop: 8, borderTopWidth: 0.5, borderTopColor: C.line, gap: 5 }}>
-              <Text style={{ fontSize: 6.5, fontWeight: 700, color: C.muted, letterSpacing: 0.4 }}>
-                {t.byMethod.toUpperCase()}
+              <Text style={{ fontWeight: total ? 800 : 600, fontSize: total ? 11 : 9 }}>
+                {value} <Text style={{ fontSize: 7, color: C.muted, fontWeight: 400 }}>{unit}</Text>
               </Text>
-              <StackedBar
-                height={5}
-                parts={data.methods.map((m) => ({ value: m.totalMillimes, color: METHOD_COLORS[m.method] }))}
-              />
-              <View style={{ flexDirection: "row", flexWrap: "wrap", columnGap: 8, rowGap: 2 }}>
-                {data.methods.map((m) => (
-                  <Swatch
-                    key={m.method}
-                    color={METHOD_COLORS[m.method]}
-                    label={`${t[`method${m.method}`]} ${percent(m.totalMillimes, methodTotal)} %`}
-                  />
-                ))}
-              </View>
             </View>
-          </View>
+          ))}
         </View>
 
-        <FlowsCard ctx={ctx} data={data} height={76} />
-
-        <View style={{ flexDirection: "row", gap: GAP }}>
-          <View style={[S.card, { width: half }]}>
-            <CardHead title={t.coverBlocs} />
-            <View style={{ gap: 6 }}>
-              {blocs.map((b) => {
-                const pct = percent(b.collectedMillimes, b.expectedMillimes);
-                return (
-                  <View key={b.name} style={{ gap: 3 }}>
-                    <View style={{ flexDirection: "row", alignItems: "baseline", gap: 6 }}>
-                      <Text style={{ fontWeight: 800, flex: 1 }}>{b.name}</Text>
-                      <Text style={{ fontSize: 6.8, color: C.muted }}>
-                        {money(ctx, b.collectedMillimes)} / {money(ctx, b.expectedMillimes)}
-                      </Text>
-                      <Text style={{ fontWeight: 800, width: 26, textAlign: "right" }}>{pct} %</Text>
-                    </View>
-                    <Bar value={pct} color={pct >= 100 ? C.olive : pct >= 50 ? C.primary : C.ochreLight} />
-                  </View>
-                );
-              })}
-              {data.blocProgress.length > blocs.length && (
-                <Text style={{ fontSize: 6.8, color: C.muted }}>+{data.blocProgress.length - blocs.length}</Text>
-              )}
-            </View>
-          </View>
-          <View style={[S.card, { width: half }]}>
-            <CardHead title={t.topDebtors} />
-            {data.debtors.length === 0 ? (
-              <Text style={[S.muted, { paddingVertical: 14 }]}>{t.coverNoDebt}</Text>
-            ) : (
-              <View style={{ gap: 5 }}>
-                {data.debtors.map((d, i) => (
-                  <View
-                    key={d.ownerIds.join(",") || "none"}
-                    style={{ flexDirection: "row", gap: 7, alignItems: "center" }}
-                  >
-                    <View
-                      style={{
-                        width: 15,
-                        height: 15,
-                        borderRadius: 8,
-                        backgroundColor: i === 0 ? C.ochre : C.ground,
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <Text style={{ fontSize: 7, fontWeight: 800, color: i === 0 ? C.white : C.ink2 }}>{i + 1}</Text>
-                    </View>
-                    <View style={{ flex: 1, gap: 2.5 }}>
-                      <View style={{ flexDirection: "row", gap: 6 }}>
-                        <Text style={{ fontWeight: 700, flex: 1, maxLines: 1, textOverflow: "ellipsis" }}>
-                          {d.ownerName ?? t.noOwnerLabel}
-                        </Text>
-                        <Text style={{ fontWeight: 800, color: C.neg }}>{money(ctx, d.outstandingMillimes)}</Text>
-                      </View>
-                      <Bar value={(d.outstandingMillimes / maxDebt) * 100} color={C.ochreLight} />
-                      <Text style={{ fontSize: 6.3, color: C.muted, maxLines: 1, textOverflow: "ellipsis" }}>
-                        {d.lotCodes.join(", ")}
-                      </Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
+        <View style={S.card}>
+          <Explained title={t.coverBlocs} text={t.coverBlocsText} />
+          <View style={{ flexDirection: "row", paddingBottom: 5, borderBottomWidth: 1, borderBottomColor: C.ink }}>
+            {cols.map((c, i) =>
+              cell(
+                i,
+                <Text style={{ fontSize: 6.5, fontWeight: 700, color: C.muted, textAlign: c.align }}>
+                  {c.label.toUpperCase()}
+                </Text>,
+              ),
             )}
+          </View>
+          {blocs.map((b) => {
+            const pct = percent(b.collectedMillimes, b.expectedMillimes);
+            return (
+              <View
+                key={b.name}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  paddingVertical: 5,
+                  borderBottomWidth: 0.5,
+                  borderBottomColor: C.lineSoft,
+                }}
+              >
+                {cell(0, b.name, true)}
+                {cell(1, String(b.lotCount))}
+                {cell(2, money(ctx, b.expectedMillimes))}
+                {cell(3, money(ctx, b.collectedMillimes))}
+                {cell(4, money(ctx, b.expectedMillimes - b.collectedMillimes))}
+                {cell(
+                  5,
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 5, width: "100%" }}>
+                    <View style={{ flex: 1 }}>
+                      <Bar value={pct} color={pct >= 100 ? C.olive : C.primary} />
+                    </View>
+                    <Text style={{ fontWeight: 800, width: 32, textAlign: "right" }}>{`${pct}\u00a0%`}</Text>
+                  </View>,
+                )}
+              </View>
+            );
+          })}
+          <View style={{ flexDirection: "row", paddingTop: 6 }}>
+            {cell(0, t.total, true)}
+            {cell(1, String(totals.lotCount), true)}
+            {cell(2, money(ctx, totals.expectedMillimes), true)}
+            {cell(3, money(ctx, totals.collectedMillimes), true)}
+            {cell(4, money(ctx, totals.outstandingMillimes), true)}
+            {cell(5, `${rate} %`, true)}
           </View>
         </View>
       </View>
-      <Footer ctx={ctx} />
     </Page>
   );
 }
@@ -560,7 +549,6 @@ export function FinanceCover({ ctx, data }: { ctx: PdfCtx; data: PrintData }) {
           </View>
         </View>
       </View>
-      <Footer ctx={ctx} />
     </Page>
   );
 }

@@ -1,6 +1,6 @@
 import { Text, View } from "@react-pdf/renderer";
 import type { Style } from "@react-pdf/stylesheet";
-import { interpolate, type Dictionary, type Locale } from "@/lib/i18n/dictionaries";
+import type { Dictionary, Locale } from "@/lib/i18n/dictionaries";
 import { currencySymbol, type CurrencyCode } from "@/lib/currency";
 import { formatMoney } from "@/lib/format";
 import { C, S } from "./theme";
@@ -75,23 +75,6 @@ export function SheetHeader({ ctx, title }: { ctx: PdfCtx; title: string }) {
           {ctx.cycle.name} · {ctx.cycle.range}
         </Text>
       </View>
-    </View>
-  );
-}
-
-/** Printed date, brand and page numbers, at the foot of every page. */
-export function Footer({ ctx }: { ctx: PdfCtx }) {
-  return (
-    <View fixed style={S.footer}>
-      <Text>
-        {ctx.residence.name} · {ctx.cycle.name} · {interpolate(ctx.t.printedOn, { date: ctx.printedOn })}
-      </Text>
-      <Text>{ctx.t.generatedBy}</Text>
-      <Text
-        render={({ pageNumber, totalPages }) =>
-          interpolate(ctx.t.pageOf, { page: pageNumber, total: totalPages ?? pageNumber })
-        }
-      />
     </View>
   );
 }
@@ -232,22 +215,6 @@ export function StatusPill({ status, label }: { status: "PAID" | "PARTIAL" | "UN
       }}
     >
       {label}
-    </Text>
-  );
-}
-
-/** Change against the previous cycle: ↑ 12 % vs 2025, green when it is good news. */
-export function Delta({ change, vs, goodWhenUp }: { change: number | null; vs: string; goodWhenUp: boolean }) {
-  if (change === null) return <Text style={{ fontSize: 6.5, color: C.muted }}>{vs}</Text>;
-  const up = change > 0;
-  const good = change === 0 ? null : up === goodWhenUp;
-  const color = good === null ? C.muted : good ? C.pos : C.neg;
-  return (
-    <Text style={{ fontSize: 6.5, color: C.muted }}>
-      <Text style={{ color, fontWeight: 800 }}>
-        {change === 0 ? "=" : up ? "↑" : "↓"} {Math.abs(change)} %
-      </Text>{" "}
-      {vs}
     </Text>
   );
 }

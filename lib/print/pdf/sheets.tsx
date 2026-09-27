@@ -7,7 +7,6 @@ import { StackedBar } from "./charts";
 import {
   type Column,
   type PdfCtx,
-  Footer,
   GroupRow,
   money,
   SheetHeader,
@@ -105,7 +104,6 @@ export function PropertyPages({ ctx, data, title }: { ctx: PdfCtx; data: PrintDa
           ...(billed ? [`${percent(sum(all, "paidMillimes"), sum(all, "chargeMillimes"))} %`, ""] : []),
         ]}
       />
-      <Footer ctx={ctx} />
     </Page>
   );
 }
@@ -184,7 +182,6 @@ export function PaymentsPages({ ctx, data, title }: { ctx: PdfCtx; data: PrintDa
           <MethodsBox ctx={ctx} data={data} />
         </>
       )}
-      <Footer ctx={ctx} />
     </Page>
   );
 }
@@ -270,7 +267,6 @@ export function ExpensesPages({ ctx, data, title }: { ctx: PdfCtx; data: PrintDa
           />
         </>
       )}
-      <Footer ctx={ctx} />
     </Page>
   );
 }
