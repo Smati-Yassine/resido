@@ -22,15 +22,23 @@ interface MemberRow {
   email: string;
   role: string;
   since: string;
+  /** The residence's creator. */
+  isOwner: boolean;
 }
 
 const roleLabel = (t: Dictionary, role: string) => (t as Record<string, string>)[`role${role}`] ?? role;
 
+/**
+ * Who has access, with which role. The creator (owner) appoints and manages
+ * administrators; other administrators manage accountants and read-only
+ * members. The creator never leaves; everyone else can.
+ */
 export function MembersPanel({
   residenceId,
   residenceName,
   currentUserId,
   canManage,
+  isOwner,
   members,
   invitations,
 }: {
@@ -38,16 +46,22 @@ export function MembersPanel({
   residenceName: string;
   currentUserId: string;
   canManage: boolean;
+  /** Whether the viewer is the residence's creator. */
+  isOwner: boolean;
   members: MemberRow[];
   invitations: { id: string; email: string; role: string }[];
 }) {
   const { t } = useI18n();
   const [removing, setRemoving] = useState<MemberRow | null>(null);
+  // The roles the viewer may give: admins only by the creator.
+  const grantable = ROLES.filter((r) => isOwner || r !== "SYNDIC_ADMIN");
+  // Whom the viewer may change or remove: never the creator; admins only if the viewer is the creator.
+  const canHandle = (role: string, owner: boolean) => canManage && !owner && (isOwner || role !== "SYNDIC_ADMIN");
 
   return (
     <div className="flex flex-col gap-5">
       <p className="text-sm text-muted">{t.membersHelp}</p>
-      {canManage && <AddMemberForm residenceId={residenceId} />}
+      {canManage && <AddMemberForm residenceId={residenceId} roles={grantable} />}
 
       <div className="card data-table">
         <div className="settings-group-head border-b border-line-soft">
@@ -67,15 +81,17 @@ export function MembersPanel({
                   {m.email} · {interpolate(t.since, { date: m.since })}
                 </span>
               </span>
-              {canManage ? (
-                <RoleSelect residenceId={residenceId} member={m} />
+              {!self && canHandle(m.role, m.isOwner) ? (
+                <RoleSelect residenceId={residenceId} member={m} roles={grantable} />
               ) : (
-                <span>
-                  <Badge tone={m.role === "SYNDIC_ADMIN" ? "open" : "closed"}>{roleLabel(t, m.role)}</Badge>
+                <span title={m.isOwner ? t.roleCreatorHelp : undefined}>
+                  <Badge tone={m.isOwner || m.role === "SYNDIC_ADMIN" ? "open" : "closed"}>
+                    {m.isOwner ? t.roleCreator : roleLabel(t, m.role)}
+                  </Badge>
                 </span>
               )}
               <span className="flex justify-end">
-                {(canManage || self) && (
+                {((self && !m.isOwner) || (!self && canHandle(m.role, m.isOwner))) && (
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => setRemoving(m)}>
                     {self ? t.leave : t.remove}
                   </button>
@@ -100,7 +116,7 @@ export function MembersPanel({
                   <Badge tone="draft">{interpolate(t.invitedAs, { role: roleLabel(t, i.role) })}</Badge>
                 </span>
                 <span className="flex justify-end">
-                  {canManage && <CancelInvitationButton residenceId={residenceId} invitationId={i.id} />}
+                  {canHandle(i.role, false) && <CancelInvitationButton residenceId={residenceId} invitationId={i.id} />}
                 </span>
               </div>
             ))}
@@ -121,7 +137,7 @@ export function MembersPanel({
   );
 }
 
-function AddMemberForm({ residenceId }: { residenceId: string }) {
+function AddMemberForm({ residenceId, roles }: { residenceId: string; roles: readonly (typeof ROLES)[number][] }) {
   const { t } = useI18n();
   const [role, setRole] = useState<(typeof ROLES)[number]>("ACCOUNTANT");
   const [formKey, setFormKey] = useState(0);
@@ -142,8 +158,8 @@ function AddMemberForm({ residenceId }: { residenceId: string }) {
           {t.addMember}
         </button>
       </div>
-      <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
-        {ROLES.map((r) => (
+      <div className={`grid grid-cols-1 gap-2 ${roles.length === 3 ? "md:grid-cols-3" : "md:grid-cols-2"}`}>
+        {roles.map((r) => (
           <button key={r} type="button" className="choice" aria-pressed={role === r} onClick={() => setRole(r)}>
             <span className="choice-title">{roleLabel(t, r)}</span>
             <span className="choice-text">{(t as Record<string, string>)[`roleHelp${r}`]}</span>
@@ -154,7 +170,15 @@ function AddMemberForm({ residenceId }: { residenceId: string }) {
   );
 }
 
-function RoleSelect({ residenceId, member }: { residenceId: string; member: MemberRow }) {
+function RoleSelect({
+  residenceId,
+  member,
+  roles,
+}: {
+  residenceId: string;
+  member: MemberRow;
+  roles: readonly (typeof ROLES)[number][];
+}) {
   const { t } = useI18n();
   const toast = useToast();
   const afterAction = useAfterAction();
@@ -176,7 +200,7 @@ function RoleSelect({ residenceId, member }: { residenceId: string; member: Memb
         });
       }}
     >
-      {ROLES.map((r) => (
+      {roles.map((r) => (
         <option key={r} value={r}>
           {roleLabel(t, r)}
         </option>

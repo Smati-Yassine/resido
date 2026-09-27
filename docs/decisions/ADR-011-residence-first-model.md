@@ -198,6 +198,17 @@ come from. Language (FR/EN) and theme are
 cookies read on the server, so the page renders in the right theme with no
 flash.
 
+**Ownership.** A residence records its creator (`ownerUserId`), its owner —
+shown as "Créateur". Only the owner makes someone an administrator, or
+changes or removes an administrator; other admins add, change and remove
+accountants and read-only members. Only the owner deletes the residence; the
+owner cannot leave, be removed or change role, while everyone else can leave.
+Residences created before this take their longest-standing administrator as
+owner, as does a residence whose owner deleted their account. The residences
+list shows "Créées par moi" apart from "Partagées avec moi"; each card offers
+Delete to its owner and Leave to everyone else. The rules are enforced in the
+domain services (codes OWNER_ONLY / OWNER_STAYS), the UI only mirrors them.
+
 **Settings.** One "Paramètres" entry at the foot of the sidebar. The page is
 laid out like Finances: the header, then tabs — Général (`/settings`),
 Cycles, Membres, Journal (`/settings/<tab>`). General puts identity and

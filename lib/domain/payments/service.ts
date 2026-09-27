@@ -91,10 +91,7 @@ async function resolvePayer(
     resolved.map((a) => assessmentsRepo.findAssessmentById(organizationId, a.assessmentId)),
   );
   const ownerIds = [
-    ...new Set(
-      assessments
-        .flatMap((a) => (a ? effectiveOwnerIds(a, lotOwners.get(a.lotId) ?? []) : [])),
-    ),
+    ...new Set(assessments.flatMap((a) => (a ? effectiveOwnerIds(a, lotOwners.get(a.lotId) ?? []) : []))),
   ];
   const owners = (await Promise.all(ownerIds.map((id) => ownersRepo.findOwnerById(organizationId, id)))).filter(
     (o) => o !== null,

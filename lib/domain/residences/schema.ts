@@ -32,6 +32,12 @@ export interface Residence {
   status: ResidenceStatus;
   /** What the residence keeps its books in — display and input precision only (lib/currency). */
   currency: CurrencyCode;
+  /**
+   * Who created it — its owner: the only one who can make someone an admin,
+   * delete the residence, and who can never leave it or be removed. Null on
+   * residences created before it was recorded (see lib/domain/residences/owner).
+   */
+  ownerUserId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

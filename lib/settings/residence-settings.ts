@@ -81,9 +81,10 @@ export interface ResidenceSettingsData {
     base: string;
   };
   currentUserId: string;
-  can: { manage: boolean; cycles: boolean };
+  /** manage: admin rights; owner: the residence's creator (appoints admins, deletes it, cannot leave). */
+  can: { manage: boolean; cycles: boolean; owner: boolean };
   lotCount: number;
-  members: { userId: string; name: string; email: string; role: string; since: string }[];
+  members: { userId: string; name: string; email: string; role: string; since: string; isOwner: boolean }[];
   invitations: { id: string; email: string; role: string }[];
   cycles: SettingsCycle[];
   hasOpenCycle: boolean;
@@ -158,7 +159,11 @@ export async function loadResidenceSettings(
       base: residencePath(residence.slug),
     },
     currentUserId: session.userId,
-    can: { manage: roleHasPermission(session.role, "*"), cycles: roleHasPermission(session.role, "cycles:manage") },
+    can: {
+      manage: roleHasPermission(session.role, "*"),
+      cycles: roleHasPermission(session.role, "cycles:manage"),
+      owner: memberResult.ok && memberResult.data.members.some((m) => m.isOwner && m.userId === session.userId),
+    },
     lotCount: lotResult.ok ? lotResult.data.length : 0,
     members: memberResult.ok
       ? memberResult.data.members.map((m) => ({
@@ -167,6 +172,7 @@ export async function loadResidenceSettings(
           email: m.email,
           role: m.role,
           since: formatDate(m.since),
+          isOwner: m.isOwner,
         }))
       : [],
     invitations: memberResult.ok

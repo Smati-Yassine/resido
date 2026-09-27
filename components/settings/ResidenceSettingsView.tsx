@@ -11,7 +11,7 @@ import { useToast } from "@/components/ui/Toaster";
 import { useActionToast } from "@/components/ui/useActionToast";
 import { useAfterAction } from "@/components/ui/AfterAction";
 import { setResidenceCurrencyAction, updateResidenceAction } from "@/lib/actions/residences";
-import { DeleteResidenceModal } from "@/components/residences/ResidenceModals";
+import { DeleteResidenceModal, LeaveResidenceModal } from "@/components/residences/ResidenceModals";
 import { useArchive } from "@/components/residences/useArchive";
 import { MembersPanel } from "@/components/workspace/Members";
 import { CycleMenu, NewCycleButton } from "@/components/workspace/CycleControls";
@@ -59,6 +59,7 @@ export function ResidenceSettingsView({
           residenceName={data.residence.name}
           currentUserId={data.currentUserId}
           canManage={data.can.manage}
+          isOwner={data.can.owner}
           members={data.members}
           invitations={data.invitations}
         />
@@ -116,6 +117,7 @@ function GeneralSection({
   });
   const { setArchived, pending: archiving } = useArchive();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmLeave, setConfirmLeave] = useState(false);
   const leave = () => (mode === "page" ? router.push("/residences") : onGone?.());
   const changed = name !== residence.name || city !== residence.city;
 
@@ -165,9 +167,9 @@ function GeneralSection({
         </div>
       </div>
 
-      {manage && (
-        <Group title={t.dangerZone} danger>
-          {residence.archived ? (
+      <Group title={t.dangerZone} danger>
+        {manage &&
+          (residence.archived ? (
             <Row title={t.restoreRowTitle} text={t.restoreRowText}>
               <button
                 type="button"
@@ -189,15 +191,35 @@ function GeneralSection({
                 {t.archive}
               </button>
             </Row>
-          )}
+          ))}
+        {/* The creator deletes the residence; everyone else can only leave it. */}
+        {data.can.owner ? (
           <Row title={t.deleteRowTitle} text={t.deleteRowText}>
             <button type="button" className="btn btn-danger" onClick={() => setConfirmDelete(true)}>
               {t.delete}
             </button>
           </Row>
-        </Group>
-      )}
+        ) : (
+          <Row title={t.leaveRowTitle} text={t.leaveRowText}>
+            <button type="button" className="btn btn-danger" onClick={() => setConfirmLeave(true)}>
+              {t.leave}
+            </button>
+          </Row>
+        )}
+      </Group>
 
+      {confirmLeave && (
+        <LeaveResidenceModal
+          residence={residence}
+          onClose={() => setConfirmLeave(false)}
+          afterLeave={() => {
+            if (mode === "page") {
+              router.replace("/residences");
+              router.refresh();
+            } else onGone?.();
+          }}
+        />
+      )}
       {confirmDelete && (
         <DeleteResidenceModal
           residence={residence}

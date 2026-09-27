@@ -8,6 +8,7 @@ import { useActionToast } from "@/components/ui/useActionToast";
 import { interpolate } from "@/lib/i18n/dictionaries";
 import { CURRENCIES, CURRENCY_CODES, DEFAULT_CURRENCY } from "@/lib/currency";
 import { createResidenceAction, deleteResidenceAction, updateResidenceAction } from "@/lib/actions/residences";
+import { leaveResidenceAction } from "@/lib/actions/members";
 
 export interface ResidenceDraft {
   id: string;
@@ -98,6 +99,46 @@ export function DeleteResidenceModal({
           </button>
           <button type="submit" className="btn btn-danger-solid" disabled={pending}>
             {t.deleteForever}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+/** Leaving a residence one was invited to, confirmed. `afterLeave` decides where to go next. */
+export function LeaveResidenceModal({
+  residence,
+  onClose,
+  afterLeave,
+}: {
+  residence: ResidenceDraft;
+  onClose: () => void;
+  afterLeave?: () => void;
+}) {
+  const { t } = useI18n();
+  const [onSubmit, pending] = useActionToast(leaveResidenceAction, () => {
+    onClose();
+    afterLeave?.();
+  });
+
+  return (
+    <Modal
+      title={interpolate(t.leaveTitle, { name: residence.name })}
+      size="confirm"
+      icon="logout"
+      tone="danger"
+      onClose={onClose}
+    >
+      <form onSubmit={onSubmit} className="flex flex-col gap-5">
+        <input type="hidden" name="residenceId" value={residence.id} />
+        <p className="text-[15px] leading-relaxed text-ink-2">{t.leaveText}</p>
+        <div className="modal-actions">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>
+            {t.cancel}
+          </button>
+          <button type="submit" className="btn btn-danger-solid" disabled={pending}>
+            {t.leave}
           </button>
         </div>
       </form>

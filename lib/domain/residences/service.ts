@@ -11,9 +11,11 @@ import * as assessmentsRepo from "@/lib/domain/assessments/repository";
 import type { Cycle } from "@/lib/domain/cycles/schema";
 import { CURRENCIES, isCurrencyCode } from "@/lib/currency";
 import { writeAuditLog } from "@/lib/audit/log";
+import { isResidenceOwner, residenceOwnerId } from "./owner";
 
 export type Result<T> =
-  { ok: true; data: T } | { ok: false; code: "VALIDATION_ERROR" | "NOT_FOUND" | "CURRENCY_PRECISION"; message: string };
+  | { ok: true; data: T }
+  | { ok: false; code: "VALIDATION_ERROR" | "NOT_FOUND" | "CURRENCY_PRECISION" | "OWNER_ONLY"; message: string };
 
 /**
  * Anyone signed in can create a residence; its creator becomes its
@@ -26,7 +28,7 @@ export async function createResidence(userId: string, rawInput: ResidenceInput):
     return { ok: false, code: "VALIDATION_ERROR", message: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
   const residence = await withTransaction(async (dbSession) => {
-    const created = await repo.insertResidence(parsed.data, dbSession);
+    const created = await repo.insertResidence(parsed.data, userId, dbSession);
     await membershipsRepo.insertMembership({ userId, residenceId: created.id, role: "SYNDIC_ADMIN" }, dbSession);
     return created;
   });
@@ -108,10 +110,13 @@ export async function setResidenceArchived(
   return { ok: true, data: residence };
 }
 
-/** Permanent: removes the residence and every document scoped to it, atomically. */
+/** Permanent: removes the residence and every document scoped to it, atomically. Its owner's alone. */
 export async function deleteResidence(session: AuthorizedSession, residenceId: string): Promise<Result<null>> {
   requireOrganization(session, residenceId);
   requirePermission(session, "*");
+  if (!(await isResidenceOwner(residenceId, session.userId))) {
+    return { ok: false, code: "OWNER_ONLY", message: "Only the owner can delete the residence" };
+  }
   const deleted = await withTransaction((dbSession) => repo.deleteResidenceCascade(residenceId, dbSession));
   if (!deleted) return { ok: false, code: "NOT_FOUND", message: "Residence not found" };
   return { ok: true, data: null };
@@ -120,6 +125,8 @@ export async function deleteResidence(session: AuthorizedSession, residenceId: s
 export interface ResidenceCard extends Residence {
   /** The viewer's role in this residence. */
   role: Role;
+  /** Whether the viewer created it (owns it) — or was invited into it. */
+  isOwner: boolean;
   lotCount: number;
   blocCount: number;
   /** The OPEN cycle, else the most recent one; null when the residence has no cycle yet. */
@@ -138,10 +145,11 @@ export async function listResidenceCards(userId: string): Promise<ResidenceCard[
 
   return Promise.all(
     residences.map(async (residence): Promise<ResidenceCard> => {
-      const [lots, blocs, cycles] = await Promise.all([
+      const [lots, blocs, cycles, ownerId] = await Promise.all([
         lotsRepo.listLots(residence.id, { status: "ACTIVE" }),
         buildingsRepo.listBuildings(residence.id),
         cyclesRepo.listCycles(residence.id),
+        residenceOwnerId(residence),
       ]);
       const current = cycles.find((c) => c.status === "OPEN") ?? cycles[0] ?? null;
       let collectionRate: number | null = null;
@@ -156,6 +164,7 @@ export async function listResidenceCards(userId: string): Promise<ResidenceCard[
       return {
         ...residence,
         role: roleOf.get(residence.id) ?? "VIEWER",
+        isOwner: ownerId === userId,
         lotCount: lots.length,
         blocCount: blocs.length,
         currentCycle: current ? { id: current.id, name: current.name, status: current.status } : null,

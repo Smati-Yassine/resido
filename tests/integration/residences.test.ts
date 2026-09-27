@@ -79,7 +79,11 @@ describe("residences", () => {
 describe("users", () => {
   it("registers once per email and verifies the password", async () => {
     unwrap(await users.registerUser({ name: "Test User", email: "Test.User@Example.tn", password: "longenough" }));
-    const duplicate = await users.registerUser({ name: "Other", email: "test.user@example.tn", password: "longenough" });
+    const duplicate = await users.registerUser({
+      name: "Other",
+      email: "test.user@example.tn",
+      password: "longenough",
+    });
     expect(duplicate).toMatchObject({ ok: false, code: "EMAIL_TAKEN" });
 
     expect(await users.verifyCredentials({ email: "test.user@example.tn", password: "longenough" })).toMatchObject({
@@ -105,7 +109,9 @@ describe("residence URLs (slugs)", () => {
   it("changes the slug on rename and keeps the old one resolving (to redirect)", async () => {
     const userId = newUserId();
     const r = unwrap(await residences.createResidence(userId, { name: "Les Oliviers", city: "" }));
-    const renamed = unwrap(await residences.updateResidence(adminSession(r.id, userId), r.id, { name: "Les Palmiers" }));
+    const renamed = unwrap(
+      await residences.updateResidence(adminSession(r.id, userId), r.id, { name: "Les Palmiers" }),
+    );
     expect(renamed.slug).toBe("les-palmiers");
 
     expect(await findResidenceByKey("les-palmiers")).toMatchObject({ canonical: true, residence: { id: r.id } });

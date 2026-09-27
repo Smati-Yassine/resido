@@ -1,12 +1,19 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { interpolate } from "@/lib/i18n/dictionaries";
+import { interpolate, type Dictionary } from "@/lib/i18n/dictionaries";
 import { getDictionary } from "@/lib/i18n/server";
 import { requireResidenceSession } from "@/lib/session";
 import * as members from "@/lib/domain/members/service";
 import type { ActionResult } from "@/lib/action-result";
 import { field, guarded } from "./errors";
+
+/** What to tell the user when the owner rules refuse a change. */
+function memberError(t: Dictionary, code: string) {
+  if (code === "OWNER_ONLY") return t.errOwnerOnly;
+  if (code === "OWNER_STAYS") return t.errOwnerStays;
+  return t.errGeneric;
+}
 
 function refresh() {
   revalidatePath("/residences/[residenceId]", "layout");
@@ -23,6 +30,7 @@ export async function addMemberAction(_: ActionResult | null, formData: FormData
     const result = await members.addMember(session, residenceId, { email, role });
     if (!result.ok) {
       if (result.code === "ALREADY_MEMBER") return { ok: false, message: interpolate(t.errAlreadyMember, { email }) };
+      if (result.code === "OWNER_ONLY") return { ok: false, message: t.errOwnerOnly };
       return { ok: false, message: t.errMemberEmail };
     }
     refresh();
@@ -46,7 +54,7 @@ export async function changeRoleAction(
   const { t } = await getDictionary();
   return guarded(t, async () => {
     const result = await members.changeRole(session, residenceId, member.userId, role);
-    if (!result.ok) return { ok: false, message: result.code === "LAST_ADMIN" ? t.errLastAdmin : t.errGeneric };
+    if (!result.ok) return { ok: false, message: memberError(t, result.code) };
     refresh();
     const roleLabel = (t as Record<string, string>)[`role${result.data.role}`];
     return { ok: true, message: interpolate(t.memberRoleChanged, { name: member.name, role: roleLabel }) };
@@ -61,7 +69,7 @@ export async function removeMemberAction(_: ActionResult | null, formData: FormD
   const userId = field(formData, "userId");
   return guarded(t, async () => {
     const result = await members.removeMember(session, residenceId, userId);
-    if (!result.ok) return { ok: false, message: result.code === "LAST_ADMIN" ? t.errLastAdmin : t.errGeneric };
+    if (!result.ok) return { ok: false, message: memberError(t, result.code) };
     refresh();
     return {
       ok: true,
@@ -76,8 +84,21 @@ export async function cancelInvitationAction(residenceId: string, invitationId: 
   const { t } = await getDictionary();
   return guarded(t, async () => {
     const result = await members.cancelInvitation(session, residenceId, invitationId);
-    if (!result.ok) return { ok: false, message: t.errGeneric };
+    if (!result.ok) return { ok: false, message: memberError(t, result.code) };
     refresh();
     return { ok: true, message: t.invitationCancelled };
+  });
+}
+
+/** The signed-in user leaves a residence (refused for its creator). */
+export async function leaveResidenceAction(_: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  const residenceId = field(formData, "residenceId");
+  const session = await requireResidenceSession(residenceId);
+  const { t } = await getDictionary();
+  return guarded(t, async () => {
+    const result = await members.removeMember(session, residenceId, session.userId);
+    if (!result.ok) return { ok: false, message: memberError(t, result.code) };
+    refresh();
+    return { ok: true, message: t.leftResidence };
   });
 }

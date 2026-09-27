@@ -29,6 +29,7 @@ export default async function ResidencesPage() {
     currency: c.currency,
     role: c.role,
     isAdmin: c.role === "SYNDIC_ADMIN",
+    isOwner: c.isOwner,
   }));
 
   return (

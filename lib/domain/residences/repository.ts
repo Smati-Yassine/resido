@@ -17,6 +17,8 @@ interface ResidenceDoc {
   oldSlugs?: string[];
   status: ResidenceStatus;
   settings: { currency: string; timezone: string };
+  /** The user who created it (its owner); missing on residences created before it was recorded. */
+  ownerUserId?: ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,6 +31,7 @@ function toDomain(doc: ResidenceDoc): Residence {
     slug: doc.slug,
     status: doc.status,
     currency: isCurrencyCode(doc.settings?.currency) ? doc.settings.currency : DEFAULT_CURRENCY,
+    ownerUserId: doc.ownerUserId ? fromObjectId(doc.ownerUserId) : null,
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
   };
@@ -75,6 +78,7 @@ async function uniqueSlug(name: string, excludeId?: ObjectId): Promise<string> {
 
 export async function insertResidence(
   input: { name: string; city: string; currency?: CurrencyCode },
+  ownerUserId: string,
   session: ClientSession,
 ): Promise<Residence> {
   const doc: ResidenceDoc = {
@@ -84,10 +88,16 @@ export async function insertResidence(
     slug: await uniqueSlug(input.name),
     status: "ACTIVE",
     settings: { currency: input.currency ?? DEFAULT_CURRENCY, timezone: "Africa/Tunis" },
+    ownerUserId: toObjectId(ownerUserId),
     ...newTimestamps(),
   };
   await (await collection()).insertOne(doc, { session });
   return toDomain(doc);
+}
+
+/** Records who owns a residence. */
+export async function setOwner(id: string, userId: string): Promise<void> {
+  await (await collection()).updateOne({ _id: toObjectId(id) }, { $set: { ownerUserId: toObjectId(userId) } });
 }
 
 /**

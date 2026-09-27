@@ -74,6 +74,7 @@ export async function deleteResidenceAction(_: ActionResult | null, formData: Fo
   return guarded(t, async () => {
     const existing = await residences.getResidence(session, residenceId);
     const result = await residences.deleteResidence(session, residenceId);
+    if (!result.ok && result.code === "OWNER_ONLY") return { ok: false, message: t.errOwnerOnlyDelete };
     if (!result.ok || !existing.ok) return { ok: false, message: t.errGeneric };
     revalidatePath("/residences");
     return { ok: true, message: interpolate(t.residenceDeleted, { name: existing.data.name }) };

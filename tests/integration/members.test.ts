@@ -42,17 +42,42 @@ describe("members", () => {
     expect(unwrap(await members.listMembers(session, residence.id)).invitations).toEqual([]);
   });
 
-  it("never leaves a residence without an admin", async () => {
+  it("keeps admins the owner's to appoint, and the owner in the residence", async () => {
     const { session, residence, userId } = await residenceWithOpenCycle();
-    expect(await members.changeRole(session, residence.id, userId, "VIEWER")).toMatchObject({
-      ok: false,
-      code: "LAST_ADMIN",
-    });
-    expect(await members.removeMember(session, residence.id, userId)).toMatchObject({ ok: false, code: "LAST_ADMIN" });
+    // The owner cannot leave or lose their role.
+    expect(await members.changeRole(session, residence.id, userId, "VIEWER")).toMatchObject({ code: "OWNER_STAYS" });
+    expect(await members.removeMember(session, residence.id, userId)).toMatchObject({ code: "OWNER_STAYS" });
 
-    const colleague = await register("Second admin");
-    unwrap(await members.addMember(session, residence.id, { email: colleague.email, role: "SYNDIC_ADMIN" }));
-    unwrap(await members.changeRole(session, residence.id, userId, "VIEWER"));
+    // The owner appoints an admin…
+    const admin = await register("Admin");
+    unwrap(await members.addMember(session, residence.id, { email: admin.email, role: "SYNDIC_ADMIN" }));
+    const adminSession = { ...session, userId: admin.id };
+    // …who adds accountants and read-only members, but no admin.
+    const second = await register("Second");
+    expect(
+      await members.addMember(adminSession, residence.id, { email: second.email, role: "SYNDIC_ADMIN" }),
+    ).toMatchObject({ code: "OWNER_ONLY" });
+    unwrap(await members.addMember(adminSession, residence.id, { email: second.email, role: "ACCOUNTANT" }));
+    unwrap(await members.changeRole(adminSession, residence.id, second.id, "VIEWER"));
+    expect(await members.changeRole(adminSession, residence.id, second.id, "SYNDIC_ADMIN")).toMatchObject({
+      code: "OWNER_ONLY",
+    });
+    // An admin cannot touch the owner or another admin; the owner can.
+    expect(await members.changeRole(adminSession, residence.id, userId, "VIEWER")).toMatchObject({
+      code: "OWNER_STAYS",
+    });
+    unwrap(await members.changeRole(session, residence.id, second.id, "SYNDIC_ADMIN"));
+    expect(await members.removeMember(adminSession, residence.id, second.id)).toMatchObject({ code: "OWNER_ONLY" });
+    unwrap(await members.changeRole(session, residence.id, second.id, "VIEWER"));
+    unwrap(await members.removeMember(adminSession, residence.id, second.id));
+
+    // Only the owner deletes the residence; an admin can leave it.
+    expect(await residences.deleteResidence(adminSession, residence.id)).toMatchObject({ code: "OWNER_ONLY" });
+    const flags = async (id: string) => (await residences.listResidenceCards(id)).map((c) => c.isOwner);
+    expect(await flags(userId)).toEqual([true]);
+    expect(await flags(admin.id)).toEqual([false]);
+    unwrap(await members.removeMember(adminSession, residence.id, admin.id));
+    expect(unwrap(await members.listMembers(session, residence.id)).members.map((m) => m.isOwner)).toEqual([true]);
   });
 
   it("lets non-admins view and leave, but not manage", async () => {
@@ -89,6 +114,8 @@ describe("members", () => {
 
     unwrap(await account.deleteAccount(owner.id, "long-password"));
     expect(await findMembership(helper.id, residence.id)).toMatchObject({ role: "SYNDIC_ADMIN" });
+    // …and the residence with it: the helper is its owner now.
+    expect((await residences.listResidenceCards(helper.id)).map((c) => c.isOwner)).toEqual([true]);
   });
 
   it("records member changes in the activity log", async () => {

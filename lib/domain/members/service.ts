@@ -7,11 +7,18 @@ import { writeAuditLog } from "@/lib/audit/log";
 import * as memberships from "@/lib/domain/memberships/repository";
 import * as invitations from "@/lib/domain/memberships/invitations";
 import * as users from "@/lib/domain/users/service";
+import { findResidenceById } from "@/lib/domain/residences/repository";
+import { residenceOwnerId } from "@/lib/domain/residences/owner";
 
 /**
  * Sharing a residence. An admin adds people by email with a role; an email
  * without an account becomes a pending invitation, claimed automatically at
- * sign-up. A residence always keeps at least one admin.
+ * sign-up.
+ *
+ * The residence's owner (its creator) is the only one who can make someone
+ * an administrator, or change or remove an administrator; other admins
+ * manage accountants and read-only members. The owner stays: they cannot
+ * leave, be removed or lose their role — they can delete the residence.
  */
 export const SHAREABLE_ROLES = ["SYNDIC_ADMIN", "ACCOUNTANT", "VIEWER"] as const satisfies readonly Role[];
 export type ShareableRole = (typeof SHAREABLE_ROLES)[number];
@@ -25,7 +32,7 @@ export type Result<T> =
   | { ok: true; data: T }
   | {
       ok: false;
-      code: "VALIDATION_ERROR" | "ALREADY_MEMBER" | "LAST_ADMIN" | "NOT_FOUND";
+      code: "VALIDATION_ERROR" | "ALREADY_MEMBER" | "OWNER_ONLY" | "OWNER_STAYS" | "NOT_FOUND";
       message: string;
     };
 
@@ -35,6 +42,8 @@ export interface MemberView {
   email: string;
   role: Role;
   since: Date;
+  /** The residence's owner (its creator). */
+  isOwner: boolean;
 }
 
 export interface MembersOverview {
@@ -45,7 +54,7 @@ export interface MembersOverview {
 export async function listMembers(session: AuthorizedSession, residenceId: string): Promise<Result<MembersOverview>> {
   requireOrganization(session, residenceId);
   requirePermission(session, "cycles:read");
-  const rows = await memberships.listMembers(residenceId);
+  const [rows, ownerId] = await Promise.all([memberships.listMembers(residenceId), ownerOf(residenceId)]);
   const people = new Map((await users.findUsersByIds(rows.map((r) => r.userId))).map((u) => [u.id, u]));
   return {
     ok: true,
@@ -56,6 +65,7 @@ export async function listMembers(session: AuthorizedSession, residenceId: strin
         email: people.get(r.userId)?.email ?? "",
         role: r.role,
         since: r.since,
+        isOwner: r.userId === ownerId,
       })),
       invitations: await invitations.listInvitationsForResidence(residenceId),
     },
@@ -73,6 +83,7 @@ export async function addMember(
   const parsed = addMemberSchema.safeParse(rawInput);
   if (!parsed.success) return { ok: false, code: "VALIDATION_ERROR", message: "Invalid email or role" };
   const { email, role } = parsed.data;
+  if (role === "SYNDIC_ADMIN" && (await ownerOf(residenceId)) !== session.userId) return ownerOnly();
 
   const user = await users.findUserByEmail(email);
   if (!user) {
@@ -107,10 +118,17 @@ export async function addMember(
   return { ok: true, data: { kind: "added", email } };
 }
 
-async function isLastAdmin(residenceId: string, userId: string): Promise<boolean> {
-  const admins = (await memberships.listMembers(residenceId)).filter((m) => m.role === "SYNDIC_ADMIN");
-  return admins.length === 1 && admins[0].userId === userId;
+async function ownerOf(residenceId: string): Promise<string | null> {
+  const residence = await findResidenceById(residenceId);
+  return residence ? residenceOwnerId(residence) : null;
 }
+
+const ownerOnly = () => ({ ok: false as const, code: "OWNER_ONLY" as const, message: "Only the owner can do this" });
+const ownerStays = () => ({
+  ok: false as const,
+  code: "OWNER_STAYS" as const,
+  message: "The owner stays in the residence",
+});
 
 export async function changeRole(
   session: AuthorizedSession,
@@ -122,8 +140,12 @@ export async function changeRole(
   requirePermission(session, "*");
   const parsed = z.enum(SHAREABLE_ROLES).safeParse(role);
   if (!parsed.success) return { ok: false, code: "VALIDATION_ERROR", message: "Invalid role" };
-  if (parsed.data !== "SYNDIC_ADMIN" && (await isLastAdmin(residenceId, userId))) {
-    return { ok: false, code: "LAST_ADMIN", message: "A residence needs at least one admin" };
+  const [ownerId, target] = await Promise.all([ownerOf(residenceId), memberships.findMembership(userId, residenceId)]);
+  if (!target) return { ok: false, code: "NOT_FOUND", message: "Member not found" };
+  if (userId === ownerId) return ownerStays();
+  // Making someone an admin, or touching an admin, is the owner's alone.
+  if ((parsed.data === "SYNDIC_ADMIN" || target.role === "SYNDIC_ADMIN") && session.userId !== ownerId) {
+    return ownerOnly();
   }
   if (!(await memberships.setMemberRole(userId, residenceId, parsed.data))) {
     return { ok: false, code: "NOT_FOUND", message: "Member not found" };
@@ -139,7 +161,7 @@ export async function changeRole(
   return { ok: true, data: { role: parsed.data } };
 }
 
-/** An admin removes someone, or any member removes themselves (leaves). */
+/** An admin removes someone (only the owner removes an admin), or a member leaves — except the owner. */
 export async function removeMember(
   session: AuthorizedSession,
   residenceId: string,
@@ -147,11 +169,10 @@ export async function removeMember(
 ): Promise<Result<null>> {
   requireOrganization(session, residenceId);
   if (userId !== session.userId) requirePermission(session, "*");
-  if (await isLastAdmin(residenceId, userId)) {
-    return { ok: false, code: "LAST_ADMIN", message: "A residence needs at least one admin" };
-  }
-  if (!(await memberships.findMembership(userId, residenceId)))
-    return { ok: false, code: "NOT_FOUND", message: "Member not found" };
+  const [ownerId, target] = await Promise.all([ownerOf(residenceId), memberships.findMembership(userId, residenceId)]);
+  if (!target) return { ok: false, code: "NOT_FOUND", message: "Member not found" };
+  if (userId === ownerId) return ownerStays();
+  if (userId !== session.userId && target.role === "SYNDIC_ADMIN" && session.userId !== ownerId) return ownerOnly();
   await withTransaction(async (dbSession) => {
     await memberships.deleteMembership(userId, residenceId, dbSession);
     await writeAuditLog(
@@ -176,6 +197,9 @@ export async function cancelInvitation(
 ): Promise<Result<null>> {
   requireOrganization(session, residenceId);
   requirePermission(session, "*");
+  const invitation = (await invitations.listInvitationsForResidence(residenceId)).find((i) => i.id === invitationId);
+  if (!invitation) return { ok: false, code: "NOT_FOUND", message: "Invitation not found" };
+  if (invitation.role === "SYNDIC_ADMIN" && (await ownerOf(residenceId)) !== session.userId) return ownerOnly();
   if (!(await invitations.deleteInvitation(residenceId, invitationId))) {
     return { ok: false, code: "NOT_FOUND", message: "Invitation not found" };
   }
