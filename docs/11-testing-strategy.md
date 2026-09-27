@@ -50,6 +50,30 @@ not mocked:
 
 ## End-to-end tests (`tests/e2e`, Playwright)
 
+**In place.** `npm run test:e2e` (against `next dev`) or `npm run test:e2e:prod`
+(against a production build, as CI does). `tests/e2e/serve.mjs` starts a
+fresh in-memory MongoDB, seeds the demo residence (`scripts/seed.ts`) and
+runs the app on it — a real database is never touched. Chromium, on a
+desktop and on a phone (Pixel 7); the tests share the database, so they run
+one at a time. Covered today:
+
+- `auth` — private pages, wrong password, sign-up, sign-in.
+- `residence-lifecycle` — create a residence, a bloc and a lot, create and
+  open a cycle, collect a payment, record an expense, check the treasury and
+  the report PDF, close and reopen the cycle.
+- `payments` — a partial payment recorded, corrected, deleted; an expense
+  recorded and deleted.
+- `access` — a read-only member sees everything and can change nothing; a
+  residence (and its PDFs) is out of reach for anyone not a member.
+- `mobile` (phone) — every page fits the width; the tab bar; modals and
+  menus as sheets; the offline screen; print through the share menu; the
+  install card.
+
+Still to cover from the plan below: multi-lot allocation, owners, the
+remaining roles, each export type once Phase 8 lands.
+
+The original plan:
+
 The full flow from §36 of the brief, run against a seeded test database:
 
 ```
@@ -73,6 +97,10 @@ proposition per §49 of the brief. UI-only components are tested more lightly
 (rendering + key interactions), not for exhaustive visual coverage.
 
 ## CI
+
+`.github/workflows/ci.yml`: lint, types, unit and integration tests, then the
+end-to-end suite on a production build, on every push to `main` and every
+pull request. The plan as first written:
 
 Unit + integration tests run on every push (integration tests against
 `mongodb-memory-server`, no external dependency needed in CI). E2E runs on

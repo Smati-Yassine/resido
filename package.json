@@ -9,6 +9,8 @@
     "lint": "eslint",
     "test": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
+    "test:e2e": "playwright test",
+    "test:e2e:prod": "next build && E2E_PROD=1 playwright test",
     "test:watch": "vitest",
     "seed": "tsx scripts/seed.ts",
     "ensure-indexes": "tsx scripts/ensure-indexes.ts",
@@ -27,6 +29,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^24.13.6",

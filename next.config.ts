@@ -12,6 +12,8 @@ const deploymentId =
 
 const nextConfig: NextConfig = {
   deploymentId,
+  // The dev badge sits on the phone's tab bar: none in the end-to-end tests (tests/e2e/serve.mjs).
+  ...(process.env.E2E_PORT ? { devIndicators: false as const } : {}),
   // The same id, built into the code on both sides: the page knows its version.
   env: { RESIDO_BUILD: deploymentId ?? "" },
   // The PDF documents read their fonts from disk at runtime; ship them with that route.

@@ -305,13 +305,15 @@ export function CycleMenu({
     };
   }, [at]);
 
+  // An item that submits `form` does it itself, before closing the menu: as a
+  // plain submit button, it would be gone before the browser submitted.
   const item = (label: string, onClick: () => void, danger = false, form?: string) => (
     <button
-      type={form ? "submit" : "button"}
-      form={form}
+      type="button"
       className={`menu-item h-10 py-0 text-sm ${danger ? "text-danger" : ""}`}
       role="menuitem"
       onClick={() => {
+        if (form) (document.getElementById(form) as HTMLFormElement | null)?.requestSubmit();
         onClick();
         setAt(null);
       }}

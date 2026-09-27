@@ -334,7 +334,7 @@ export function PaymentModal({
                   <div
                     className={`grid items-center gap-3.5 rounded-xl border px-3.5 py-2.5 ${
                       on
-                        ? "grid-cols-[28px_1fr_110px_180px] border-primary bg-primary-tint"
+                        ? "grid-cols-[28px_1fr_110px] border-primary bg-primary-tint sm:grid-cols-[28px_1fr_110px_180px]"
                         : "grid-cols-[28px_1fr_110px] border-line"
                     }`}
                   >
@@ -359,7 +359,8 @@ export function PaymentModal({
                       <span className="num text-sm font-bold">{formatMoney(lot.remainingMillimes, currency)}</span>
                     </span>
                     {on && (
-                      <span className="flex flex-col gap-1">
+                      // On a phone the amount takes its own line under the lot.
+                      <span className="col-span-full flex flex-col gap-1 sm:col-auto">
                         <span className="input-group input-group-sm">
                           <input
                             type="text"
