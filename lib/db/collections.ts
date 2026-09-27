@@ -13,6 +13,7 @@ export const COLLECTIONS = {
   payments: "payments",
   expenses: "expenses",
   auditLogs: "auditLogs",
+  loginFailures: "loginFailures",
 } as const;
 
 interface IndexDef {
@@ -73,6 +74,11 @@ const INDEXES: Record<string, IndexDef[]> = {
   [COLLECTIONS.auditLogs]: [
     { key: { organizationId: 1, createdAt: -1 } },
     { key: { organizationId: 1, entityType: 1, entityId: 1 } },
+  ],
+  // Failed sign-ins (lib/auth/rate-limit.ts): counted by key, gone after the window.
+  [COLLECTIONS.loginFailures]: [
+    { key: { key: 1, at: -1 } },
+    { key: { at: 1 }, options: { expireAfterSeconds: 15 * 60 } },
   ],
 };
 

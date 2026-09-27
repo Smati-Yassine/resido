@@ -29,9 +29,21 @@ const nextConfig: NextConfig = {
     // once it is back, instead of failing; the app says it is offline meanwhile.
     useOffline: true,
   },
-  // The service worker is always fetched fresh, so a new version reaches every installed app.
   async headers() {
     return [
+      // Every response: no framing by another site (clickjacking), types as
+      // declared, no full URLs leaked to other sites, no camera/mic/location.
+      {
+        source: "/:path*",
+        headers: [
+          { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+        ],
+      },
+      // The service worker is always fetched fresh, so a new version reaches every installed app.
       {
         source: "/sw.js",
         headers: [

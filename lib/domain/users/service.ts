@@ -38,6 +38,9 @@ export interface User {
 // about 300 ms, more on serverless CPUs. Hashes carry their own cost, so
 // passwords saved at 12 still verify.
 const BCRYPT_COST = 10;
+// Compared against when the email has no account, so an unknown email takes
+// as long to refuse as a wrong password: timing does not reveal who has an account.
+const NO_ACCOUNT_HASH = "$2b$10$wkvE6TVrgKEuWa0j7KjFnOKGzRADaTkqyPE21/zhmzldJyrUoth1q";
 
 const passwordSchema = z.string().min(8, "PASSWORD_TOO_SHORT").max(200);
 const normalizedEmailSchema = z.string().trim().toLowerCase().pipe(emailSchema);
@@ -105,9 +108,8 @@ export async function verifyCredentials(rawInput: unknown): Promise<User | null>
   const parsed = credentialsSchema.safeParse(rawInput);
   if (!parsed.success) return null;
   const doc = await (await collection()).findOne({ email: parsed.data.email, status: "ACTIVE" });
-  if (!doc?.passwordHash) return null;
-  const valid = await bcrypt.compare(parsed.data.password, doc.passwordHash);
-  return valid ? toDomain(doc) : null;
+  const valid = await bcrypt.compare(parsed.data.password, doc?.passwordHash ?? NO_ACCOUNT_HASH);
+  return valid && doc?.passwordHash ? toDomain(doc) : null;
 }
 
 export async function findUserById(userId: string): Promise<User | null> {

@@ -1,6 +1,6 @@
 "use server";
 
-import { AuthError } from "next-auth";
+import { AuthError, CredentialsSignin } from "next-auth";
 import { signIn } from "@/auth";
 import { registerUser } from "@/lib/domain/users/service";
 import { claimInvitations } from "@/lib/domain/members/service";
@@ -16,6 +16,9 @@ export async function loginAction(_: ActionResult | null, formData: FormData): P
       redirect: false,
     });
   } catch (error) {
+    if (error instanceof CredentialsSignin && error.code === "too_many_attempts") {
+      return { ok: false, message: t.errTooManyAttempts };
+    }
     if (error instanceof AuthError) return { ok: false, message: t.errInvalidCredentials };
     throw error;
   }

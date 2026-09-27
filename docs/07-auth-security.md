@@ -114,3 +114,54 @@ the application API.
 - Secrets (`MONGODB_URI`, `AUTH_SECRET`) managed via the hosting platform's
   secret manager (e.g. Vercel/hosting provider environment variables), never
   in source control.
+
+## Security review — 2026-09-27
+
+A pass over residence isolation and roles, ahead of real users.
+
+**Holds up:**
+
+- Every residence page, PDF and Excel export goes through
+  `requireResidenceSession`: a residence the user is not a member of is a 404,
+  indistinguishable from one that does not exist.
+- Every server action derives its session from the residence named in the
+  form, then the domain service checks the role (`requirePermission`) and the
+  residence (`requireOrganization`).
+- Every query and write on residence data filters on the residence
+  (`organizationId`), so an id from another residence finds nothing. References
+  inside a write (a lot's bloc and owners, a payment's charges) are checked to
+  belong to the same residence; overpayment is checked against the database,
+  not the client's figure.
+- Members: only admins manage them; only the residence's creator makes or
+  touches an admin; the creator cannot be removed or demoted. Roles are
+  validated against a fixed list.
+- Destructive account actions ask for the password; only the creator deletes
+  a residence. No raw HTML rendering, no secrets exposed to the browser;
+  passwords hashed with bcrypt; Next.js checks server actions' origin.
+
+**Fixed in this pass:**
+
+- Sign-in throttling (`lib/auth/rate-limit.ts`): 5 failures per email from one
+  address, 30 per address, over 15 minutes, stored in MongoDB (serverless
+  instances share no memory). Enforced in the credentials `authorize`, so the
+  auth API cannot bypass it. Never per email alone, which would let anyone lock
+  an account. Needs `npm run ensure-indexes` for its expiry index.
+- An unknown email and a wrong password now take the same time to refuse.
+- Security headers on every response: no framing by other sites
+  (`frame-ancestors 'none'`, `X-Frame-Options`), `nosniff`, a referrer policy,
+  camera / microphone / location off.
+- Found by the end-to-end tests: the cycle menu's Open and Reopen did nothing
+  (not a security issue, but a silent failure).
+
+**Open — needs a product decision:**
+
+- **Invitations are claimed by unverified email.** A pending invitation is
+  granted to whoever signs up with that address, and sign-up does not check
+  the address belongs to them. Someone who knows an invited email can register
+  it first and get the residence. Options: verify email at sign-up (needs an
+  email provider); or invitations as secret links the admin shares (WhatsApp,
+  SMS) — no email needed; or an admin confirms each claimed invitation.
+- A full script Content-Security-Policy (with nonces through Next's inline
+  scripts) — worth doing, but carefully, as a wrong policy breaks the app.
+- Sign-up says when an email already has an account (account enumeration);
+  common and accepted for now.
