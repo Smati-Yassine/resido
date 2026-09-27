@@ -4,6 +4,33 @@ import { SiteFooter } from "@/components/public/SiteFooter";
 import { PublicPreferences } from "@/components/public/PublicPreferences";
 import { Icon } from "@/components/ui/Icon";
 import { InstallPrompt } from "@/components/ui/InstallPrompt";
+import type { Metadata } from "next";
+import { HOME_DESCRIPTION, HOME_TITLE, SITE_NAME, SITE_URL } from "@/lib/site";
+
+export const metadata: Metadata = {
+  title: { absolute: HOME_TITLE },
+  description: HOME_DESCRIPTION,
+  alternates: { canonical: "/" },
+};
+
+/** What Résido is, for search engines (schema.org): the site, and the application it offers. */
+const STRUCTURED_DATA = {
+  "@context": "https://schema.org",
+  "@graph": [
+    { "@type": "WebSite", "@id": `${SITE_URL}/#website`, url: `${SITE_URL}/`, name: SITE_NAME, inLanguage: "fr" },
+    {
+      "@type": "SoftwareApplication",
+      name: SITE_NAME,
+      url: `${SITE_URL}/`,
+      description: HOME_DESCRIPTION,
+      applicationCategory: "BusinessApplication",
+      applicationSubCategory: "Logiciel de gestion de copropriété",
+      operatingSystem: "Web, iOS, Android",
+      inLanguage: ["fr", "en"],
+      image: `${SITE_URL}/icons/icon-512.png`,
+    },
+  ],
+};
 
 /**
  * Home for signed-out visitors, on one screen. Left: what Résido is, in a
@@ -17,6 +44,11 @@ export default async function PublicHomePage() {
 
   return (
     <div className="landing">
+      <script
+        type="application/ld+json"
+        // Our own constant, escaped anyway as the Next.js guide advises.
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(STRUCTURED_DATA).replace(/</g, "\\u003c") }}
+      />
       <div className="landing-main">
         <section className="landing-hero">
           <svg viewBox="0 0 560 460" fill="none" aria-hidden="true" className="landing-arches">
@@ -83,6 +115,22 @@ export default async function PublicHomePage() {
               <AuthPanel />
             </div>
             <InstallPrompt className="mx-auto w-full max-w-[440px]" />
+            {/* Phones hide the presentation panel: what Résido is, said here in short. */}
+            <section className="landing-intro lg:hidden" aria-label={t.landingEyebrow}>
+              <span className="eyebrow">{t.landingEyebrow}</span>
+              <p className="landing-intro-title">{t.tagline}</p>
+              <p className="text-[15px] leading-relaxed text-muted">{t.taglineText}</p>
+              <ul className="flex flex-col gap-2">
+                {[t.perk1, t.perk2, t.perk3].map((perk) => (
+                  <li key={perk} className="flex items-center gap-2.5 text-sm font-semibold">
+                    <span className="text-olive">
+                      <Icon name="check" size={15} strokeWidth={2.6} />
+                    </span>
+                    {perk}
+                  </li>
+                ))}
+              </ul>
+            </section>
             <p className="hidden items-center justify-center gap-2 text-center text-[13px] text-muted sm:flex">
               <Icon name="lock" size={15} />
               {t.authNote}

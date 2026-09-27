@@ -6,7 +6,7 @@ import { LegalPage } from "@/components/public/LegalPage";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getDictionary();
-  return { title: `${t.terms} · Résido` };
+  return { title: t.terms, description: t.metaTermsDescription, alternates: { canonical: "/terms" } };
 }
 
 export default async function TermsPage() {

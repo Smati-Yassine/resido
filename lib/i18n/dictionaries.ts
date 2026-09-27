@@ -6,9 +6,9 @@
  */
 const fr = {
   // Brand & auth
-  tagline: "La gestion de syndic, sans tableur.",
+  tagline: "La gestion de copropriété, sans tableur.",
   taglineText:
-    "Charges, encaissements, dépenses et trésorerie de chaque résidence, cycle par cycle. Les chiffres viennent des opérations, jamais d'une cellule tapée à la main.",
+    "Charges, encaissements, dépenses et trésorerie de chaque copropriété, cycle par cycle. Les chiffres viennent des opérations, jamais d'une cellule tapée à la main.",
   perk1: "Au millime près",
   perk2: "Paiements partiels suivis",
   perk3: "Cycles sur mesure",
@@ -170,6 +170,11 @@ const fr = {
   // Public pages
   privacy: "Confidentialité",
   terms: "Conditions d'utilisation",
+  metaPrivacyTitle: "Politique de confidentialité",
+  metaPrivacyDescription:
+    "Comment Résido, logiciel de gestion de copropriété, protège les données des syndics et des copropriétaires : ce qui est collecté, pourquoi, et vos droits.",
+  metaTermsDescription:
+    "Les conditions d'utilisation de Résido, logiciel de gestion de copropriété en ligne pour syndics : compte, données, responsabilités.",
   contact: "Contact",
   portfolio: "Portfolio",
   lastUpdated: "Dernière mise à jour : {date}",
@@ -327,7 +332,7 @@ const fr = {
   haveAccount: "Déjà un compte ?",
   showPassword: "Afficher le mot de passe",
   hidePassword: "Masquer le mot de passe",
-  landingEyebrow: "Gestion de copropriété",
+  landingEyebrow: "Logiciel de syndic",
   authNote: "Vos données restent les vôtres : export Excel complet à tout moment.",
   greeting: "Bonjour, {name}",
   residencesIntro: "Vos résidences, en un coup d'œil.",
@@ -875,6 +880,11 @@ const en: Dictionary = {
 
   privacy: "Privacy",
   terms: "Terms of use",
+  metaPrivacyTitle: "Privacy policy",
+  metaPrivacyDescription:
+    "How Résido, condominium management software, protects the data of syndics and co-owners: what is collected, why, and your rights.",
+  metaTermsDescription:
+    "Résido's terms of use, online condominium management software for syndics: account, data, responsibilities.",
   contact: "Contact",
   portfolio: "Portfolio",
   lastUpdated: "Last updated: {date}",
@@ -1030,7 +1040,7 @@ const en: Dictionary = {
   haveAccount: "Already have an account?",
   showPassword: "Show password",
   hidePassword: "Hide password",
-  landingEyebrow: "Condominium management",
+  landingEyebrow: "Software for syndics",
   authNote: "Your data stays yours: a full Excel export at any time.",
   greeting: "Hello, {name}",
   residencesIntro: "Your residences at a glance.",

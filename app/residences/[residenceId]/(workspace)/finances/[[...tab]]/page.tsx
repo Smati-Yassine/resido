@@ -1,5 +1,6 @@
+import type { Metadata } from "next";
 import Link from "next/link";
-import { loadWorkspace, lotRowsFor, tabFromPath } from "@/lib/workspace";
+import { loadWorkspace, lotRowsFor, tabFromPath, loadResidence } from "@/lib/workspace";
 import { getDictionary } from "@/lib/i18n/server";
 import { cycleRange } from "@/lib/cycle-view";
 import { paymentLots } from "@/lib/lot-rows";
@@ -21,6 +22,16 @@ import { exportHrefs } from "@/lib/export/docs";
 
 const TABS = ["overview", "payments", "expenses"] as const;
 type Tab = (typeof TABS)[number];
+
+/** The tab's title: the page, then the residence ("Encaissements — Résidence Démo · Résido"). */
+export async function generateMetadata({
+  params,
+}: PageProps<"/residences/[residenceId]/finances/[[...tab]]">): Promise<Metadata> {
+  const { residenceId: key, tab } = await params;
+  const [{ residence }, { t }] = await Promise.all([loadResidence(key), getDictionary()]);
+  const label = ({ payments: t.payments, expenses: t.expenses } as Record<string, string>)[tab?.[0] ?? ""] ?? t.finances;
+  return { title: `${label} — ${residence.name}` };
+}
 
 /**
  * Payments, expenses and the treasury they add up to, on one page: the

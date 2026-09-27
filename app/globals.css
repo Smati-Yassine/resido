@@ -1488,6 +1488,24 @@
       padding: 24px 32px;
     }
   }
+  /* Phones and tablets, under the sign-in card: what Résido is (the desktop's left panel, in short). */
+  .landing-intro {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    max-width: 440px;
+    margin: 8px auto 0;
+    padding: 4px 4px 12px;
+  }
+  .landing-intro-title {
+    font-family: var(--font-display);
+    font-size: 26px;
+    font-weight: 500;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+  }
   /* An input with an icon on its left, and an optional button on its right (show password). */
   .icon-field {
     position: relative;

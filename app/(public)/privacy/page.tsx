@@ -6,7 +6,7 @@ import { LegalPage } from "@/components/public/LegalPage";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getDictionary();
-  return { title: `${t.privacy} · Résido` };
+  return { title: t.metaPrivacyTitle, description: t.metaPrivacyDescription, alternates: { canonical: "/privacy" } };
 }
 
 export default async function PrivacyPage() {

@@ -8,7 +8,7 @@ import { InstallPrompt } from "@/components/ui/InstallPrompt";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getDictionary();
-  return { title: `${t.yourResidences} · Résido` };
+  return { title: t.yourResidences };
 }
 
 /** "Mes résidences": every residence the user belongs to — create, edit, archive, delete or open one. */

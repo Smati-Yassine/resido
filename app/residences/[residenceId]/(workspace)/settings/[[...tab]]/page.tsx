@@ -1,11 +1,22 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { loadWorkspace, tabFromPath } from "@/lib/workspace";
+import { loadResidence, loadWorkspace, tabFromPath } from "@/lib/workspace";
 import { getDictionary } from "@/lib/i18n/server";
 import { loadResidenceSettings, SETTINGS_TABS, type SettingsTab } from "@/lib/settings/residence-settings";
 import { PageHeader } from "@/components/ui/Display";
 import { NewCycleButton } from "@/components/workspace/CycleControls";
 import { ResidenceSettingsView } from "@/components/settings/ResidenceSettingsView";
+
+/** The tab's title: the page, then the residence ("Encaissements — Résidence Démo · Résido"). */
+export async function generateMetadata({
+  params,
+}: PageProps<"/residences/[residenceId]/settings/[[...tab]]">): Promise<Metadata> {
+  const { residenceId: key, tab } = await params;
+  const [{ residence }, { t }] = await Promise.all([loadResidence(key), getDictionary()]);
+  const label = ({ cycles: t.cycles, members: t.members, journal: t.journal } as Record<string, string>)[tab?.[0] ?? ""] ?? t.settings;
+  return { title: `${label} — ${residence.name}` };
+}
 
 /**
  * Residence settings, laid out like Finances: the header, then one tab per

@@ -32,6 +32,24 @@ out of trouble. Hosting is Vercel (`vercel.json`), the database MongoDB Atlas.
    delete a test payment in a test residence, print a PDF, download an Excel
    export, install on a phone (checklist in [Phones](#phones)).
 
+## Search engines (Google Search Console)
+
+The public pages (`/`, `/privacy`, `/terms`) are written for "gestion de
+copropriété" (`lib/site.ts`); everything under `/residences` is `noindex` and
+disallowed in `robots.txt`.
+
+1. Search Console → Add property → **URL prefix** →
+   `https://residooo.vercel.app/` (a `vercel.app` address cannot use the
+   domain / DNS method).
+2. Verification → **HTML tag**: copy only the `content` value, set it as
+   `GOOGLE_SITE_VERIFICATION` in Vercel (Production), redeploy, then click
+   Verify.
+3. Sitemaps → submit `sitemap.xml`.
+4. URL inspection → `/` → Request indexing.
+5. On a custom domain later: set `SITE_URL` (e.g. `https://resido.tn`) in
+   Vercel and redeploy — canonical links, sitemap, robots.txt and the share
+   image follow; add the new domain as its own Search Console property.
+
 ## Every release
 
 1. CI green on `main` (`.github/workflows/ci.yml`: lint, types, unit,

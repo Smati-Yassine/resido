@@ -53,3 +53,6 @@ next-env.d.ts
 
 # reference spreadsheets with real owners' personal data — never publish
 /.temp/
+
+# Windows download metadata copied into WSL
+*:Zone.Identifier

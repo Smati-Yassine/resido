@@ -1,5 +1,6 @@
+import type { Metadata } from "next";
 import Link from "next/link";
-import { loadWorkspace, lotRowsFor, activeLotsFor } from "@/lib/workspace";
+import { loadWorkspace, lotRowsFor, activeLotsFor, loadResidence } from "@/lib/workspace";
 import { currencySymbol } from "@/lib/currency";
 import { getDictionary } from "@/lib/i18n/server";
 import { interpolate } from "@/lib/i18n/dictionaries";
@@ -23,6 +24,13 @@ import { ExportButton } from "@/components/print/ExportButton";
 import { exportHrefs } from "@/lib/export/docs";
 import { CollectionCurve, Delta, Donut, Gauge } from "@/components/dashboard/Charts";
 import * as buildings from "@/lib/domain/buildings/service";
+/** The tab's title: the page, then the residence ("Encaissements — Résidence Démo · Résido"). */
+export async function generateMetadata({ params }: PageProps<"/residences/[residenceId]">): Promise<Metadata> {
+  const { residenceId: key } = await params;
+  const [{ residence }, { t }] = await Promise.all([loadResidence(key), getDictionary()]);
+  return { title: `${t.dashboard} — ${residence.name}` };
+}
+
 export default async function DashboardPage({ params, searchParams }: PageProps<"/residences/[residenceId]">) {
   const { session, residenceId, residence, cycle, cycles, currency, can, base, href } = await loadWorkspace(
     params,

@@ -1,5 +1,6 @@
+import type { Metadata } from "next";
 import Link from "next/link";
-import { loadWorkspace, tabFromPath } from "@/lib/workspace";
+import { loadWorkspace, tabFromPath, loadResidence } from "@/lib/workspace";
 import { getDictionary } from "@/lib/i18n/server";
 import { interpolate } from "@/lib/i18n/dictionaries";
 import { formatMoney, percent } from "@/lib/format";
@@ -17,6 +18,16 @@ import { exportHrefs } from "@/lib/export/docs";
 
 const TABS = ["overview", "lots", "owners"] as const;
 type Tab = (typeof TABS)[number];
+
+/** The tab's title: the page, then the residence ("Encaissements — Résidence Démo · Résido"). */
+export async function generateMetadata({
+  params,
+}: PageProps<"/residences/[residenceId]/property/[[...tab]]">): Promise<Metadata> {
+  const { residenceId: key, tab } = await params;
+  const [{ residence }, { t }] = await Promise.all([loadResidence(key), getDictionary()]);
+  const label = ({ lots: t.lots, owners: t.owners } as Record<string, string>)[tab?.[0] ?? ""] ?? t.navProperty;
+  return { title: `${label} — ${residence.name}` };
+}
 
 /**
  * The residence's property, on one page like Finances: a strip of figures,

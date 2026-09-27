@@ -1,9 +1,15 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getSignedInUser } from "@/lib/session";
 import { getDictionary, getPreferences } from "@/lib/i18n/server";
 import { Icon } from "@/components/ui/Icon";
 import { PublicShell } from "@/components/public/PublicShell";
 import { AppHeader } from "@/components/shell/AppHeader";
+
+export const metadata: Metadata = {
+  title: "Page introuvable",
+  robots: { index: false, follow: true },
+};
 
 /**
  * One URL, two 404s: signed-in visitors stay inside the app frame and are

@@ -8,6 +8,6 @@ export default auth;
 export const config = {
   // Skip static assets (the installed app's too) and the auth API routes themselves.
   matcher: [
-    "/((?!api/auth|_next/static|_next/image|favicon.ico|icons/|sw.js|offline.html|manifest.webmanifest).*)",
+    "/((?!api/auth|_next/static|_next/image|favicon.ico|icons/|sw.js|offline.html|manifest.webmanifest|sitemap.xml|robots.txt|opengraph-image).*)",
   ],
 };

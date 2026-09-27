@@ -4,15 +4,31 @@ import { getDictionary, getPreferences } from "@/lib/i18n/server";
 import { I18nProvider } from "@/components/ui/I18nProvider";
 import { ToastProvider } from "@/components/ui/Toaster";
 import { AppRuntime } from "@/components/ui/AppRuntime";
+import { HOME_DESCRIPTION, HOME_TITLE, SITE_NAME, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 const fraunces = Fraunces({ variable: "--font-fraunces", subsets: ["latin"], axes: ["opsz"] });
 const manrope = Manrope({ variable: "--font-manrope", subsets: ["latin"] });
 
+/**
+ * Defaults for every page: each sets its own title (shown as "<title> · Résido"),
+ * the public ones their description and canonical address too.
+ */
 export const metadata: Metadata = {
-  title: "Résido",
-  description: "Gestion de syndic — charges, encaissements, dépenses et trésorerie, cycle par cycle.",
-  applicationName: "Résido",
+  metadataBase: new URL(SITE_URL),
+  title: { default: HOME_TITLE, template: `%s · ${SITE_NAME}` },
+  description: HOME_DESCRIPTION,
+  applicationName: SITE_NAME,
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    locale: "fr_FR",
+    title: HOME_TITLE,
+    description: HOME_DESCRIPTION,
+    url: "/",
+  },
+  twitter: { card: "summary_large_image", title: HOME_TITLE, description: HOME_DESCRIPTION },
+  verification: process.env.GOOGLE_SITE_VERIFICATION ? { google: process.env.GOOGLE_SITE_VERIFICATION } : undefined,
   // Added to an iPhone's home screen, it opens as an app of its own.
   appleWebApp: { capable: true, title: "Résido", statusBarStyle: "default" },
   icons: { apple: "/icons/apple-touch-icon.png" },
