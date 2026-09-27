@@ -31,7 +31,12 @@ export const metadata: Metadata = {
   verification: process.env.GOOGLE_SITE_VERIFICATION ? { google: process.env.GOOGLE_SITE_VERIFICATION } : undefined,
   // Added to an iPhone's home screen, it opens as an app of its own.
   appleWebApp: { capable: true, title: "Résido", statusBarStyle: "default" },
-  icons: { apple: "/icons/apple-touch-icon.png" },
+  // app/favicon.ico is linked by Next itself; a larger one for sharp screens and
+  // Google's result icon (48 px or more), then the home screen's.
+  icons: {
+    icon: [{ url: "/icons/favicon-96.png", type: "image/png", sizes: "96x96" }],
+    apple: "/icons/apple-touch-icon.png",
+  },
   formatDetection: { telephone: false },
 };
 
