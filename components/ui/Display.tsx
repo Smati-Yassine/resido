@@ -1,6 +1,6 @@
 import { Icon, type IconName } from "./Icon";
 
-/** Page title block: small subtitle line above a display heading, actions on the right. */
+/** Page title block: small subtitle line above a display heading, actions on the right (under it, full width, on a phone). */
 export function PageHeader({
   subtitle,
   title,
@@ -12,11 +12,11 @@ export function PageHeader({
 }) {
   return (
     <div className="flex flex-wrap items-end justify-between gap-4">
-      <div className="flex flex-col gap-1.5">
+      <div className="flex min-w-0 flex-col gap-1.5">
         {subtitle && <span className="subtle">{subtitle}</span>}
         <h1 className="h-page">{title}</h1>
       </div>
-      {actions && <div className="flex flex-wrap gap-2.5">{actions}</div>}
+      {actions && <div className="page-actions">{actions}</div>}
     </div>
   );
 }

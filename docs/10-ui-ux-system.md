@@ -92,7 +92,30 @@ that isn't implied elsewhere in the original outline.
 Component primitives built on accessible headless components (Radix UI)
 under Tailwind styling; keyboard navigation and focus management required
 for all interactive components (dialogs, comboboxes, tables) since this is a
-professional tool used for extended sessions, not a marketing site. Layout is
-responsive down to tablet width as a baseline (desk-bound admin tool primary
-use case); full phone-width support is a should-have, not a hard V1
-requirement, and is verified opportunistically rather than pixel-audited.
+professional tool used for extended sessions, not a marketing site.
+
+The layout is fully responsive, from a 360 px phone to a wide desktop, all
+from `app/globals.css`:
+
+- **Shell.** Desktop (≥ 1024): the sidebar, open or collapsed as the user
+  left it. Tablet (768–1023): always the icon strip. Phone (< 768): no
+  sidebar, a tab bar at the bottom (`TabBar` in `WorkspaceNav.tsx`); the top
+  bar keeps the residence and cycle switchers and the account menu.
+- **Tables** marked `data-table-stack` become a list of two-line entries when
+  their card is under 46rem wide (a container query, so it also holds in
+  modals): `.cell-lead` and `.cell-figure` on line 1, the other cells then
+  `.cell-actions` on line 2; `.cell-wide` cells only show in the full table;
+  a cell with `data-label` names itself once the column head is gone.
+- **Modals and menus** are sheets from the bottom edge on a phone; a modal's
+  header drags it down to close it.
+- **Touch.** Controls are at least 40 px on a touch screen, fields 16 px
+  (no zoom on focus in iOS), hover effects only where a pointer hovers.
+- **Safe areas.** The page covers the whole screen (`viewport-fit=cover`);
+  bars keep clear of the notch and home indicator through `--safe-*`.
+
+Résido also installs as an app (PWA): `app/manifest.ts`, icons drawn by
+`scripts/generate-icons.ts`, and a service worker (`public/sw.js`, production
+only) that stores the app's static code and shows `public/offline.html` when
+a page cannot load. Pages and data are never stored on the device. With
+`experimental.useOffline`, navigations and saves made while offline wait for
+the connection, and a bar says so (`components/ui/AppRuntime.tsx`).

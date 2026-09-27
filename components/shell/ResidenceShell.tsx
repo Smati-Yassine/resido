@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Icon } from "@/components/ui/Icon";
 import { useI18n } from "@/components/ui/I18nProvider";
 import { SIDEBAR_COLLAPSED, SIDEBAR_COOKIE } from "@/lib/ui-prefs";
-import { SideNav } from "./WorkspaceNav";
+import { SideNav, TabBar } from "./WorkspaceNav";
 import { ResidenceBaseProvider } from "./ResidenceLink";
 
 const ONE_YEAR = 60 * 60 * 24 * 365;
@@ -15,7 +15,8 @@ const ONE_YEAR = 60 * 60 * 24 * 365;
  * then the residence and cycle switchers, then the user menu) over a
  * collapsible sidebar. The brand block and the sidebar share one width, so
  * they line up open or collapsed. The choice is kept in a cookie the server
- * reads, so a reload renders it as left.
+ * reads, so a reload renders it as left. A tablet always gets the icon strip;
+ * a phone gets a tab bar at the bottom instead (see `.shell` in globals.css).
  */
 export function ResidenceShell({
   base,
@@ -53,11 +54,11 @@ export function ResidenceShell({
             <span className="brand-mark shrink-0">R</span>
             <span className="shell-brand-name font-display text-[22px] font-semibold">Résido</span>
           </Link>
-          <div className="flex min-w-0 flex-1 items-center gap-3 px-6">{switchers}</div>
-          <div className="pr-6">{userMenu}</div>
+          <div className="shell-context">{switchers}</div>
+          <div className="shell-account">{userMenu}</div>
         </header>
 
-        <div className="flex min-h-0 flex-1">
+        <div className="shell-body">
           <aside className="side">
             <SideNav
               lotCount={lotCount}
@@ -65,7 +66,7 @@ export function ResidenceShell({
               footer={
                 <button
                   type="button"
-                  className="side-item text-muted"
+                  className="side-item side-toggle text-muted"
                   title={toggleLabel}
                   aria-label={toggleLabel}
                   aria-expanded={!collapsed}
@@ -77,8 +78,9 @@ export function ResidenceShell({
               }
             />
           </aside>
-          <main className="scroll flex min-w-0 flex-1 flex-col gap-6 px-10 pb-12 pt-8">{children}</main>
+          <main className="scroll shell-main flex-col">{children}</main>
         </div>
+        <TabBar unpaidCount={unpaidCount} />
       </div>
     </ResidenceBaseProvider>
   );

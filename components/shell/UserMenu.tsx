@@ -34,12 +34,18 @@ export function UserMenu({
         aria-label={t.accountMenu}
         onClick={toggle}
       >
-        <span className="hidden text-sm font-semibold text-ink-2 sm:inline">{user.name}</span>
+        <span className="hidden text-sm font-semibold text-ink-2 lg:inline">{user.name}</span>
         <span className="avatar">{initials(user.name)}</span>
-        <Icon name="chevronDown" size={16} strokeWidth={2} />
+        <span className="hidden sm:inline">
+          <Icon name="chevronDown" size={16} strokeWidth={2} />
+        </span>
       </button>
+      {open && <div className="menu-backdrop" aria-hidden="true" onClick={close} />}
       {open && (
-        <div role="menu" className="popover absolute right-0 top-[52px] z-20 flex w-[260px] flex-col gap-0.5">
+        <div
+          role="menu"
+          className="popover menu-sheet flex flex-col gap-0.5 md:absolute md:right-0 md:top-[52px] md:z-20 md:w-[260px]"
+        >
           <div className="flex flex-col gap-0.5 px-3 pb-2 pt-1.5">
             <span className="text-sm font-bold">{user.name}</span>
             <span className="truncate text-xs text-muted">{user.email}</span>

@@ -40,7 +40,7 @@ export default async function ResidencesPage() {
 
         residences={cards.map((c) => ({ id: c.id, name: c.name }))}
       />
-      <main className="flex flex-1 flex-col gap-8 px-6 pb-16 pt-12 md:px-12">
+      <main className="flex flex-1 flex-col gap-8 px-4 pb-16 pt-8 sm:px-6 md:px-12 md:pt-12">
         <HomeView residences={residences} firstName={user.name.split(" ")[0]} />
       </main>
     </div>

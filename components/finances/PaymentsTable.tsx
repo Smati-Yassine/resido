@@ -35,7 +35,7 @@ export function PaymentsTable({
     : "grid-cols-[110px_minmax(0,1fr)_130px_minmax(0,1fr)_150px]";
 
   return (
-    <div className="card data-table">
+    <div className="card data-table data-table-stack">
       <div className={`data-head ${grid}`}>
         <span>{t.colDate}</span>
         <span>{t.colLots}</span>
@@ -49,7 +49,7 @@ export function PaymentsTable({
         return (
           <div key={p.id} className={`data-row ${grid}`}>
             <span className="text-muted">{formatDate(p.date)}</span>
-            <span className="font-semibold">
+            <span className="cell-lead font-semibold">
               {allocations
                 .map((a) => {
                   const row = byAssessment.get(a.assessmentId);
@@ -65,7 +65,7 @@ export function PaymentsTable({
             <span className="text-[13px] text-muted" title={p.note ?? undefined}>
               {p.note ?? "—"}
             </span>
-            <span className="num text-right font-bold">{formatMoney(p.amountMillimes, currency)}</span>
+            <span className="cell-figure num text-right font-bold">{formatMoney(p.amountMillimes, currency)}</span>
             {canChange && (
               <PaymentRowActions
                 residenceId={residenceId}

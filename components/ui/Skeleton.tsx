@@ -10,10 +10,10 @@ export function SkeletonBlock({ className = "" }: { className?: string }) {
 export function PageSkeleton({ label }: { label: string }) {
   return (
     <div className="flex flex-col gap-6" role="status" aria-label={label}>
-      <div className="flex items-end justify-between gap-4">
-        <div className="flex flex-col gap-3">
-          <SkeletonBlock className="h-3.5 w-44" />
-          <SkeletonBlock className="h-10 w-72" />
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="flex max-w-full flex-col gap-3">
+          <SkeletonBlock className="h-3.5 w-44 max-w-full" />
+          <SkeletonBlock className="h-10 w-72 max-w-full" />
         </div>
         <SkeletonBlock className="h-11 w-44 rounded-[12px]" />
       </div>

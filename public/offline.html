@@ -1,0 +1,137 @@
+<!doctype html>
+<!--
+  Shown by the service worker (public/sw.js) when a page cannot load for lack
+  of a connection. It must stand alone — nothing else can be fetched — so its
+  styles are inline: the design system's tokens, copied from app/globals.css.
+-->
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#fbf9f5" />
+    <title>Hors ligne · Résido</title>
+    <link rel="icon" href="/icons/icon-192.png" />
+    <script>
+      // The theme and language the user chose, from their preference cookies.
+      var c = document.cookie;
+      if (/(?:^|; )resido-theme=dark/.test(c)) {
+        document.documentElement.dataset.theme = "dark";
+        document.querySelector('meta[name="theme-color"]').content = "#1c2129";
+      }
+      if (/(?:^|; )resido-lang=en/.test(c)) document.documentElement.lang = "en";
+    </script>
+    <style>
+      :root {
+        --ground: #f5f1ea;
+        --surface: #ffffff;
+        --line: #e4ddd1;
+        --ink: #16181d;
+        --muted: #5e6470;
+        --primary: #1b4f8a;
+        --primary-hover: #123a68;
+        --mark-bg: #0f2240;
+        --mark-fg: #f5f1ea;
+        color-scheme: light;
+      }
+      [data-theme="dark"] {
+        --ground: #0e1116;
+        --surface: #171b22;
+        --line: #2a303a;
+        --ink: #ece8e1;
+        --muted: #9aa1ad;
+        --primary: #2c64a6;
+        --primary-hover: #3a74b8;
+        --mark-bg: #2c64a6;
+        --mark-fg: #ffffff;
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        display: grid;
+        place-items: center;
+        padding: calc(24px + env(safe-area-inset-top)) 20px calc(24px + env(safe-area-inset-bottom));
+        background: var(--ground);
+        color: var(--ink);
+        font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      main {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 18px;
+        width: 100%;
+        max-width: 400px;
+        padding: 32px 28px;
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        background: var(--surface);
+        text-align: center;
+      }
+      .mark {
+        display: grid;
+        place-items: center;
+        width: 52px;
+        height: 52px;
+        border-radius: 14px;
+        background: var(--mark-bg);
+        color: var(--mark-fg);
+        font: 600 28px Georgia, serif;
+      }
+      h1 {
+        margin: 0;
+        font: 500 26px/1.2 Georgia, serif;
+        letter-spacing: -0.02em;
+      }
+      p {
+        margin: 0;
+        color: var(--muted);
+      }
+      button {
+        height: 46px;
+        padding: 0 22px;
+        border: none;
+        border-radius: 10px;
+        background: var(--primary);
+        color: #ffffff;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+        touch-action: manipulation;
+      }
+      button:hover {
+        background: var(--primary-hover);
+      }
+      [lang="en"] .fr,
+      :not([lang="en"]) > body .en {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <span class="mark">R</span>
+      <h1><span class="fr">Vous êtes hors ligne</span><span class="en">You are offline</span></h1>
+      <p>
+        <span class="fr">Résido a besoin d’une connexion pour ouvrir cette page. Elle s’ouvrira dès qu’elle revient.</span>
+        <span class="en">Résido needs a connection to open this page. It will open as soon as it is back.</span>
+      </p>
+      <button type="button" onclick="location.reload()">
+        <span class="fr">Réessayer</span><span class="en">Try again</span>
+      </button>
+    </main>
+    <script>
+      // Back online: open the page that was asked for.
+      addEventListener("online", function () {
+        location.reload();
+      });
+    </script>
+  </body>
+</html>

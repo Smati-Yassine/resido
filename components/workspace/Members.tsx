@@ -63,7 +63,7 @@ export function MembersPanel({
       <p className="text-sm text-muted">{t.membersHelp}</p>
       {canManage && <AddMemberForm residenceId={residenceId} roles={grantable} />}
 
-      <div className="card data-table">
+      <div className="card data-table data-table-stack">
         <div className="settings-group-head border-b border-line-soft">
           <h2 className="h-card">{t.members}</h2>
           <Badge tone="closed">{members.length}</Badge>
@@ -72,8 +72,8 @@ export function MembersPanel({
           const self = m.userId === currentUserId;
           return (
             <div key={m.userId} className="data-row grid-cols-[40px_1fr_200px_130px]">
-              <span className="avatar avatar-sm">{initials(m.name)}</span>
-              <span className="flex min-w-0 flex-col">
+              <span className="cell-icon avatar avatar-sm">{initials(m.name)}</span>
+              <span className="cell-lead flex min-w-0 flex-col">
                 <span className="truncate font-bold">
                   {m.name} {self && <span className="font-medium text-muted">({t.you})</span>}
                 </span>
@@ -82,15 +82,17 @@ export function MembersPanel({
                 </span>
               </span>
               {!self && canHandle(m.role, m.isOwner) ? (
-                <RoleSelect residenceId={residenceId} member={m} roles={grantable} />
+                <span className="cell-figure">
+                  <RoleSelect residenceId={residenceId} member={m} roles={grantable} />
+                </span>
               ) : (
-                <span title={m.isOwner ? t.roleCreatorHelp : undefined}>
+                <span className="cell-figure" title={m.isOwner ? t.roleCreatorHelp : undefined}>
                   <Badge tone={m.isOwner || m.role === "SYNDIC_ADMIN" ? "open" : "closed"}>
                     {m.isOwner ? t.roleCreator : roleLabel(t, m.role)}
                   </Badge>
                 </span>
               )}
-              <span className="flex justify-end">
+              <span className="cell-actions flex justify-end">
                 {((self && !m.isOwner) || (!self && canHandle(m.role, m.isOwner))) && (
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => setRemoving(m)}>
                     {self ? t.leave : t.remove}
@@ -104,18 +106,18 @@ export function MembersPanel({
 
       {invitations.length > 0 && (
         <div className="flex flex-col gap-2.5">
-          <div className="card data-table">
+          <div className="card data-table data-table-stack">
             <div className="settings-group-head border-b border-line-soft">
               <h2 className="h-card">{t.pendingInvitations}</h2>
               <Badge tone="draft">{invitations.length}</Badge>
             </div>
             {invitations.map((i) => (
               <div key={i.id} className="data-row grid-cols-[1fr_200px_180px]">
-                <span className="truncate font-semibold">{i.email}</span>
-                <span>
+                <span className="cell-lead truncate font-semibold">{i.email}</span>
+                <span className="cell-figure">
                   <Badge tone="draft">{interpolate(t.invitedAs, { role: roleLabel(t, i.role) })}</Badge>
                 </span>
-                <span className="flex justify-end">
+                <span className="cell-actions flex justify-end">
                   {canHandle(i.role, false) && <CancelInvitationButton residenceId={residenceId} invitationId={i.id} />}
                 </span>
               </div>

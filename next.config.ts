@@ -10,6 +10,22 @@ const nextConfig: NextConfig = {
     // tab seen moments ago) is instant. Every save still refreshes what it
     // changed, since the actions revalidate their pages.
     staleTimes: { dynamic: 30 },
+    // Connection lost (a phone in a stairwell): pages and saves wait and run
+    // once it is back, instead of failing; the app says it is offline meanwhile.
+    useOffline: true,
+  },
+  // The service worker is always fetched fresh, so a new version reaches every installed app.
+  async headers() {
+    return [
+      {
+        source: "/sw.js",
+        headers: [
+          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Content-Security-Policy", value: "default-src 'self'; script-src 'self'" },
+        ],
+      },
+    ];
   },
   // Payments, expenses and treasury became tabs of one Finances page; old links land on the matching tab.
   // Query values (e.g. ?cycle=) are passed through.

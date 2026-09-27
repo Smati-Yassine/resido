@@ -18,7 +18,7 @@ export function ExpenseRowActions({ residenceId, expense }: { residenceId: strin
   const [modal, setModal] = useState<"edit" | "delete" | null>(null);
   const close = () => setModal(null);
   return (
-    <span className="flex justify-end gap-1.5">
+    <span className="cell-actions flex justify-end gap-1.5">
       <button
         type="button"
         className="icon-btn h-9 w-9"

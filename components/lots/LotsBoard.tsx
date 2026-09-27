@@ -117,7 +117,7 @@ export function LotsBoard({
       {shown.length === 0 ? (
         <EmptyState text={t.noMatch} />
       ) : (
-        <div className="card data-table">
+        <div className="card data-table data-table-stack">
           <div className={`data-head ${grid}`}>
             <span>{t.colLot}</span>
             <span>{t.colOwner}</span>
@@ -131,7 +131,7 @@ export function LotsBoard({
             const left = lot.chargeMillimes - (lot.paidMillimes ?? 0);
             return (
               <div key={lot.id} className={`data-row ${grid}`}>
-                <span className="min-w-0">
+                <span className="cell-lead min-w-0">
                   <span className="block font-bold">{lot.code}</span>
                   <span className="block truncate text-xs text-muted">{lot.blocName}</span>
                 </span>
@@ -147,12 +147,17 @@ export function LotsBoard({
                     <span className="text-muted">—</span>
                   )}
                 </span>
-                <span className="num text-right">{formatMoney(lot.chargeMillimes, currency)}</span>
+                {/* Stacked (a phone), a billed lot shows what is left to pay; the charge and the paid part are for the full table. */}
+                <span className={`num text-right ${billed ? "cell-wide" : "cell-figure"}`}>
+                  {formatMoney(lot.chargeMillimes, currency)}
+                </span>
                 {billed && (
-                  <span className="num text-pos text-right">{formatMoney(lot.paidMillimes ?? 0, currency)}</span>
+                  <span className="cell-wide num text-pos text-right">
+                    {formatMoney(lot.paidMillimes ?? 0, currency)}
+                  </span>
                 )}
                 {billed && (
-                  <span className="flex flex-col items-end gap-1.5">
+                  <span className="cell-figure flex flex-col items-end gap-1.5">
                     <span className="num font-semibold">{formatMoney(left, currency)}</span>
                     <span className="bar bar-stack-sm block w-full max-w-[110px]">
                       <span

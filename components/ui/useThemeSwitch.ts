@@ -21,6 +21,9 @@ export function useThemeSwitch(initial: Theme) {
   const switchTo = (next: Theme) => {
     setTheme(next);
     document.documentElement.setAttribute("data-theme", next);
+    // The browser's own bars follow (the colour the server set is the top bar's, --surface-2).
+    const bars = getComputedStyle(document.documentElement).getPropertyValue("--surface-2").trim();
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", bars);
     void setPreferenceAction({ theme: next }).then((result) =>
       toast({ tone: result.ok ? "success" : "danger", text: result.message }),
     );

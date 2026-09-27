@@ -285,7 +285,7 @@ export function CycleMenu({
 }) {
   const { t } = useI18n();
   const router = useRouter();
-  const [at, setAt] = useState<{ top: number; right: number } | null>(null);
+  const [at, setAt] = useState<{ top?: number; right?: number } | null>(null);
   const [dialog, setDialog] = useState<"close" | "delete" | null>(null);
   const [onOpen] = useActionToast(openCycleAction);
   const [onReopen] = useActionToast(reopenCycleAction);
@@ -330,15 +330,17 @@ export function CycleMenu({
         aria-expanded={!!at}
         onClick={(event) => {
           const box = event.currentTarget.getBoundingClientRect();
-          setAt(at ? null : { top: box.bottom + 6, right: window.innerWidth - box.right });
+          // On a phone the menu is a sheet at the bottom (CSS), not under the button.
+          const sheet = window.matchMedia("(max-width: 767px)").matches;
+          setAt(at ? null : sheet ? {} : { top: box.bottom + 6, right: window.innerWidth - box.right });
         }}
       >
         <Icon name="more" size={18} />
       </button>
       {at && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setAt(null)} aria-hidden="true" />
-          <div className="popover fixed z-50 w-56" style={at} role="menu">
+          <div className="menu-scrim" onClick={() => setAt(null)} aria-hidden="true" />
+          <div className="popover menu-sheet fixed z-50 md:w-56" style={at} role="menu">
             {cycle.status !== "DRAFT" && item(t.view, () => router.push(viewHref))}
             {canManage && cycle.status === "DRAFT" && canOpen && item(t.openCycle, () => {}, false, formId("open"))}
             {canManage &&

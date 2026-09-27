@@ -115,3 +115,37 @@ export function SideNav({
     </>
   );
 }
+
+/**
+ * The phone's navigation: every section as a tab at the bottom of the screen,
+ * where the thumb is. Shown instead of the sidebar below the tablet width
+ * (the CSS decides); Finances carries the count of lots still owing.
+ */
+export function TabBar({ unpaidCount }: { unpaidCount: number }) {
+  const { t } = useI18n();
+  const current = useSection();
+  const href = useWorkspaceHref();
+
+  return (
+    <nav className="tabbar" aria-label={t.residenceSections}>
+      {SECTIONS.map((s) => (
+        <Link
+          key={s.key}
+          href={href(s.path)}
+          className="tabbar-item"
+          aria-current={s === current ? "page" : undefined}
+        >
+          <span className="tabbar-icon">
+            <Icon name={s.icon} size={20} />
+            {s.key === "finances" && unpaidCount > 0 && (
+              <span className="tabbar-badge" title={interpolate(t.unpaidLots, { count: unpaidCount })}>
+                {unpaidCount > 99 ? "99+" : unpaidCount}
+              </span>
+            )}
+          </span>
+          <span className="tabbar-label">{t[s.key] as string}</span>
+        </Link>
+      ))}
+    </nav>
+  );
+}

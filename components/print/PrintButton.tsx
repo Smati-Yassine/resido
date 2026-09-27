@@ -53,9 +53,18 @@ export function PrintButton({ href, label, document: name }: { href: string; lab
   }
 
   return (
-    <button type="button" className="btn btn-ghost" onClick={open} disabled={busy} aria-busy={busy}>
+    <button
+      type="button"
+      className="btn btn-ghost btn-icon-sm"
+      onClick={open}
+      disabled={busy}
+      aria-busy={busy}
+      aria-label={busy ? t.pdfPreparing : label}
+      title={label}
+    >
       <Icon name="printer" size={17} />
-      {busy ? t.pdfPreparing : label}
+      {/* On a phone the printer icon says it alone. */}
+      <span className="btn-label-sm-hide">{busy ? t.pdfPreparing : label}</span>
     </button>
   );
 }

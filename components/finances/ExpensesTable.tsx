@@ -30,8 +30,8 @@ export function ExpensesTable({
   return (
     <div className="flex flex-col gap-4">
       {months.map((m) => (
-        <section key={m.month} className="card data-table">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-surface-2 px-6 py-3.5">
+        <section key={m.month} className="card data-table data-table-stack">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-surface-2 px-[18px] py-3.5 sm:px-6">
             <h2 className="text-[15px] font-bold">{formatMonth(m.month, locale)}</h2>
             <span className="subtle">
               {interpolate(t.expensesCount, { count: m.items.length })} ·{" "}
@@ -43,11 +43,11 @@ export function ExpensesTable({
           {m.items.map((e) => (
             <div key={e.id} className={`data-row ${grid}`}>
               <span className="text-[13px] text-muted">{formatDate(e.date)}</span>
-              <span className="font-semibold" title={e.label}>
+              <span className="cell-lead font-semibold" title={e.label}>
                 {e.label}
               </span>
               <span className="text-[13px] text-muted">{e.reference ?? ""}</span>
-              <span className="num text-right font-bold">{formatMoney(e.amountMillimes, currency)}</span>
+              <span className="cell-figure num text-right font-bold">{formatMoney(e.amountMillimes, currency)}</span>
               {canChange && (
                 <ExpenseRowActions
                   residenceId={residenceId}

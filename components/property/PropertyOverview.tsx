@@ -32,7 +32,7 @@ export function PropertyOverview({
   return (
     <>
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <section className="card data-table xl:col-span-2">
+        <section className="card data-table data-table-stack xl:col-span-2">
           <div className="settings-group-head border-b border-line-soft">
             <h2 className="h-card">{t.blocs}</h2>
             <Link href={hrefs.lots} className="btn btn-link">
@@ -54,18 +54,24 @@ export function PropertyOverview({
                 key={b.id}
                 className="data-row grid-cols-[minmax(0,1.2fr)_repeat(3,minmax(0,0.8fr))_minmax(0,1.3fr)]"
               >
-                <span className="flex min-w-0 items-center gap-2 font-bold">
+                <span className="cell-lead flex min-w-0 items-center gap-2 font-bold">
                   <span className="text-primary">
                     <Icon name="bloc" size={16} />
                   </span>
                   <span className="truncate">{b.name}</span>
                 </span>
-                <span className="num text-right">{b.lotCount}</span>
-                <span className="num text-right">{b.ownerCount}</span>
-                <span className="num text-right">{money(b.chargeMillimes)}</span>
+                <span className="num text-right" data-label={t.lots}>
+                  {b.lotCount}
+                </span>
+                <span className="num text-right" data-label={t.owners}>
+                  {b.ownerCount}
+                </span>
+                <span className="num text-right" data-label={billed ? t.colCharge : t.annualTotal}>
+                  {money(b.chargeMillimes)}
+                </span>
                 {billed && b.lotCount > 0 ? (
-                  <span className="flex items-center gap-2.5">
-                    <span className="bar-stack bar-stack-sm flex-1">
+                  <span className="cell-figure flex items-center gap-2.5">
+                    <span className="bar-stack bar-stack-sm min-w-16 flex-1">
                       <span className="fill-paid" style={{ width: share(b.status.PAID) }} />
                       <span className="fill-partial" style={{ width: share(b.status.PARTIAL) }} />
                       <span className="fill-unpaid" style={{ width: share(b.status.UNPAID) }} />

@@ -15,7 +15,7 @@ export function AppHeader({
   residences?: ExportableResidence[];
 }) {
   return (
-    <header className="topbar px-6 md:px-12">
+    <header className="topbar">
       <Link href="/residences" className="flex items-center gap-3 text-ink no-underline hover:text-ink">
         <span className="brand-mark">R</span>
         <span className="font-display text-[22px] font-semibold">Résido</span>

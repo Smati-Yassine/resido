@@ -36,17 +36,23 @@ export function ResidenceSwitcher({
         aria-expanded={open}
         onClick={toggle}
       >
-        <span className="tile-icon h-[30px] w-[30px] rounded-lg">
+        <span className="tile-icon hidden h-[30px] w-[30px] rounded-lg sm:inline-flex">
           <Icon name="residence" size={17} />
         </span>
         <span className="flex min-w-0 flex-col items-start leading-tight">
-          <span className="max-w-[240px] truncate text-[15px] font-bold text-ink">{current.name}</span>
-          <span className="text-xs text-muted">{subtitle}</span>
+          <span className="max-w-full truncate text-[15px] font-bold text-ink sm:max-w-[240px]">{current.name}</span>
+          <span className="max-w-full truncate text-xs text-muted">{subtitle}</span>
         </span>
-        <Icon name="chevronDown" size={16} strokeWidth={2} />
+        <span className="shrink-0">
+          <Icon name="chevronDown" size={16} strokeWidth={2} />
+        </span>
       </button>
+      {open && <div className="menu-backdrop" aria-hidden="true" onClick={close} />}
       {open && (
-        <div role="menu" className="popover absolute left-0 top-[52px] flex w-[320px] flex-col gap-0.5">
+        <div
+          role="menu"
+          className="popover menu-sheet flex flex-col gap-0.5 md:absolute md:left-0 md:top-[52px] md:w-[320px]"
+        >
           <span className="label-caps px-3 pb-1.5 pt-2 text-[11px]">{t.yourResidences}</span>
           {residences.map((r) => (
             <Link

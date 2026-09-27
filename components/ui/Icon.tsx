@@ -205,6 +205,13 @@ const PATHS = {
       <path d="M15.5 8.5l-2 5-5 2 2-5z" />
     </>
   ),
+  cloudOff: (
+    <>
+      <path d="M3 3l18 18" />
+      <path d="M5.8 5.8A7 7 0 0 0 9 19h8.5a4.5 4.5 0 0 0 1.3-.2" />
+      <path d="M21.5 16.5A4.5 4.5 0 0 0 17.5 10h-1.8A7 7 0 0 0 10 5.1" />
+    </>
+  ),
 } as const;
 
 export type IconName = keyof typeof PATHS;

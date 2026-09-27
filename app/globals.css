@@ -89,6 +89,20 @@
   --shadow-modal: 0 30px 80px rgb(15 34 64 / 0.3);
   --shadow-toast: 0 14px 40px rgb(15 34 64 / 0.18);
   --overlay: rgb(15 34 64 / 0.45);
+
+  /* Device safe areas (notch, home indicator, rounded corners): zero on most
+     screens, set on phones once the page covers the whole display. */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  /* Height of the phone tab bar, when there is one (see .tabbar). */
+  --tabbar-h: 0px;
+}
+@media (max-width: 767px) {
+  :root:has(.tabbar) {
+    --tabbar-h: 60px;
+  }
 }
 
 [data-theme="dark"] {
@@ -186,11 +200,29 @@
   body {
     height: 100%;
   }
+  html {
+    /* Phones keep the sizes set here (no auto-enlarged text in landscape),
+       and a tap shows the control's own pressed state, not a grey flash. */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
   body {
     background: var(--ground);
     color: var(--ink);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    overscroll-behavior-y: none;
+  }
+  /* No double-tap zoom delay on anything tappable. */
+  a,
+  button,
+  input,
+  select,
+  textarea,
+  label,
+  summary {
+    touch-action: manipulation;
   }
   a {
     color: var(--primary);
@@ -230,6 +262,11 @@
     font-size: 38px;
     letter-spacing: -0.02em;
     line-height: 1.1;
+  }
+  @media (max-width: 639px) {
+    .h-page {
+      font-size: 30px;
+    }
   }
   .h-card {
     font-size: 16px;
@@ -278,7 +315,8 @@
       box-shadow 0.15s ease,
       color 0.15s ease,
       border-color 0.15s ease,
-      opacity 0.15s ease;
+      opacity 0.15s ease,
+      transform 0.1s ease;
   }
   .btn:disabled,
   .btn[aria-disabled="true"] {
@@ -385,6 +423,57 @@
     width: 32px;
     height: 32px;
     border-radius: 8px;
+  }
+  /* Touch screens: every control is at least 40px, a fingertip. */
+  @media (pointer: coarse) {
+    .btn-sm {
+      height: 40px;
+    }
+    .icon-btn-bare {
+      width: 40px;
+      height: 40px;
+    }
+  }
+  /* Hover effects only where there is a pointer that hovers: on a touch
+     screen they would stick after a tap. */
+  @media (hover: none) {
+    .btn:active:not(:disabled),
+    .icon-btn:active,
+    .menu-item:active,
+    .side-item:active,
+    .tabbar-item:active {
+      transform: scale(0.97);
+    }
+  }
+  /* A button's text that gives way to its icon alone on a phone; the button
+     (.btn-icon-sm) is then square. */
+  @media (max-width: 639px) {
+    .btn-label-sm-hide {
+      display: none;
+    }
+    .btn.btn-icon-sm {
+      width: 42px;
+      padding: 0;
+    }
+  }
+
+  /* A page's buttons, beside its title. On a phone they go under it and
+     share the width; the last one (the main action) ends up the widest. */
+  .page-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  @media (max-width: 639px) {
+    .page-actions {
+      width: 100%;
+    }
+    .page-actions > * {
+      flex: 1 1 auto;
+    }
+    .page-actions > .btn-icon-sm {
+      flex: none;
+    }
   }
 
   /* Forms */
@@ -499,6 +588,14 @@
     font-weight: 700;
     color: var(--muted);
   }
+  /* Touch screens: below 16px, iOS zooms the page into a field on focus. */
+  @media (pointer: coarse) {
+    .input,
+    textarea.input,
+    .input-group:not(.input-group-lg) > input {
+      font-size: 16px;
+    }
+  }
 
   /* Choice cards (e.g. fixed end vs open end) */
   .choice {
@@ -590,14 +687,21 @@
   .card-pad {
     padding: 24px;
   }
+  @media (max-width: 639px) {
+    .card-pad {
+      padding: 18px;
+    }
+  }
   .card-lift {
     transition:
       box-shadow 0.2s ease,
       transform 0.2s ease;
   }
-  .card-lift:hover {
-    box-shadow: var(--shadow-card);
-    transform: translateY(-2px);
+  @media (hover: hover) {
+    .card-lift:hover {
+      box-shadow: var(--shadow-card);
+      transform: translateY(-2px);
+    }
   }
   .card-danger {
     border-color: var(--danger-line);
@@ -694,6 +798,32 @@
     background: var(--badge-draft-bg);
     color: var(--badge-draft-fg);
     border: 1px dashed var(--stone);
+  }
+
+  /* A badge's tone as a dot, where there is no room for its word. */
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    flex-shrink: 0;
+    border-radius: 50%;
+  }
+  .status-dot-paid {
+    background: var(--badge-paid-fg);
+  }
+  .status-dot-partial {
+    background: var(--badge-partial-fg);
+  }
+  .status-dot-unpaid {
+    background: var(--badge-unpaid-fg);
+  }
+  .status-dot-open {
+    background: var(--badge-open-fg);
+  }
+  .status-dot-closed {
+    background: var(--badge-closed-fg);
+  }
+  .status-dot-draft {
+    background: var(--stone);
   }
 
   /* Bars */
@@ -795,6 +925,27 @@
       border-left: none;
     }
     .ledger-cell:nth-child(n + 3) {
+      border-top: 1px solid var(--line);
+    }
+  }
+  /* Phones: tighter cells and figures, so a balance in the millions still shows whole. */
+  @media (max-width: 639px) {
+    .ledger-cell {
+      padding: 14px 16px;
+    }
+    .ledger-label {
+      font-size: 11px;
+    }
+    .ledger-value {
+      font-size: 20px;
+    }
+  }
+  @media (max-width: 359px) {
+    .ledger {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .ledger-cell + .ledger-cell {
+      border-left: none;
       border-top: 1px solid var(--line);
     }
   }
@@ -1006,9 +1157,11 @@
       transform 0.12s ease,
       box-shadow 0.12s ease;
   }
-  .lot-tile:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 10px rgb(22 24 29 / 0.12);
+  @media (hover: hover) {
+    .lot-tile:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 10px rgb(22 24 29 / 0.12);
+    }
   }
   .lot-tile[data-status="PAID"] {
     background: var(--badge-paid-bg);
@@ -1195,6 +1348,20 @@
     .settings-row {
       grid-template-columns: minmax(0, 1fr);
       gap: 10px;
+    }
+  }
+  @media (max-width: 639px) {
+    .settings-group-head {
+      padding: 16px 18px;
+    }
+    .settings-row {
+      padding: 16px 18px;
+    }
+    .settings-foot {
+      padding: 12px 18px;
+    }
+    .settings-foot > .btn {
+      flex: 1;
     }
   }
 
@@ -1568,8 +1735,84 @@
   .data-row:last-child {
     border-bottom: none;
   }
-  .data-row:hover {
-    background: var(--row-hover);
+  @media (hover: hover) {
+    .data-row:hover {
+      background: var(--row-hover);
+    }
+  }
+  @media (max-width: 639px) {
+    .data-head,
+    .data-row {
+      padding-inline: 18px;
+    }
+  }
+
+  /* A table that becomes a list of two-line entries when its card is narrow
+     (a phone, a modal): the head goes, and each row shows
+       line 1 — its .cell-lead (what it is) and its .cell-figure (the amount);
+       line 2 — every other cell, small, then its .cell-actions at the end.
+     .cell-wide cells only show in the full table. */
+  .data-table-stack {
+    container-type: inline-size;
+  }
+  @container (width < 46rem) {
+    .data-table-stack .data-head {
+      display: none;
+    }
+    .data-table-stack .data-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px 12px;
+      padding-block: 14px;
+      font-size: 13px;
+    }
+    /* Default colours only (zero specificity): a cell's own tone, e.g. .text-pos, wins. */
+    :where(.data-table-stack .data-row > *) {
+      color: var(--muted);
+    }
+    :where(.data-table-stack .data-row) > :where(.cell-lead, .cell-figure) {
+      color: var(--ink);
+    }
+    /* The break between the two lines. */
+    .data-table-stack .data-row::before {
+      content: "";
+      order: 2;
+      flex-basis: 100%;
+      height: 0;
+    }
+    .data-table-stack .data-row > * {
+      order: 3;
+      max-width: 100%;
+    }
+    .data-table-stack .data-row > .cell-icon {
+      order: 1;
+      flex: none;
+    }
+    .data-table-stack .data-row > .cell-lead {
+      order: 1;
+      flex: 1 1 0;
+      min-width: 0;
+      font-size: 15px;
+    }
+    .data-table-stack .data-row > .cell-figure {
+      order: 1;
+      flex: none;
+      margin-left: auto;
+      font-size: 15px;
+      text-align: right;
+    }
+    .data-table-stack .data-row > .cell-actions {
+      order: 4;
+      margin-left: auto;
+    }
+    .data-table-stack .data-row > .cell-wide {
+      display: none;
+    }
+    /* A bare figure (a count) says what it counts once its column head is gone. */
+    .data-table-stack .data-row > [data-label]::before {
+      content: attr(data-label) " ";
+    }
   }
 
   /* Tabs */
@@ -1616,15 +1859,56 @@
     background: var(--primary-soft);
     color: var(--primary);
   }
+  /* Phones: the tab bar stays one line and scrolls sideways, edge to edge of
+     the page (--gutter is the page's side padding). The rule under it is drawn
+     as a shadow so the scroll box does not clip the current tab's underline. */
+  @media (max-width: 639px) {
+    .tabs {
+      flex-shrink: 0;
+      gap: 22px;
+      margin-inline: calc(-1 * var(--gutter, 0px));
+      padding-inline: var(--gutter, 0px);
+      overflow-x: auto;
+      overflow-y: hidden;
+      border-bottom: none;
+      box-shadow: inset 0 -1px 0 var(--line);
+      scrollbar-width: none;
+    }
+    .tabs::-webkit-scrollbar {
+      display: none;
+    }
+    /* A tab bar whose rule is drawn by its container (the settings tab bars). */
+    .tabs.tabs-bare {
+      margin-inline: 0;
+      padding-inline: 0;
+      box-shadow: none;
+    }
+    .tab {
+      flex-shrink: 0;
+      margin-bottom: 0;
+      font-size: 14px;
+      white-space: nowrap;
+    }
+  }
 
   /* Segmented control */
   .segmented {
     display: inline-flex;
     align-self: flex-start;
     gap: 4px;
+    max-width: 100%;
     padding: 4px;
     border-radius: 12px;
     background: var(--track);
+    /* More options than the width holds (a phone): they scroll sideways. */
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .segmented::-webkit-scrollbar {
+    display: none;
+  }
+  .segment {
+    flex-shrink: 0;
   }
   .segment {
     display: inline-flex;
@@ -1675,6 +1959,12 @@
   }
   .search-field .input {
     padding-left: 40px;
+  }
+  @media (max-width: 639px) {
+    .search-field {
+      flex-basis: 100%;
+      max-width: none;
+    }
   }
   .search-field-icon {
     position: absolute;
@@ -1793,6 +2083,10 @@
     box-shadow: var(--shadow-modal);
     animation: pop-in 0.18s ease;
   }
+  /* The dialog takes the focus itself on a touch screen (Modal.tsx): no ring. */
+  .modal:focus {
+    outline: none;
+  }
   .modal-confirm {
     max-width: 440px;
   }
@@ -1891,27 +2185,68 @@
     border-top: 1px solid var(--line-soft);
     background: var(--surface-2);
   }
+  /* Phones: a modal is a sheet rising from the bottom edge — full width,
+     rounded on top, with a handle to drag it down (see Modal.tsx). The big
+     sizes take the whole height under the status bar. */
   @media (max-width: 639px) {
     .modal-overlay {
-      padding: 12px;
+      align-items: flex-end;
+      padding: calc(var(--safe-top) + 12px) 0 0;
     }
     .modal {
-      max-height: calc(100dvh - 24px);
+      position: relative;
+      max-height: 100%;
+      border-radius: 22px 22px 0 0;
+      animation: sheet-in 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+      touch-action: pan-y;
+    }
+    .modal::before {
+      content: "";
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      width: 40px;
+      height: 5px;
+      border-radius: 99px;
+      background: var(--line-2);
+      transform: translateX(-50%);
     }
     .modal-wide,
     .modal-panel {
-      height: calc(100dvh - 24px);
+      height: 100%;
     }
     .modal-head {
-      padding: 20px 16px 14px 20px;
+      padding: 24px 12px 14px 20px;
+      touch-action: none;
+    }
+    .modal-title {
+      font-size: 22px;
+    }
+    /* The title needs the width more than the decoration does. */
+    .modal-head > .modal-icon {
+      display: none;
     }
     .modal-body {
-      padding: 18px 20px 22px;
+      padding: 18px 20px calc(22px + var(--safe-bottom));
     }
     .modal-actions {
       margin: auto -20px 0;
-      padding: 14px 20px 16px;
+      padding: 12px 20px calc(12px + var(--safe-bottom));
     }
+    /* One tap each: the actions share the width. */
+    .modal-actions > .btn,
+    .modal-actions > * > .btn {
+      flex: 1;
+    }
+  }
+  /* While dragged down, the sheet follows the finger (Modal.tsx sets --drag). */
+  .modal[data-dragging="true"] {
+    transform: translateY(var(--drag, 0px));
+    transition: none;
+  }
+  .modal[data-dragging="release"] {
+    transform: translateY(0);
+    transition: transform 0.2s ease;
   }
 
   /* Toasts */
@@ -1924,6 +2259,15 @@
     flex-direction: column;
     gap: 10px;
     width: min(380px, calc(100vw - 48px));
+  }
+  /* Phones: full width at the bottom, over the tab bar and the home indicator. */
+  @media (max-width: 639px) {
+    .toast-stack {
+      right: calc(12px + var(--safe-right));
+      bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 12px);
+      left: calc(12px + var(--safe-left));
+      width: auto;
+    }
   }
   .toast {
     display: flex;
@@ -1964,13 +2308,44 @@
     color: var(--ink);
   }
 
+  /* Offline: a pill at the top while the connection is down (AppRuntime.tsx). */
+  .offline-bar {
+    position: fixed;
+    top: calc(var(--safe-top) + 10px);
+    left: 50%;
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: max-content;
+    max-width: calc(100vw - 24px);
+    padding: 10px 16px;
+    border-radius: 99px;
+    background: var(--night);
+    box-shadow: var(--shadow-toast);
+    color: var(--on-night);
+    font-size: 13px;
+    font-weight: 600;
+    transform: translateX(-50%);
+    animation: fade-in 0.2s ease;
+  }
+  .offline-bar > svg {
+    flex-shrink: 0;
+    color: var(--ochre-light);
+  }
+
   /* App shell */
-  /* Residence shell: top bar + collapsible sidebar, sharing one width */
+  /* Residence shell: top bar + collapsible sidebar, sharing one width.
+     Desktop (≥ 1024): the sidebar, open or collapsed as the user left it.
+     Tablet (768–1023): always the icon strip, the page needs the width.
+     Phone (< 768): no sidebar — a tab bar at the bottom, in thumb reach. */
   .shell {
     --side-w: 248px;
     display: flex;
     flex-direction: column;
     height: 100vh;
+    /* The visible height on phones, whose browser bars come and go. */
+    height: 100dvh;
   }
   .shell[data-collapsed="true"] {
     --side-w: 72px;
@@ -1981,7 +2356,8 @@
     display: flex;
     align-items: center;
     flex-shrink: 0;
-    height: 64px;
+    height: calc(64px + var(--safe-top));
+    padding-top: var(--safe-top);
     border-bottom: 1px solid var(--line);
     background: var(--surface-2);
   }
@@ -1991,9 +2367,9 @@
     gap: 12px;
     flex-shrink: 0;
     box-sizing: border-box;
-    width: var(--side-w);
+    width: calc(var(--side-w) + var(--safe-left));
     height: 100%;
-    padding: 0 20px;
+    padding: 0 20px 0 calc(20px + var(--safe-left));
     overflow: hidden;
     border-right: 1px solid var(--line);
     color: var(--ink);
@@ -2003,13 +2379,43 @@
   .shell-brand:hover {
     color: var(--ink);
   }
+  /* The residence and cycle switchers, between the brand and the account menu. */
+  .shell-context {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    padding: 0 24px;
+  }
+  .shell-account {
+    flex-shrink: 0;
+    padding-right: calc(24px + var(--safe-right));
+  }
+  .shell-body {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+  }
+  /* The page itself: it scrolls, the frame around it stays. --gutter is its
+     side padding, which a full-bleed strip (.tabs) reads to reach the edges. */
+  .shell-main {
+    --gutter: 40px;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 24px;
+    min-width: 0;
+    padding: 32px calc(var(--gutter) + var(--safe-right)) 48px var(--gutter);
+    overscroll-behavior: contain;
+  }
   .side {
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
     box-sizing: border-box;
-    width: var(--side-w);
-    padding: 16px 12px 14px;
+    width: calc(var(--side-w) + var(--safe-left));
+    padding: 16px 12px 14px calc(12px + var(--safe-left));
     overflow: hidden;
     border-right: 1px solid var(--line);
     background: var(--surface-2);
@@ -2093,7 +2499,7 @@
     border-top: 1px solid var(--line);
   }
   .shell[data-collapsed="true"] .side {
-    padding-left: 14px;
+    padding-left: calc(14px + var(--safe-left));
     padding-right: 14px;
   }
   .shell[data-collapsed="true"] .side-item {
@@ -2111,6 +2517,202 @@
   .shell[data-collapsed="true"] .side-divider {
     display: block;
   }
+
+  /* Tablet: the icon strip whatever was chosen on a desktop (the same rules
+     as the collapsed sidebar above); no button to open it. */
+  @media (max-width: 1023px) {
+    .shell {
+      --side-w: 72px;
+    }
+    .shell .side {
+      padding-left: calc(14px + var(--safe-left));
+      padding-right: 14px;
+    }
+    .shell .side-item {
+      justify-content: center;
+      align-self: center;
+      width: 44px;
+      padding: 0;
+    }
+    .shell .side-label,
+    .shell .side-text,
+    .shell .side-count,
+    .shell .shell-brand-name,
+    .shell .side-toggle {
+      display: none;
+    }
+    .shell .side-divider {
+      display: block;
+    }
+    .shell-context {
+      padding: 0 20px;
+    }
+    .shell-account {
+      padding-right: calc(20px + var(--safe-right));
+    }
+    .shell-main {
+      --gutter: 28px;
+      padding-top: 28px;
+    }
+  }
+
+  /* Phone: brand mark, switchers and account in one bar on top; the page;
+     the tab bar at the bottom. */
+  @media (max-width: 767px) {
+    .shell-header {
+      height: calc(56px + var(--safe-top));
+    }
+    /* A small phone: the switchers need the room more than the brand mark
+       (the residence menu leads to all residences too). */
+    @media (max-width: 479px) {
+      .shell-brand {
+        display: none;
+      }
+      .shell-context {
+        padding-left: calc(10px + var(--safe-left));
+      }
+    }
+    .shell-brand {
+      width: auto;
+      padding: 0 4px 0 calc(16px + var(--safe-left));
+      border-right: none;
+    }
+    .side {
+      display: none;
+    }
+    .shell-context {
+      gap: 6px;
+      padding: 0 6px;
+    }
+    .shell-context .header-divider {
+      display: none;
+    }
+    .shell-account {
+      padding-right: calc(12px + var(--safe-right));
+    }
+    .shell-main {
+      --gutter: 16px;
+      gap: 18px;
+      padding: 20px calc(var(--gutter) + var(--safe-right)) 28px calc(var(--gutter) + var(--safe-left));
+    }
+  }
+
+  /* The phone tab bar: the residence's sections, one tap each. */
+  .tabbar {
+    display: none;
+  }
+  @media (max-width: 767px) {
+    .tabbar {
+      display: grid;
+      flex-shrink: 0;
+      grid-auto-columns: minmax(0, 1fr);
+      grid-auto-flow: column;
+      height: calc(var(--tabbar-h) + var(--safe-bottom));
+      padding: 0 var(--safe-right) var(--safe-bottom) var(--safe-left);
+      border-top: 1px solid var(--line);
+      background: var(--surface-2);
+    }
+  }
+  .tabbar-item {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-width: 0;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: transform 0.1s ease;
+  }
+  .tabbar-item:hover {
+    color: var(--ink);
+  }
+  .tabbar-item[aria-current="page"] {
+    color: var(--primary);
+    font-weight: 700;
+  }
+  .tabbar-icon {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 30px;
+    border-radius: 99px;
+    transition: background-color 0.15s ease;
+  }
+  .tabbar-item[aria-current="page"] .tabbar-icon {
+    background: var(--primary-soft);
+  }
+  .tabbar-label {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .tabbar-badge {
+    position: absolute;
+    top: -3px;
+    left: calc(50% + 6px);
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border: 2px solid var(--surface-2);
+    border-radius: 99px;
+    background: var(--ochre);
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 14px;
+    text-align: center;
+    box-sizing: border-box;
+  }
+
+  /* The top bar's menus (residence, cycle, account). On a phone they rise as
+     a sheet from the bottom, over a dimmed page; a tap outside closes them. */
+  .menu-backdrop {
+    display: none;
+  }
+  /* A menu's click-catcher that is always there (the menu has no other way
+     to close on a click outside), dimmed only where the menu is a sheet. */
+  .menu-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+  }
+  @media (max-width: 767px) {
+    .menu-scrim {
+      background: var(--overlay);
+      animation: fade-in 0.15s ease;
+    }
+    .menu-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: block;
+      background: var(--overlay);
+      animation: fade-in 0.15s ease;
+    }
+    .popover.menu-sheet {
+      position: fixed;
+      right: calc(8px + var(--safe-right));
+      bottom: calc(8px + var(--safe-bottom));
+      left: calc(8px + var(--safe-left));
+      z-index: 41;
+      width: auto;
+      max-height: calc(100dvh - var(--safe-top) - 72px);
+      overflow-y: auto;
+      padding: 10px;
+      border-radius: 22px;
+      animation: sheet-in 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    .menu-sheet .menu-item {
+      min-height: 52px;
+    }
+  }
   .header-divider {
     width: 1px;
     height: 28px;
@@ -2123,10 +2725,16 @@
     align-items: center;
     justify-content: space-between;
     flex-shrink: 0;
-    height: 72px;
-    padding: 0 40px;
+    height: calc(72px + var(--safe-top));
+    padding: var(--safe-top) calc(48px + var(--safe-right)) 0 calc(48px + var(--safe-left));
     border-bottom: 1px solid var(--line);
     background: var(--surface-2);
+  }
+  @media (max-width: 767px) {
+    .topbar {
+      height: calc(60px + var(--safe-top));
+      padding-inline: calc(16px + var(--safe-left)) calc(12px + var(--safe-right));
+    }
   }
   .brand-mark {
     display: inline-flex;
@@ -2161,6 +2769,13 @@
   .user-trigger[aria-expanded="true"] {
     background: var(--surface);
     border-color: var(--line-2);
+  }
+  /* Phones: the account button is its avatar alone. */
+  @media (max-width: 639px) {
+    .shell-account .user-trigger,
+    .topbar .user-trigger {
+      padding: 0 4px;
+    }
   }
   .avatar {
     display: inline-flex;
@@ -2265,6 +2880,11 @@
   from {
     opacity: 0;
     transform: translateY(8px) scale(0.98);
+  }
+}
+@keyframes sheet-in {
+  from {
+    transform: translateY(100%);
   }
 }
 @keyframes toast-in {

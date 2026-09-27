@@ -140,14 +140,14 @@ export default async function DashboardPage({ params, searchParams }: PageProps<
 
       {/* Hero: the collection rate, then the four figures that matter, each against the cycle before. */}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,2fr)]">
-        <section className="card-night flex flex-wrap items-center gap-5 p-6">
+        <section className="card-night flex flex-wrap items-center gap-4 p-5 sm:gap-5 sm:p-6">
           <Gauge value={rate} />
-          <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <div className="flex min-w-[150px] flex-1 flex-col gap-2">
             <h2 className="text-[13px] font-bold uppercase tracking-[0.06em] text-night-soft">{t.dashCollection}</h2>
             <span className="num whitespace-nowrap text-[22px] font-bold leading-tight">
               {money(totals.collectedMillimes)}
             </span>
-            <span className="whitespace-nowrap text-sm text-night-soft">
+            <span className="text-sm text-night-soft">
               {interpolate(t.dashOfExpected, { expected: money(totals.expectedMillimes) })}
             </span>
             {before && previous && (

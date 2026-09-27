@@ -13,7 +13,7 @@ export function Gauge({ value }: { value: number }) {
   // Circumference 100 (r = 15.915) so dash lengths read as percents; 75 of it is drawn.
   const shown = (Math.max(0, Math.min(100, value)) / 100) * 75;
   return (
-    <div className="relative h-[132px] w-[132px] shrink-0">
+    <div className="relative h-[104px] w-[104px] shrink-0 sm:h-[132px] sm:w-[132px]">
       <svg viewBox="0 0 42 42" className="h-full w-full rotate-[135deg]" aria-hidden="true">
         <circle className="gauge-track" cx="21" cy="21" r="15.915" strokeWidth="3.4" strokeDasharray="75 25" />
         {shown > 0 && (
@@ -28,7 +28,7 @@ export function Gauge({ value }: { value: number }) {
         )}
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="font-display text-[36px] leading-none">{value}%</span>
+        <span className="font-display text-[30px] leading-none sm:text-[36px]">{value}%</span>
       </div>
     </div>
   );

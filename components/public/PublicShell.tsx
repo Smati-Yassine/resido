@@ -9,7 +9,7 @@ export async function PublicShell({ t, children }: { t: Dictionary; children: Re
   const { theme } = await getPreferences();
   return (
     <div className="flex min-h-full flex-col">
-      <header className="topbar px-6 md:px-12">
+      <header className="topbar">
         <Link href="/" className="flex items-center gap-3 text-ink no-underline hover:text-ink">
           <span className="brand-mark">R</span>
           <span className="font-display text-[22px] font-semibold">Résido</span>

@@ -47,26 +47,34 @@ export function CycleSwitcher({ cycles, defaultCycleId }: { cycles: CycleView[];
   const targetPath = section.path === "/settings" ? "" : pathname.slice(base.length);
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative shrink-0">
       <button
         type="button"
-        className="btn btn-ghost h-10 gap-2.5 bg-surface pl-3.5 pr-3"
+        className="btn btn-ghost h-10 gap-2 bg-surface pl-3 pr-2.5 sm:gap-2.5 sm:pl-3.5 sm:pr-3"
         aria-label={t.changeCycle}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={toggle}
       >
-        <span className="text-muted">
+        <span className="hidden text-muted min-[420px]:inline">
           <Icon name="calendar" size={16} />
         </span>
         <span>{selected.name}</span>
-        <Badge tone={selected.badge}>{selected.statusLabel}</Badge>
+        {/* A phone has room for the status as a dot only; the menu spells it out. */}
+        <span className={`status-dot status-dot-${selected.badge} sm:hidden`} title={selected.statusLabel} />
+        <span className="hidden sm:contents">
+          <Badge tone={selected.badge}>{selected.statusLabel}</Badge>
+        </span>
         <span className="text-muted">
           <Icon name="chevronDown" size={16} strokeWidth={2} />
         </span>
       </button>
+      {open && <div className="menu-backdrop" aria-hidden="true" onClick={close} />}
       {open && (
-        <div role="menu" className="popover absolute left-0 top-12 flex w-[340px] flex-col gap-0.5">
+        <div
+          role="menu"
+          className="popover menu-sheet flex flex-col gap-0.5 md:absolute md:left-0 md:top-12 md:w-[340px]"
+        >
           {cycles.map((c) => (
             <Link
               key={c.id}
