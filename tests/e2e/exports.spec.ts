@@ -1,12 +1,12 @@
 import ExcelJS from "exceljs";
 import { expect, test, type APIRequestContext } from "@playwright/test";
-import { DEMO } from "./helpers";
+import { DEMO, dialog, expectToast, unique } from "./helpers";
 
 const XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
-/** Downloads one export of the demo residence's current cycle and opens it. */
-async function workbook(request: APIRequestContext, doc: string) {
-  const response = await request.get(`${DEMO}/export/${doc}`);
+/** Downloads one export of a residence (the demo one) — its current cycle's, or `all` — and opens it. */
+async function workbook(request: APIRequestContext, doc: string, residence = DEMO) {
+  const response = await request.get(`${residence}/export/${doc}`);
   expect(response.status()).toBe(200);
   expect(response.headers()["content-type"]).toBe(XLSX);
   expect(response.headers()["content-disposition"]).toMatch(/^attachment; filename=".+\.xlsx"$/);
@@ -78,4 +78,91 @@ test("the Excel menu downloads this page's export", async ({ page }) => {
   await expect(menu.getByRole("menuitem").first()).toHaveText("Encaissements");
   const [download] = await Promise.all([page.waitForEvent("download"), menu.getByRole("menuitem").first().click()]);
   expect(download.suggestedFilename()).toMatch(/^encaissements-.+\.xlsx$/);
+});
+
+test("the whole residence: every sheet, and a file that imports back as a new residence", async ({ request }) => {
+  const book = await workbook(request, "all");
+  expect(book.worksheets.map((s) => s.name)).toEqual([
+    "Résidence",
+    "Cycles",
+    "Blocs",
+    "Lots",
+    "Propriétaires",
+    "Charges",
+    "Encaissements",
+    "Répartition",
+    "Dépenses",
+    "Par mois",
+    "Mouvements",
+    "Par bloc",
+    "Modes de paiement",
+    "Membres",
+    "Journal",
+  ]);
+  const file = Buffer.from(await book.xlsx.writeBuffer());
+
+  const name = unique("Import démo");
+  const response = await request.post("/api/imports/residence", {
+    multipart: { file: { name: "demo.xlsx", mimeType: XLSX, buffer: file }, name },
+  });
+  expect(response.status()).toBe(200);
+  const result = await response.json();
+  expect(result).toMatchObject({ ok: true });
+  expect(result.message).toContain(name);
+
+  // The copy bills, collects and spends exactly what the original does, cycle by cycle.
+  const figures = async (base: string) =>
+    rows((await workbook(request, "all", base)).getWorksheet("Cycles")!)
+      .slice(1)
+      .map((r) => [r[0], r[1], ...r.slice(4)]);
+  expect(await figures(`/residences/${result.slug}`)).toEqual(await figures(DEMO));
+});
+
+test("a broken file imports nothing and says what to fix", async ({ request }) => {
+  const book = await workbook(request, "all");
+  // The first lot, under the header: an annual charge that is no amount.
+  const lots = book.getWorksheet("Lots")!;
+  let first = 0;
+  lots.eachRow((row) => {
+    if (!first && row.getCell(2).value === "Lot") first = row.number + 1;
+  });
+  lots.getRow(first).getCell(3).value = "beaucoup";
+  const response = await request.post("/api/imports/residence", {
+    multipart: { file: { name: "demo.xlsx", mimeType: XLSX, buffer: Buffer.from(await book.xlsx.writeBuffer()) } },
+  });
+  expect(response.status()).toBe(422);
+  const result = await response.json();
+  expect(result.ok).toBe(false);
+  expect(result.issues).toContainEqual(`Lots, ligne ${first} : « beaucoup » n’est pas un montant valide (Charge annuelle).`);
+});
+
+test("Import on the residences list opens the new residence", async ({ page, request }) => {
+  const file = Buffer.from(await (await workbook(request, "all")).xlsx.writeBuffer());
+  await page.goto("/residences");
+  await page.getByRole("button", { name: "Importer", exact: true }).click();
+  const modal = dialog(page);
+  await modal.getByLabel("Classeur Excel (.xlsx)").setInputFiles({ name: "demo.xlsx", mimeType: XLSX, buffer: file });
+  const name = unique("Import modal");
+  await modal.getByLabel("Nom de la nouvelle résidence").fill(name);
+  await modal.getByRole("button", { name: "Importer" }).click();
+  await expectToast(page, name);
+  await page.waitForURL(/\/residences\/import-modal-/);
+});
+
+test("the Excel menu and the settings export the whole residence", async ({ page }) => {
+  await page.goto(DEMO);
+  await page.getByRole("button", { name: "Exporter en Excel" }).click();
+  const menu = page.getByRole("menu", { name: "Exporter en Excel" });
+  const [fromMenu] = await Promise.all([
+    page.waitForEvent("download"),
+    menu.getByRole("menuitem", { name: /Toute la résidence/ }).click(),
+  ]);
+  expect(fromMenu.suggestedFilename()).toMatch(/^residence-demo-\d{4}-\d{2}-\d{2}\.xlsx$/);
+
+  await page.goto(`${DEMO}/settings`);
+  const [fromSettings] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Exporter (.xlsx)" }).click(),
+  ]);
+  expect(fromSettings.suggestedFilename()).toBe(fromMenu.suggestedFilename());
 });

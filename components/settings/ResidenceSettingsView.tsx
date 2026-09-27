@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import type { IconName } from "@/components/ui/Icon";
+import { Icon, type IconName } from "@/components/ui/Icon";
 import { Badge, EmptyState, Notice } from "@/components/ui/Display";
 import { SearchField } from "@/components/ui/Filters";
 import { Group, Row, SettingsTabs } from "./SettingsParts";
@@ -13,6 +13,9 @@ import { useAfterAction } from "@/components/ui/AfterAction";
 import { setResidenceCurrencyAction, updateResidenceAction } from "@/lib/actions/residences";
 import { DeleteResidenceModal, LeaveResidenceModal } from "@/components/residences/ResidenceModals";
 import { useArchive } from "@/components/residences/useArchive";
+import { ImportResidenceModal } from "@/components/residences/ImportResidenceModal";
+import { useWorkbookExport } from "@/components/print/useWorkbookExport";
+import { RESIDENCE_EXPORT } from "@/lib/export/docs";
 import { MembersPanel } from "@/components/workspace/Members";
 import { CycleMenu, NewCycleButton } from "@/components/workspace/CycleControls";
 import { CURRENCIES, CURRENCY_CODES, type CurrencyCode } from "@/lib/currency";
@@ -167,6 +170,8 @@ function GeneralSection({
         </div>
       </div>
 
+      <DataGroup base={residence.base} />
+
       <Group title={t.dangerZone} danger>
         {manage &&
           (residence.archived ? (
@@ -233,6 +238,41 @@ function GeneralSection({
         />
       )}
     </>
+  );
+}
+
+/**
+ * The whole residence as one workbook — every cycle, the file an import reads
+ * back — and importing such a file, which makes a new residence (this one is
+ * left as it is). Both open to every member: they read, and make their own.
+ */
+function DataGroup({ base }: { base: string }) {
+  const { t } = useI18n();
+  const { run, busy, preparing, sheet } = useWorkbookExport();
+  const [importing, setImporting] = useState(false);
+  return (
+    <Group title={t.dataTitle} text={t.dataText}>
+      <Row title={t.exportResidenceTitle} text={t.exportResidenceText}>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          disabled={busy}
+          aria-busy={busy}
+          onClick={() => run(`${base}/export/${RESIDENCE_EXPORT}`, t.docResidence)}
+        >
+          <Icon name="sheet" size={17} />
+          {preparing ? t.excelPreparing : t.exportResidenceCta}
+        </button>
+      </Row>
+      <Row title={t.importRowTitle} text={t.importRowText}>
+        <button type="button" className="btn btn-ghost" onClick={() => setImporting(true)}>
+          <Icon name="upload" size={17} />
+          {t.importResidence}
+        </button>
+      </Row>
+      {sheet}
+      {importing && <ImportResidenceModal onClose={() => setImporting(false)} />}
+    </Group>
   );
 }
 

@@ -1,30 +1,24 @@
 "use client";
 
-import { useState } from "react";
-import { interpolate } from "@/lib/i18n/dictionaries";
 import { useI18n } from "@/components/ui/I18nProvider";
-import { useToast } from "@/components/ui/Toaster";
 import { Icon } from "@/components/ui/Icon";
 import { usePopover } from "@/components/ui/usePopover";
-import type { ExportDoc } from "@/lib/export/docs";
-import { downloadFile, fetchFile, FileSheet, isTouchDevice } from "./FileHandOff";
+import { RESIDENCE_EXPORT, type ExportDoc, type ExportTarget } from "@/lib/export/docs";
+import { useWorkbookExport } from "./useWorkbookExport";
 
-const XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const ORDER: ExportDoc[] = ["report", "property", "unpaid", "payments", "expenses", "finances"];
 
 /**
  * "Excel": the cycle's exports as workbooks (lib/export/cycle-workbook.ts),
- * this page's first, the others under it. A computer downloads the file; a
- * phone or tablet gets the same sheet as Print, to open it in a spreadsheet
- * app or send it.
+ * this page's first, the others under it, and last the whole residence —
+ * every cycle, the file an import reads back. A computer downloads the file;
+ * a phone or tablet gets the same sheet as Print (useWorkbookExport).
  */
-export function ExportButton({ current, hrefs }: { current: ExportDoc; hrefs: Record<ExportDoc, string> }) {
+export function ExportButton({ current, hrefs }: { current: ExportDoc; hrefs: Record<ExportTarget, string> }) {
   const { t } = useI18n();
-  const toast = useToast();
   const { open, toggle, close, ref } = usePopover();
-  const [busy, setBusy] = useState(false);
-  const [sheet, setSheet] = useState<{ doc: ExportDoc; file: File | null } | null>(null);
-  const title = (doc: ExportDoc) =>
+  const { run, busy, preparing, sheet } = useWorkbookExport();
+  const title = (doc: ExportTarget) =>
     ({
       property: t.docProperty,
       payments: t.docPayments,
@@ -32,38 +26,24 @@ export function ExportButton({ current, hrefs }: { current: ExportDoc; hrefs: Re
       unpaid: t.docUnpaid,
       finances: t.docFinances,
       report: t.docReport,
+      all: t.docResidence,
     })[doc];
 
-  const download = (doc: ExportDoc, file: File) => {
-    downloadFile(file);
-    toast({ tone: "success", text: interpolate(t.pdfDownloaded, { doc: title(doc) }) });
+  const exportDoc = (doc: ExportTarget) => {
+    close();
+    run(hrefs[doc], title(doc));
   };
 
-  async function exportDoc(doc: ExportDoc) {
-    close();
-    if (busy) return;
-    setBusy(true);
-    const touch = isTouchDevice();
-    if (touch) setSheet({ doc, file: null });
-    try {
-      const file = await fetchFile(hrefs[doc], XLSX, "resido.xlsx");
-      if (touch) setSheet((shown) => shown && { doc, file });
-      else download(doc, file);
-    } catch {
-      setSheet(null);
-      toast({ tone: "danger", text: t.excelFailed });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const item = (doc: ExportDoc) => (
+  const item = (doc: ExportTarget, hint?: string) => (
     <button key={doc} type="button" role="menuitem" className="menu-item py-2.5 text-sm font-semibold" onClick={() => exportDoc(doc)}>
       <span className="flex items-center gap-3">
         <span className="text-olive">
           <Icon name="sheet" size={16} />
         </span>
-        {title(doc)}
+        <span className="flex flex-col">
+          {title(doc)}
+          {hint && <span className="text-xs font-normal text-muted">{hint}</span>}
+        </span>
       </span>
     </button>
   );
@@ -82,7 +62,7 @@ export function ExportButton({ current, hrefs }: { current: ExportDoc; hrefs: Re
         onClick={toggle}
       >
         <Icon name="sheet" size={17} />
-        <span className="btn-label-sm-hide">{busy && !sheet ? t.excelPreparing : t.excel}</span>
+        <span className="btn-label-sm-hide">{preparing ? t.excelPreparing : t.excel}</span>
         <span className="btn-label-sm-hide text-muted">
           <Icon name="chevronDown" size={15} strokeWidth={2} />
         </span>
@@ -98,25 +78,13 @@ export function ExportButton({ current, hrefs }: { current: ExportDoc; hrefs: Re
           {item(current)}
           <div className="divider mx-1 my-1.5" />
           <span className="label-caps px-3 pb-1 pt-1 text-[11px]">{t.excelOthers}</span>
-          {ORDER.filter((doc) => doc !== current).map(item)}
+          {ORDER.filter((doc) => doc !== current).map((doc) => item(doc))}
+          <div className="divider mx-1 my-1.5" />
+          <span className="label-caps px-3 pb-1 pt-1 text-[11px]">{t.excelWhole}</span>
+          {item(RESIDENCE_EXPORT, t.docResidenceHint)}
         </div>
       )}
-      {sheet && (
-        <FileSheet
-          title={title(sheet.doc)}
-          preparingText={t.excelPreparing}
-          readyText={t.excelSheetText}
-          file={sheet.file}
-          icon="sheet"
-          kind="XLSX"
-          shareLabel={t.excelShare}
-          onDownload={(file) => {
-            download(sheet.doc, file);
-            setSheet(null);
-          }}
-          onClose={() => setSheet(null)}
-        />
-      )}
+      {sheet}
     </div>
   );
 }

@@ -13,6 +13,7 @@ import type { CurrencyCode } from "@/lib/currency";
 import { fold } from "@/lib/text";
 import { DeleteResidenceModal, LeaveResidenceModal, ResidenceFormModal, type ResidenceDraft } from "./ResidenceModals";
 import { ResidenceSettingsModal } from "./ResidenceSettingsModal";
+import { ImportResidenceModal } from "./ImportResidenceModal";
 import { useArchive } from "./useArchive";
 
 export interface ResidenceCardView extends ResidenceDraft {
@@ -36,15 +37,17 @@ export interface ResidenceCardView extends ResidenceDraft {
 
 type ModalState =
   | { kind: "create" }
+  | { kind: "import" }
   | { kind: "settings"; residence: ResidenceDraft }
   | { kind: "delete"; residence: ResidenceDraft }
   | { kind: "leave"; residence: ResidenceDraft }
   | null;
 
 /**
- * "Mes résidences": a greeting and the figures across residences, a search
- * and the active / archived filter, then one card per residence — its
- * collection on a ring, what is still to collect, and its actions.
+ * "Mes résidences": a greeting and the figures across residences (with
+ * "Import" beside "New residence"), a search and the active / archived
+ * filter, then one card per residence — its collection on a ring, what is
+ * still to collect, and its actions.
  */
 export function HomeView({ residences, firstName }: { residences: ResidenceCardView[]; firstName: string }) {
   const { t } = useI18n();
@@ -193,10 +196,22 @@ export function HomeView({ residences, firstName }: { residences: ResidenceCardV
           <h1 className="display text-[40px] md:text-[44px]">{interpolate(t.greeting, { name: firstName })}</h1>
           <p className="text-[15px] text-muted">{t.residencesIntro}</p>
         </div>
-        <button type="button" className="btn btn-primary btn-lg" onClick={() => setModal({ kind: "create" })}>
-          <Icon name="plus" strokeWidth={2.2} />
-          {t.newResidence}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="btn btn-ghost btn-lg btn-icon-sm"
+            aria-label={t.importResidence}
+            title={t.importTitle}
+            onClick={() => setModal({ kind: "import" })}
+          >
+            <Icon name="upload" />
+            <span className="btn-label-sm-hide">{t.importResidence}</span>
+          </button>
+          <button type="button" className="btn btn-primary btn-lg" onClick={() => setModal({ kind: "create" })}>
+            <Icon name="plus" strokeWidth={2.2} />
+            {t.newResidence}
+          </button>
+        </div>
       </div>
 
       {residences.length > 0 && (
@@ -254,6 +269,7 @@ export function HomeView({ residences, firstName }: { residences: ResidenceCardV
       )}
 
       {modal?.kind === "create" && <ResidenceFormModal onClose={close} />}
+      {modal?.kind === "import" && <ImportResidenceModal onClose={close} />}
       {modal?.kind === "settings" && (
         <ResidenceSettingsModal residenceId={modal.residence.id} residenceName={modal.residence.name} onClose={close} />
       )}

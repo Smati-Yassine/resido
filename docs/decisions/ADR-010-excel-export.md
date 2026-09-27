@@ -1,4 +1,4 @@
-# ADR-010: exceljs for server-generated Excel exports, no import
+# ADR-010: exceljs for server-generated Excel exports (import revised 2026-09)
 
 ## Context
 
@@ -43,3 +43,22 @@ migration/reconciliation capability — Excel is a one-way output.
 - Because no import path exists, there is no risk of Excel becoming a
   disguised secondary source of truth or reintroducing the
   spreadsheet-driven architecture the brief explicitly rejects (§46).
+
+## Revision (2026-09): importing a whole residence
+
+The product owner asked for import: moving a residence between accounts,
+restoring one from its export, and starting from a prepared workbook.
+`exceljs` already reads `.xlsx`, so no library is added. The import is
+bounded so the concerns above still hold:
+
+- It reads only the "whole residence" workbook (`lib/export/residence-format.ts`,
+  one definition for export and import) and **only ever creates a new
+  residence** — Excel never overwrites, merges into or becomes the source of
+  truth for an existing one.
+- Everything the app computes (paid amounts, statuses, payment totals,
+  closing balances) is recomputed from the imported records, never read
+  from the file.
+- The whole file is validated before any write; a file with problems
+  imports nothing, and every write happens in one transaction.
+
+See docs/09-excel-exports.md#import.

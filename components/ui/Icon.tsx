@@ -212,6 +212,14 @@ const PATHS = {
       <path d="M4 10h16M4 15h16M10 4v16" />
     </>
   ),
+  // Bringing a file in: the import.
+  upload: (
+    <>
+      <path d="M12 15V4" />
+      <path d="M8 8l4-4 4 4" />
+      <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+    </>
+  ),
   // iOS's Share button: where "Add to Home Screen" lives.
   share: (
     <>

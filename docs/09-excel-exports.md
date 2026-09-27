@@ -1,9 +1,10 @@
-# 09 — Excel Export Strategy
+# 09 — Excel Export and Import
 
-Excel export is a required, one-way, read-only reporting feature. It is
-**not** the internal data model (§46 of the brief) — every export is
-generated on demand from normalized MongoDB data through the same domain
-read functions/aggregations used by the UI.
+Excel export is a required reporting feature. It is **not** the internal
+data model (§46 of the brief) — every export is generated on demand from
+normalized MongoDB data through the same domain read functions/aggregations
+used by the UI. Since ADR-010's revision, one export — the whole residence —
+can also be imported back, always as a **new** residence (see "Import" below).
 
 ## Library
 
@@ -32,6 +33,49 @@ business's existing spreadsheet literacy.
   The "Excel" menu beside "Print" (dashboard, Finances, Copropriété) lists
   them, the page's own first. A computer downloads the file; a phone or
   tablet hands it to the share menu, like the PDFs.
+- **Whole residence** — `GET /residences/<slug>/export/all`: every cycle in
+  one workbook (`lib/export/residence-workbook.ts`), last in the Excel menu
+  and in Settings › General › Data. Any member can download it.
+  - Records (what an import reads): Résidence (name, city, currency),
+    Cycles (status, dates, starting balance and whether it is carried over,
+    plus each cycle's dashboard figures), Blocs, Lots, Propriétaires
+    (with a `P1`, `P2`… ref), Charges (every lot of every cycle: its owners
+    that cycle, charge, paid, left, status, payment methods), Encaissements
+    (numbered), Répartition (how each payment is split, by cycle and lot),
+    Dépenses.
+  - Views (worked out, ignored on import): Par mois, Mouvements (running
+    balance), Par bloc, Modes de paiement, Membres, Journal.
+
+  The sheet and column names, in both languages, are defined once in
+  `lib/export/residence-format.ts` and shared by the export and the import.
+
+## Import
+
+`POST /api/imports/residence` (multipart `file`, optional `name`; 4 MB at
+most) — "Import" on the residences list, or Settings › General › Data.
+`lib/import/residence-import.ts`:
+
+- **Always a new residence**, owned by the importer (SYNDIC_ADMIN). Nothing
+  is merged into or overwrites an existing residence.
+- **Checked whole before anything is written.** Every problem is reported
+  with its sheet and Excel row ("Lots, ligne 6 : « beaucoup » n'est pas un
+  montant valide"), up to 25; a record with one wrong cell is still known to
+  the rows that name it, so one mistake gives one message. With any
+  problem, nothing is imported. Otherwise every record goes in in one
+  transaction, with a `RESIDENCE_IMPORTED` journal entry.
+- **Derived figures are recomputed, never trusted**: what a lot has paid
+  and its status come from the payments' split; a payment's amount must equal
+  its split; no charge can be paid beyond its amount; a closed cycle's
+  closing balance is worked out from its movements.
+- **Either language**, and forgiving of hand-made files: sheets and headers
+  match in French or English (accents and case ignored), status and method
+  words in either language or as codes, amounts as numbers or text
+  ("1 209,760"), dates as Excel dates or "31/12/2025"/"2025-12-31". Owners
+  can be given by name instead of ref (an unknown name adds that owner); a
+  file without Répartition can pay one lot in one cycle per payment;
+  without owner columns in Charges, a cycle bills the lots' owners.
+- Not imported: members (the importer is the only one), the journal,
+  cancelled payments and expenses (never exported).
 
 Every sheet opens with its caption (residence, document, cycle and dates,
 when it was generated), then a frozen, filterable header; money columns are
@@ -85,5 +129,5 @@ streams the generated workbook as the response with a
 
 ## Explicitly out of scope
 
-No Excel **import**, migration, preview, or reconciliation wizard is built —
-per §22 of the brief, this is a one-way `Résido → Excel` capability only.
+No merging an import into an existing residence, and no reconciliation
+wizard: an import makes a new residence, whole or not at all.
