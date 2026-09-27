@@ -16,6 +16,8 @@ import { FinanceOverview, type Movement } from "@/components/finances/FinanceOve
 import { PaymentsTable } from "@/components/finances/PaymentsTable";
 import { ExpensesTable } from "@/components/finances/ExpensesTable";
 import { PrintButton } from "@/components/print/PrintButton";
+import { ExportButton } from "@/components/print/ExportButton";
+import { exportHrefs } from "@/lib/export/docs";
 
 const TABS = ["overview", "payments", "expenses"] as const;
 type Tab = (typeof TABS)[number];
@@ -98,6 +100,7 @@ export default async function FinancesPage({
               label={t.print}
               document={{ overview: t.docFinances, payments: t.docPayments, expenses: t.docExpenses }[tab]}
             />
+            <ExportButton current={tab === "overview" ? "finances" : tab} hrefs={exportHrefs(href)} />
             {can("expenses:create") && <ExpenseButton residenceId={residenceId} variant="ghost" />}
             {can("payments:create") && <PaymentButton residenceId={residenceId} lots={lots} />}
           </>

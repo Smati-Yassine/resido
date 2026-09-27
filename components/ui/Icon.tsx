@@ -205,6 +205,13 @@ const PATHS = {
       <path d="M15.5 8.5l-2 5-5 2 2-5z" />
     </>
   ),
+  // A spreadsheet: the Excel exports.
+  sheet: (
+    <>
+      <rect x="4" y="4" width="16" height="16" rx="2" />
+      <path d="M4 10h16M4 15h16M10 4v16" />
+    </>
+  ),
   // iOS's Share button: where "Add to Home Screen" lives.
   share: (
     <>

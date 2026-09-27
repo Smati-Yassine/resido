@@ -106,6 +106,26 @@ test("print hands the PDF to the phone's share menu", async ({ page }) => {
   await expect(sheet).toBeHidden();
 });
 
+test("an Excel export goes to the share menu too", async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as unknown as { shared?: { name: string; type: string } };
+    navigator.canShare = (data) => !!data?.files?.length;
+    navigator.share = async (data) => {
+      const file = data!.files![0];
+      w.shared = { name: file.name, type: file.type };
+    };
+  });
+  await page.goto(`${DEMO}/property/lots`);
+  await page.getByRole("button", { name: "Exporter en Excel" }).click();
+  await page.getByRole("menuitem", { name: "Impayés" }).click();
+  await dialog(page).getByRole("button", { name: "Ouvrir ou partager" }).click();
+  const shared = await page.waitForFunction(() => (window as unknown as { shared?: object }).shared);
+  expect(await shared.jsonValue()).toMatchObject({
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    name: expect.stringMatching(/^impayes-.+\.xlsx$/),
+  });
+});
+
 test("the residences page offers to install the app", async ({ page }) => {
   await page.goto("/residences");
   await page.waitForLoadState("networkidle"); // the app is listening

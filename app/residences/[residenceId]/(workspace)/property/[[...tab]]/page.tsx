@@ -12,6 +12,8 @@ import { LotsBoard } from "@/components/lots/LotsBoard";
 import { OwnersBoard } from "@/components/owners/OwnersBoard";
 import { PropertyOverview } from "@/components/property/PropertyOverview";
 import { PrintButton } from "@/components/print/PrintButton";
+import { ExportButton } from "@/components/print/ExportButton";
+import { exportHrefs } from "@/lib/export/docs";
 
 const TABS = ["overview", "lots", "owners"] as const;
 type Tab = (typeof TABS)[number];
@@ -46,7 +48,10 @@ export default async function PropertyPage({
   );
   const ownerAction = canOwners && <NewOwnerButton residenceId={residenceId} lots={data.choices} />;
   const print = cycle && figures.lots > 0 && (
-    <PrintButton href={href("/print/property")} label={t.print} document={t.docProperty} />
+    <>
+      <PrintButton href={href("/print/property")} label={t.print} document={t.docProperty} />
+      <ExportButton current="property" hrefs={exportHrefs(href)} />
+    </>
   );
 
   return (

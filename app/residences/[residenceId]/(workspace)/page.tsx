@@ -19,6 +19,8 @@ import { PaymentButton } from "@/components/workspace/PaymentModal";
 import { ExpenseButton } from "@/components/workspace/ExpenseModal";
 import { SetupGuide } from "@/components/workspace/SetupGuide";
 import { PrintButton } from "@/components/print/PrintButton";
+import { ExportButton } from "@/components/print/ExportButton";
+import { exportHrefs } from "@/lib/export/docs";
 import { CollectionCurve, Delta, Donut, Gauge } from "@/components/dashboard/Charts";
 import * as buildings from "@/lib/domain/buildings/service";
 export default async function DashboardPage({ params, searchParams }: PageProps<"/residences/[residenceId]">) {
@@ -130,6 +132,7 @@ export default async function DashboardPage({ params, searchParams }: PageProps<
         actions={
           <>
             <PrintButton href={href("/print/report")} label={t.printAll} document={t.docReport} />
+            <ExportButton current="report" hrefs={exportHrefs(href)} />
             {can("expenses:create") && <ExpenseButton residenceId={residenceId} variant="ghost" />}
             {can("payments:create") && (
               <PaymentButton residenceId={residenceId} lots={paymentLots(rows)} label={t.addPayment} />

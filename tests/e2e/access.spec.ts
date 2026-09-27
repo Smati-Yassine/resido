@@ -58,6 +58,8 @@ test("nobody reaches a residence they are not a member of", async ({ page, brows
     const pdf = await stranger.request.get(`${DEMO}/print/report`);
     expect(pdf.status()).toBe(404);
     expect(pdf.headers()["content-type"]).not.toBe("application/pdf");
+    const xlsx = await stranger.request.get(`${DEMO}/export/report`);
+    expect(xlsx.status()).toBe(404);
   });
 
   await test.step("and the admin cannot open the stranger's own residence", async () => {

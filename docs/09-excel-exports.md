@@ -14,6 +14,33 @@ better streaming write support and native styling API, and over building CSV
 only, since the brief explicitly asks for Excel-formatted output matching the
 business's existing spreadsheet literacy.
 
+## What exists
+
+- **Account export** — `GET /api/exports/account`: everything of the user's
+  residences, one sheet per kind of record (`lib/export/account-workbook.ts`).
+- **Cycle exports** — `GET /residences/<slug>/export/<doc>?cycle=…`, the
+  same documents as the PDFs, from the same data (`lib/print/load.ts`), with
+  the same access rules (`lib/export/cycle-workbook.ts`):
+  - `property` — Lots (charge, paid, left, status, payment methods) and Owners;
+  - `payments` — the cycle's payments;
+  - `expenses` — its expenses, month by month;
+  - `unpaid` — the lots still owing, most owed first;
+  - `finances` — the treasury: summary, month by month, every movement with
+    its running balance;
+  - `report` — all of the above.
+
+  The "Excel" menu beside "Print" (dashboard, Finances, Copropriété) lists
+  them, the page's own first. A computer downloads the file; a phone or
+  tablet hands it to the share menu, like the PDFs.
+
+Every sheet opens with its caption (residence, document, cycle and dates,
+when it was generated), then a frozen, filterable header; money columns are
+numbers in the currency's format, dates real Excel dates, and money tables
+end with a totals row. Shared helpers: `lib/export/sheets.ts`.
+
+Still to build from the plan below: the background path for very large
+exports (every cycle has stayed small enough to generate on request so far).
+
 ## Exports required (from §21 of the brief)
 
 | Export | Source | Key columns |

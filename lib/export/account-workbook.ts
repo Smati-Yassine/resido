@@ -9,7 +9,8 @@ import * as assessmentsRepo from "@/lib/domain/assessments/repository";
 import * as paymentsRepo from "@/lib/domain/payments/repository";
 import * as expensesRepo from "@/lib/domain/expenses/repository";
 import { computeCycleTreasury } from "@/lib/domain/cycles/service";
-import { CURRENCIES, type CurrencyCode } from "@/lib/currency";
+import type { CurrencyCode } from "@/lib/currency";
+import { col, DATE_FORMAT, label as labelOf, moneyFormat, stamp as stampOf, units, type Cell, type Col } from "./sheets";
 
 /**
  * "Export my data": one workbook covering the chosen residences, one sheet
@@ -18,13 +19,9 @@ import { CURRENCIES, type CurrencyCode } from "@/lib/currency";
  * numbers in dinars with 3 decimals; dates are real Excel dates.
  */
 
-type Col = { header: Record<Locale, string>; width: number; kind?: "money" | "date" };
-type Row = (string | number | Date | null)[];
-
-/** Excel number format with the residence currency's decimals: "#,##0.000" (TND), "#,##0.00" (EUR…). */
-const moneyFormat = (currency: CurrencyCode) => `#,##0.${"0".repeat(CURRENCIES[currency].decimals)}`;
-const DATE_FORMAT = "dd/mm/yyyy";
-const dt = (millimes: number) => millimes / 1000;
+type Row = Cell[];
+const dt = units;
+const c = col;
 
 const SHEETS = {
   residences: { fr: "Résidences", en: "Residences" },
@@ -37,7 +34,6 @@ const SHEETS = {
   expenses: { fr: "Dépenses", en: "Expenses" },
 } as const;
 
-const c = (fr: string, en: string, width: number, kind?: Col["kind"]): Col => ({ header: { fr, en }, width, kind });
 const RES = c("Résidence", "Residence", 24);
 const CYCLE = c("Cycle", "Cycle", 16);
 
@@ -98,23 +94,8 @@ const COLUMNS: Record<keyof typeof SHEETS, Col[]> = {
   ],
 };
 
-const LABELS: Record<string, Record<Locale, string>> = {
-  ACTIVE: { fr: "Active", en: "Active" },
-  ARCHIVED: { fr: "Archivée", en: "Archived" },
-  DRAFT: { fr: "En préparation", en: "In preparation" },
-  OPEN: { fr: "En cours", en: "In progress" },
-  CLOSED: { fr: "Clôturé", en: "Closed" },
-  PENDING: { fr: "Impayé", en: "Unpaid" },
-  PARTIALLY_PAID: { fr: "Partiel", en: "Partial" },
-  PAID: { fr: "Payé", en: "Paid" },
-  CANCELLED: { fr: "Annulé", en: "Cancelled" },
-  CASH: { fr: "Espèces", en: "Cash" },
-  BANK_TRANSFER: { fr: "Virement", en: "Bank transfer" },
-  CHECK: { fr: "Chèque", en: "Cheque" },
-};
-
 export async function buildAccountWorkbook(residences: Residence[], locale: Locale): Promise<Buffer> {
-  const label = (code: string) => LABELS[code]?.[locale] ?? code;
+  const label = (code: string) => labelOf(code, locale);
   // Each row remembers its residence's currency, so money cells get the right decimals.
   const rows: Record<keyof typeof SHEETS, { values: Row; currency: CurrencyCode }[]> = {
     residences: [],
@@ -210,11 +191,7 @@ export async function buildAccountWorkbook(residences: Residence[], locale: Loca
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "Résido";
   workbook.created = new Date();
-  const stamp = new Intl.DateTimeFormat(locale === "fr" ? "fr-FR" : "en-GB", {
-    dateStyle: "long",
-    timeStyle: "short",
-    timeZone: "Africa/Tunis",
-  }).format(new Date());
+  const stamp = stampOf(locale);
   const scope = residences.map((x) => x.name).join(", ");
 
   for (const key of Object.keys(SHEETS) as (keyof typeof SHEETS)[]) {
