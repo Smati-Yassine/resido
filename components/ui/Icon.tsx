@@ -205,6 +205,14 @@ const PATHS = {
       <path d="M15.5 8.5l-2 5-5 2 2-5z" />
     </>
   ),
+  // iOS's Share button: where "Add to Home Screen" lives.
+  share: (
+    <>
+      <path d="M12 3v12" />
+      <path d="M8 7l4-4 4 4" />
+      <path d="M6 11H5v10h14V11h-1" />
+    </>
+  ),
   cloudOff: (
     <>
       <path d="M3 3l18 18" />

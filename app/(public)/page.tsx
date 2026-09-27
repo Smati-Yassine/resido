@@ -3,6 +3,7 @@ import { AuthPanel } from "@/components/public/AuthPanel";
 import { SiteFooter } from "@/components/public/SiteFooter";
 import { PublicPreferences } from "@/components/public/PublicPreferences";
 import { Icon } from "@/components/ui/Icon";
+import { InstallPrompt } from "@/components/ui/InstallPrompt";
 
 /**
  * Home for signed-out visitors, on one screen. Left: what Résido is, in a
@@ -81,6 +82,7 @@ export default async function PublicHomePage() {
             <div className="flex flex-1 items-center">
               <AuthPanel />
             </div>
+            <InstallPrompt className="mx-auto w-full max-w-[440px]" />
             <p className="hidden items-center justify-center gap-2 text-center text-[13px] text-muted sm:flex">
               <Icon name="lock" size={15} />
               {t.authNote}

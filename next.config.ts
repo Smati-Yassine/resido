@@ -1,6 +1,19 @@
 import type { NextConfig } from "next";
 
+/**
+ * One id per deploy (Vercel provides one; the commit is the fallback). With
+ * it, a page left open when a new version ships reloads itself fully at its
+ * next navigation instead of mixing old and new code; the app also compares
+ * it on returning to the foreground (components/ui/AppRuntime.tsx, against
+ * /api/version). Unset locally: no such checks.
+ */
+const deploymentId =
+  process.env.NEXT_DEPLOYMENT_ID || process.env.VERCEL_DEPLOYMENT_ID || process.env.VERCEL_GIT_COMMIT_SHA || undefined;
+
 const nextConfig: NextConfig = {
+  deploymentId,
+  // The same id, built into the code on both sides: the page knows its version.
+  env: { RESIDO_BUILD: deploymentId ?? "" },
   // The PDF documents read their fonts from disk at runtime; ship them with that route.
   outputFileTracingIncludes: {
     "/residences/[residenceId]/print/[doc]": ["./lib/print/fonts/**/*"],

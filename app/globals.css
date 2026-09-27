@@ -2333,6 +2333,101 @@
     flex-shrink: 0;
     color: var(--ochre-light);
   }
+  /* "Install the app" (InstallPrompt.tsx), on a touch screen where it is not installed yet. */
+  .install-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 8px 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--surface);
+    box-shadow: var(--shadow-card);
+    animation: fade-in 0.25s ease;
+  }
+  .install-card-icon {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    border-radius: 12px;
+    font-size: 24px;
+  }
+  .install-card-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .install-card-text {
+    margin-top: 2px;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--muted);
+  }
+  .install-card-share {
+    display: inline-flex;
+    vertical-align: -3px;
+    color: var(--primary);
+  }
+
+  /* On a phone, a whole screen instead: over everything, a modal included,
+     until the connection is back (the same look as public/offline.html). */
+  .offline-screen {
+    display: none;
+  }
+  @media (max-width: 767px) {
+    .offline-bar {
+      display: none;
+    }
+    .offline-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 70;
+      display: grid;
+      place-items: center;
+      padding: calc(24px + var(--safe-top)) calc(20px + var(--safe-right)) calc(24px + var(--safe-bottom))
+        calc(20px + var(--safe-left));
+      background: var(--ground);
+      animation: fade-in 0.2s ease;
+    }
+  }
+  .offline-screen-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+    max-width: 400px;
+    padding: 32px 24px 24px;
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    background: var(--surface);
+    box-shadow: var(--shadow-card);
+    text-align: center;
+  }
+  .offline-screen-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+    border-radius: 20px;
+    background: var(--warn-soft);
+    color: var(--warn-ink);
+  }
+  .offline-screen-title {
+    margin: 4px 0 0;
+    font-family: var(--font-display);
+    font-size: 26px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+  .offline-screen-text {
+    margin: 0 0 8px;
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--muted);
+  }
 
   /* App shell */
   /* Residence shell: top bar + collapsible sidebar, sharing one width.

@@ -4,6 +4,7 @@ import { getDictionary, getPreferences } from "@/lib/i18n/server";
 import { listResidenceCards } from "@/lib/domain/residences/service";
 import { HomeView, type ResidenceCardView } from "@/components/residences/HomeView";
 import { AppHeader } from "@/components/shell/AppHeader";
+import { InstallPrompt } from "@/components/ui/InstallPrompt";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getDictionary();
@@ -41,6 +42,7 @@ export default async function ResidencesPage() {
         residences={cards.map((c) => ({ id: c.id, name: c.name }))}
       />
       <main className="flex flex-1 flex-col gap-8 px-4 pb-16 pt-8 sm:px-6 md:px-12 md:pt-12">
+        <InstallPrompt />
         <HomeView residences={residences} firstName={user.name.split(" ")[0]} />
       </main>
     </div>

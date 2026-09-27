@@ -118,4 +118,16 @@ Résido also installs as an app (PWA): `app/manifest.ts`, icons drawn by
 only) that stores the app's static code and shows `public/offline.html` when
 a page cannot load. Pages and data are never stored on the device. With
 `experimental.useOffline`, navigations and saves made while offline wait for
-the connection, and a bar says so (`components/ui/AppRuntime.tsx`).
+the connection: a bar says so on a large screen, a full screen with a retry
+button on a phone (`components/ui/AppRuntime.tsx`).
+
+Updates need no hard refresh. Pages are never cached, so opening the app
+loads the latest deploy. A page left open picks it up too: `deploymentId`
+(`next.config.ts`) makes its next navigation a full load, and returning to
+the app from the background compares `/api/version` and reloads — unless a
+modal is open.
+
+On a touch device where Résido is not installed, the landing and residences
+pages offer it (`components/ui/InstallPrompt.tsx`): the system's install
+dialog on Android, the Share → "Add to Home Screen" steps on iPhone and iPad.
+"Not now" hides it for two weeks.
