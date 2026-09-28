@@ -13,7 +13,7 @@ import {
   topDebtors,
 } from "@/lib/domain/overview/finance";
 import { loadProperty } from "@/lib/property/load";
-import { lotRowsFor } from "@/lib/workspace";
+import { lotRowsFor } from "@/lib/workspace-data";
 
 /** One lot line of the property sheet — the residence's ledger, by bloc. */
 export interface PrintLot {

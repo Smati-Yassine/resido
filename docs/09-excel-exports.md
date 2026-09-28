@@ -19,16 +19,16 @@ business's existing spreadsheet literacy.
 
 - **Account export** — `GET /api/exports/account`: everything of the user's
   residences, one sheet per kind of record (`lib/export/account-workbook.ts`).
-- **Cycle exports** — `GET /residences/<slug>/export/<doc>?cycle=…`, the
-  same documents as the PDFs, from the same data (`lib/print/load.ts`), with
-  the same access rules (`lib/export/cycle-workbook.ts`):
-  - `property` — Lots (charge, paid, left, status, payment methods) and Owners;
-  - `payments` — the cycle's payments;
-  - `expenses` — its expenses, month by month;
-  - `unpaid` — the lots still owing, most owed first;
+- **Cycle exports** — `GET /residences/<slug>/export/<doc>?cycle=…`, from
+  the same data as the PDFs (`lib/print/load.ts`), with the same access rules
+  (`lib/export/cycle-workbook.ts`):
+  - `property`, `payments`, `expenses`, `report` — the printed documents
+    themselves, laid out as the PDF (see "The printed report in Excel"):
+    Copropriété; Encaissements; Dépenses; and the report's four sheets,
+    Synthèse, Copropriété, Encaissements, Dépenses;
+  - `unpaid` — the lots still owing, most owed first, as a plain table;
   - `finances` — the treasury: summary, month by month, every movement with
-    its running balance;
-  - `report` — all of the above.
+    its running balance.
 
   The "Excel" menu beside "Print" (dashboard, Finances, Copropriété) lists
   them, the page's own first. A computer downloads the file; a phone or
@@ -36,15 +36,18 @@ business's existing spreadsheet literacy.
 - **Whole residence** — `GET /residences/<slug>/export/all`: every cycle in
   one workbook (`lib/export/residence-workbook.ts`), last in the Excel menu
   and in Settings › General › Data. Any member can download it.
-  - Records (what an import reads): Résidence (name, city, currency),
+  - First the Résidence sheet, then each cycle's printed report, newest
+    first, on blue tabs: "Cycle 2026 — Synthèse", "— Copropriété",
+    "— Encaissements", "— Dépenses" (a cycle in preparation: its
+    Copropriété alone, charges only, as the PDF).
+  - Then, on grey tabs, the records (what an import reads): Résidence (name, city, currency),
     Cycles (status, dates, starting balance and whether it is carried over,
     plus each cycle's dashboard figures), Blocs, Lots, Propriétaires
     (with a `P1`, `P2`… ref), Charges (every lot of every cycle: its owners
     that cycle, charge, paid, left, status, payment methods), Encaissements
     (numbered), Répartition (how each payment is split, by cycle and lot),
     Dépenses.
-  - Views (worked out, ignored on import): Par mois, Mouvements (running
-    balance), Par bloc, Modes de paiement, Membres, Journal.
+  - And, ignored on import: Membres, Journal.
 
   The sheet and column names, in both languages, are defined once in
   `lib/export/residence-format.ts` and shared by the export and the import.
@@ -77,7 +80,32 @@ most) — "Import" on the residences list, or Settings › General › Data.
 - Not imported: members (the importer is the only one), the journal,
   cancelled payments and expenses (never exported).
 
-Every sheet opens with its caption (residence, document, cycle and dates,
+### The printed report in Excel
+
+`lib/export/report-sheets.ts` lays a cycle out as `lib/print/pdf` prints
+it, with the PDF's own words (the dictionary's) and colours
+(`lib/print/pdf/theme.ts`):
+
+- **Synthèse** — the report cover: the four figures and the collection rate,
+  each with what it means and the previous cycle beside it (to date while a
+  cycle runs, as the dashboard compares); the treasury in four lines; the
+  collection by bloc; the payment methods; money in, out and balance by month.
+- **Copropriété** — every lot by bloc: owners, phones, charge, paid, left to
+  pay (red when owed), status (coloured like the app's badges), payment
+  methods; a band opening each bloc, its subtotal, the grand total and the
+  collection rate.
+- **Encaissements** / **Dépenses** — month by month, each month's subtotal,
+  then the total; the payments end with the totals by method.
+
+Each page opens with the PDF's header (residence, city, document, cycle,
+status and dates, when it was made); the column titles are frozen and repeat
+on every printed page (A4, one page wide). Left to pay, subtotals and totals
+are live formulas — `SUBTOTAL(9, …)`, so a total never counts the subtotals
+above it — with their values stored for viewers that do not recalculate.
+
+### The record sheets
+
+Every record sheet opens with its caption (residence, document, cycle and dates,
 when it was generated), then a frozen, filterable header; money columns are
 numbers in the currency's format, dates real Excel dates, and money tables
 end with a totals row. Shared helpers: `lib/export/sheets.ts`.

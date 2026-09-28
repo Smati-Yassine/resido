@@ -4,7 +4,7 @@ import * as buildings from "@/lib/domain/buildings/service";
 import * as owners from "@/lib/domain/owners/service";
 import { lotOwnersInCycle } from "@/lib/domain/lots/ownership";
 import type { LotPaymentStatus } from "@/lib/domain/overview/service";
-import { activeLotsFor, lotRowsFor } from "@/lib/workspace";
+import { activeLotsFor, lotRowsFor } from "@/lib/workspace-data";
 import type { LotItem } from "@/components/lots/LotsBoard";
 import type { OwnerItem, OwnerLot } from "@/components/owners/OwnersBoard";
 import type { LotChoice } from "@/components/workspace/OwnerModals";

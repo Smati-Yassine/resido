@@ -13,11 +13,14 @@ import * as expensesRepo from "@/lib/domain/expenses/repository";
 import * as members from "@/lib/domain/members/service";
 import { effectiveOwnerIds } from "@/lib/domain/assessments/schema";
 import { computeAllTreasuries } from "@/lib/domain/cycles/service";
-import { incomeByMethod, incomeInCycle, monthlyFlows } from "@/lib/domain/overview/finance";
 import { findUsersByIds } from "@/lib/domain/users/service";
 import { listAuditLog } from "@/lib/audit/log";
 import { describeAuditEntry } from "@/lib/audit/describe";
 import { formatMonth } from "@/lib/format";
+import { cycleRange } from "@/lib/cycle-view";
+import { loadPrintData } from "@/lib/print/load";
+import { C } from "@/lib/print/pdf/theme";
+import { addReportSheets, PART_NAMES, REPORT_PARTS } from "./report-sheets";
 import { addSummary, addTable, label as labelOf, stamp, units, type Cell } from "./sheets";
 import {
   columnList,
@@ -34,13 +37,15 @@ import {
 } from "./residence-format";
 
 /**
- * "The whole residence" as one workbook (docs/09-excel-exports.md): every
- * cycle's dashboard figures, finances and property, the records behind them
- * — blocs, lots, owners, charges, payments and how they were split, expenses
- * — and its members and journal. The record sheets are what an import
- * rebuilds a residence from (lib/import/residence-import.ts); owners are
- * referred to by their "P…" ref and payments by their number, so a file
- * edited by hand still links up.
+ * "The whole residence" as one workbook (docs/09-excel-exports.md). First,
+ * every cycle's printed report, newest first, laid out as the PDF is
+ * (lib/export/report-sheets.ts): its summary, the ledger by bloc with owners
+ * and phones, the payments and the expenses month by month. Then, on grey
+ * tabs, the records behind them — cycles, blocs, lots, owners, charges,
+ * payments and how they were split, expenses — and the members and journal.
+ * The record sheets are what an import rebuilds a residence from
+ * (lib/import/residence-import.ts); owners are referred to by their "P…" ref
+ * and payments by their number, so a file edited by hand still links up.
  */
 export async function buildResidenceWorkbook(
   session: AuthorizedSession,
@@ -145,8 +150,35 @@ export async function buildResidenceWorkbook(
       { label: fr ? "Dépenses" : "Expenses", value: billedCycles.reduce((n, c) => n + c.expenses.length, 0) },
       { label: "", value: null },
       { label: RESIDENCE_LINES.format.header[locale], value: `${RESIDENCE_FORMAT} v${RESIDENCE_FORMAT_VERSION}` },
+      {
+        label: fr ? "Onglets" : "Tabs",
+        value: fr
+          ? "Bleus : le rapport de chaque cycle, comme le PDF. Gris : les données, relues par l'import."
+          : "Blue: each cycle's report, as the PDF. Grey: the data, read back by an import.",
+      },
     ],
   });
+
+  /* ---------- Each cycle's report, as printed from its dashboard ---------- */
+  const generatedOn = stamp(locale);
+  for (const cycle of cyclesNewestFirst) {
+    const previous = cycles.find((c) => c.id === cycle.previousCycleId) ?? null;
+    const data = await loadPrintData(session, id, cycle, previous);
+    addReportSheets(
+      workbook,
+      {
+        t,
+        locale,
+        currency,
+        residence: { name: residence.name, city: residence.city },
+        cycle: { name: cycle.name, status: cycle.status, range: cycleRange(cycle, t) },
+        generatedOn,
+      },
+      data,
+      REPORT_PARTS.report,
+      (part) => `${cycle.name} — ${PART_NAMES[part][locale]}`,
+    );
+  }
 
   /* ---------- Cycles: each one's dashboard and treasury figures ---------- */
   table(
@@ -315,111 +347,6 @@ export async function buildResidenceWorkbook(
     ["amount"],
   );
 
-  /* ---------- The views: month by month, every movement, by bloc, by method ---------- */
-  table(
-    "flows",
-    billedCycles.flatMap(({ cycle, payments: paid, expenses }) =>
-      monthlyFlows(paid, expenses, cycle.id, treasuries.get(cycle.id)?.openingBalanceMillimes ?? 0).map((f) =>
-        rowOf("flows", {
-          cycle: cycle.name,
-          month: formatMonth(f.month, locale),
-          income: units(f.incomeMillimes),
-          expense: units(f.expenseMillimes),
-          balance: units(f.balanceMillimes),
-        }),
-      ),
-    ),
-    ["income", "expense"],
-  );
-  table(
-    "movements",
-    billedCycles.flatMap(({ cycle, payments: paid, expenses }) => {
-      let balance = treasuries.get(cycle.id)?.openingBalanceMillimes ?? 0;
-      const moves = [
-        ...paid.map((p) => ({
-          date: p.date,
-          kind: fr ? "Encaissement" : "Payment",
-          what: `N° ${numberOf.get(p.id)} · ${p.allocations
-            .filter((a) => a.cycleId === cycle.id)
-            .map((a) => codeOf(a.lotId))
-            .join(", ")}`,
-          detail: [p.payerName, word(p.method), p.note].filter(Boolean).join(" · "),
-          inMillimes: incomeInCycle(p, cycle.id),
-          outMillimes: 0,
-        })),
-        ...expenses.map((e) => ({
-          date: e.date,
-          kind: fr ? "Dépense" : "Expense",
-          what: e.label,
-          detail: e.reference ?? "",
-          inMillimes: 0,
-          outMillimes: e.amountMillimes,
-        })),
-      ].sort(byDate);
-      return [
-        rowOf("movements", {
-          cycle: cycle.name,
-          date: cycle.startDate,
-          kind: fr ? "Solde de départ" : "Starting balance",
-          balance: units(balance),
-        }),
-        ...moves.map((m) => {
-          balance += m.inMillimes - m.outMillimes;
-          return rowOf("movements", {
-            cycle: cycle.name,
-            date: m.date,
-            kind: m.kind,
-            what: m.what,
-            detail: m.detail,
-            in: m.inMillimes ? units(m.inMillimes) : null,
-            out: m.outMillimes ? units(m.outMillimes) : null,
-            balance: units(balance),
-          });
-        }),
-      ];
-    }),
-    ["in", "out"],
-  );
-  table(
-    "byBloc",
-    billedCycles.flatMap(({ cycle, assessments }) => {
-      const byBloc = new Map<string, { lots: number; paid: number; expected: number; collected: number }>();
-      for (const a of assessments.filter((x) => x.status !== "CANCELLED").sort((x, y) => lotOrder(x.lotId, y.lotId))) {
-        const key = blocOf(a.lotId);
-        const entry = byBloc.get(key) ?? { lots: 0, paid: 0, expected: 0, collected: 0 };
-        entry.lots += 1;
-        if (a.status === "PAID") entry.paid += 1;
-        entry.expected += a.amountMillimes;
-        entry.collected += a.paidMillimes;
-        byBloc.set(key, entry);
-      }
-      return [...byBloc].map(([bloc, e]) =>
-        rowOf("byBloc", {
-          cycle: cycle.name,
-          bloc,
-          lots: e.lots,
-          paidLots: e.paid,
-          expected: units(e.expected),
-          collected: units(e.collected),
-          rate: e.expected ? e.collected / e.expected : 0,
-        }),
-      );
-    }),
-  );
-  table(
-    "methods",
-    billedCycles.flatMap(({ cycle, payments: paid }) =>
-      incomeByMethod(paid, cycle.id).map((m) =>
-        rowOf("methods", {
-          cycle: cycle.name,
-          method: word(m.method),
-          count: m.count,
-          amount: units(m.totalMillimes),
-        }),
-      ),
-    ),
-  );
-
   /* ---------- Who has access, and what they did ---------- */
   table(
     "members",
@@ -451,6 +378,13 @@ export async function buildResidenceWorkbook(
   journalSheet?.getColumn(1).eachCell((cell) => {
     if (cell.value instanceof Date) cell.numFmt = "dd/mm/yyyy hh:mm";
   });
+
+  // The record sheets on grey tabs, after the reports.
+  for (const [sheet, names] of Object.entries(RESIDENCE_SHEETS)) {
+    if (sheet === "residence") continue;
+    const tab = workbook.getWorksheet(names[locale]);
+    if (tab) tab.properties.tabColor = { argb: `FF${C.stone.slice(1).toUpperCase()}` };
+  }
 
   return Buffer.from(await workbook.xlsx.writeBuffer());
 }

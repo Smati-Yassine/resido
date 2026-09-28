@@ -24,14 +24,36 @@ function rows(sheet: ExcelJS.Worksheet) {
   return all.slice(header);
 }
 
+/**
+ * A cell's number, whether written as one or worked out by a formula. The
+ * file holds a formula's result even when it is 0, but ExcelJS reads a 0 back
+ * as no result at all.
+ */
+const num = (value: unknown) =>
+  Number(value && typeof value === "object" && "formula" in value ? ((value as { result?: unknown }).result ?? 0) : value);
+
+/**
+ * A printed-report ledger (Copropriété): its lot lines — those with a charge
+ * of their own, not a bloc's band or subtotal — and its total line.
+ */
+function ledger(sheet: ExcelJS.Worksheet) {
+  const [header, ...body] = rows(sheet);
+  return {
+    header,
+    lots: body.filter((r) => typeof r[3] === "number"),
+    total: body[body.length - 1],
+    subtotals: body.filter((r) => r[0] === "Sous-total"),
+  };
+}
+
 test("every export is a workbook with the sheets it promises", async ({ request }) => {
   const expected: Record<string, string[]> = {
-    property: ["Lots", "Propriétaires"],
+    property: ["Copropriété"],
     payments: ["Encaissements"],
     expenses: ["Dépenses"],
     unpaid: ["Impayés"],
     finances: ["Synthèse", "Par mois", "Mouvements"],
-    report: ["Synthèse", "Lots", "Impayés", "Encaissements", "Dépenses", "Par mois", "Mouvements", "Propriétaires"],
+    report: ["Synthèse", "Copropriété", "Encaissements", "Dépenses"],
   };
   for (const [doc, sheets] of Object.entries(expected)) {
     const book = await workbook(request, doc);
@@ -41,22 +63,25 @@ test("every export is a workbook with the sheets it promises", async ({ request 
   }
 });
 
-test("the figures add up: lots, unpaid and the treasury's running balance", async ({ request }) => {
-  const property = rows((await workbook(request, "property")).getWorksheet("Lots")!);
-  const [header, ...body] = property;
-  expect(header.slice(0, 8)).toEqual(["Bloc", "Lot", "Propriétaire(s)", "Téléphone(s)", "Charge", "Payé", "Reste", "Statut"]);
-  const lots = body.slice(0, -1);
-  const total = body[body.length - 1];
+test("the figures add up: the ledger, unpaid and the treasury's running balance", async ({ request }) => {
+  // The ledger as the PDF prints it: lots by bloc, a subtotal per bloc, then the total.
+  const { header, lots, total, subtotals } = ledger((await workbook(request, "property")).getWorksheet("Copropriété")!);
+  expect(header.slice(0, 7)).toEqual(["LOT", "PROPRIÉTAIRES", "TÉLÉPHONE", "CHARGE", "PAYÉ", "RESTE", "STATUT"]);
   expect(lots).toHaveLength(42); // the seeded residence
-  expect(total[0]).toBe("Total");
-  const sum = (i: number) => Math.round(lots.reduce((n, r) => n + Number(r[i] ?? 0), 0) * 1000) / 1000;
-  expect(total[4]).toBeCloseTo(sum(4), 3);
+  expect(subtotals.length).toBeGreaterThan(1);
+  expect(total[0]).toBe("Total général");
+  const sum = (list: unknown[][], i: number) => Math.round(list.reduce((n, r) => n + num(r[i] ?? 0), 0) * 1000) / 1000;
+  // The total counts each lot once, not the subtotals again.
+  for (const i of [3, 4, 5]) {
+    expect(num(total[i])).toBeCloseTo(sum(lots, i), 3);
+    expect(num(total[i])).toBeCloseTo(sum(subtotals, i), 3);
+  }
   // Each lot: charge − paid = left to pay.
-  for (const r of lots) expect(Number(r[4]) - Number(r[5])).toBeCloseTo(Number(r[6]), 3);
+  for (const r of lots) expect(num(r[3]) - num(r[4])).toBeCloseTo(num(r[5]), 3);
 
   // The unpaid list holds exactly the lots not fully paid, most owed first.
   const unpaid = rows((await workbook(request, "unpaid")).getWorksheet("Impayés")!).slice(1, -1);
-  expect(unpaid).toHaveLength(lots.filter((r) => r[7] !== "Payé").length);
+  expect(unpaid).toHaveLength(lots.filter((r) => r[6] !== "Payé").length);
   const owed = unpaid.map((r) => Number(r[6]));
   expect(owed).toEqual([...owed].sort((a, b) => b - a));
 
@@ -82,8 +107,11 @@ test("the Excel menu downloads this page's export", async ({ page }) => {
 
 test("the whole residence: every sheet, and a file that imports back as a new residence", async ({ request }) => {
   const book = await workbook(request, "all");
+  const report = (cycle: string) => ["Synthèse", "Copropriété", "Encaissements", "Dépenses"].map((s) => `${cycle} — ${s}`);
   expect(book.worksheets.map((s) => s.name)).toEqual([
     "Résidence",
+    ...report("Cycle 2026"),
+    ...report("Cycle 2025"),
     "Cycles",
     "Blocs",
     "Lots",
@@ -92,13 +120,15 @@ test("the whole residence: every sheet, and a file that imports back as a new re
     "Encaissements",
     "Répartition",
     "Dépenses",
-    "Par mois",
-    "Mouvements",
-    "Par bloc",
-    "Modes de paiement",
     "Membres",
     "Journal",
   ]);
+  // Each cycle's ledger bills what its line in Cycles says.
+  const cycles = rows(book.getWorksheet("Cycles")!).slice(1);
+  for (const cycle of ["Cycle 2026", "Cycle 2025"]) {
+    const { total } = ledger(book.getWorksheet(`${cycle} — Copropriété`)!);
+    expect(num(total[3]), cycle).toBeCloseTo(num(cycles.find((r) => r[0] === cycle)![6]), 3);
+  }
   const file = Buffer.from(await book.xlsx.writeBuffer());
 
   const name = unique("Import démo");

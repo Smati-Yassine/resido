@@ -53,7 +53,14 @@ export async function GET(request: Request, ctx: RouteContext<"/residences/[resi
     report: t.docReport,
   }[doc as ExportDoc];
   const bytes = await buildCycleWorkbook(
-    { locale, currency, residence: residence.name, cycle: { name: cycle.name, range: cycleRange(cycle, t) }, title },
+    {
+      t,
+      locale,
+      currency,
+      residence: { name: residence.name, city: residence.city },
+      cycle: { name: cycle.name, status: cycle.status, range: cycleRange(cycle, t) },
+      title,
+    },
     data,
     doc as ExportDoc,
   );

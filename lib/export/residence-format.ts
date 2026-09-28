@@ -10,8 +10,8 @@ import { col, type Cell, type Col } from "./sheets";
  * French imports in English and the other way round.
  *
  * Sheets marked `data` hold the records an import rebuilds the residence
- * from; the others are the views (dashboard, finances) worked out from them,
- * written for reading and ignored on import.
+ * from; the others (members, journal) are written for reading and ignored on
+ * import, like each cycle's report sheets (lib/export/report-sheets.ts).
  */
 
 export const RESIDENCE_FORMAT = "resido-residence";
@@ -27,10 +27,6 @@ export const RESIDENCE_SHEETS = {
   payments: { fr: "Encaissements", en: "Payments", data: true },
   allocations: { fr: "Répartition", en: "Allocations", data: true },
   expenses: { fr: "Dépenses", en: "Expenses", data: true },
-  flows: { fr: "Par mois", en: "By month", data: false },
-  movements: { fr: "Mouvements", en: "Movements", data: false },
-  byBloc: { fr: "Par bloc", en: "By block", data: false },
-  methods: { fr: "Modes de paiement", en: "Payment methods", data: false },
   members: { fr: "Membres", en: "Members", data: false },
   journal: { fr: "Journal", en: "Journal", data: false },
 } as const;
@@ -125,38 +121,6 @@ export const RESIDENCE_COLUMNS = {
     label: col("Libellé", "Description", 34),
     reference: col("Référence", "Reference", 22),
     amount: col("Montant", "Amount", 14, "money"),
-  },
-  flows: {
-    cycle: col("Cycle", "Cycle", 16),
-    month: col("Mois", "Month", 18),
-    income: col("Encaissé", "Collected", 16, "money"),
-    expense: col("Dépensé", "Spent", 16, "money"),
-    balance: col("Solde en fin de mois", "Balance at month end", 20, "money"),
-  },
-  movements: {
-    cycle: col("Cycle", "Cycle", 16),
-    date: col("Date", "Date", 12, "date"),
-    kind: col("Type", "Type", 16),
-    what: col("Libellé", "Description", 30),
-    detail: col("Détail", "Detail", 34),
-    in: col("Entrée", "In", 14, "money"),
-    out: col("Sortie", "Out", 14, "money"),
-    balance: col("Solde", "Balance", 16, "money"),
-  },
-  byBloc: {
-    cycle: col("Cycle", "Cycle", 16),
-    bloc: col("Bloc", "Block", 18),
-    lots: col("Lots", "Units", 8),
-    paidLots: col("Lots payés", "Units paid", 10),
-    expected: col("Charges appelées", "Charges billed", 16, "money"),
-    collected: col("Encaissé", "Collected", 16, "money"),
-    rate: col("Taux", "Rate", 10, "percent"),
-  },
-  methods: {
-    cycle: col("Cycle", "Cycle", 16),
-    method: col("Mode", "Method", 16),
-    count: col("Encaissements", "Payments", 12),
-    amount: col("Montant", "Amount", 16, "money"),
   },
   members: {
     name: col("Nom", "Name", 24),

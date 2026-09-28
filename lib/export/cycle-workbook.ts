@@ -1,52 +1,43 @@
 import ExcelJS from "exceljs";
-import type { Locale } from "@/lib/i18n/dictionaries";
+import type { Dictionary, Locale } from "@/lib/i18n/dictionaries";
 import type { CurrencyCode } from "@/lib/currency";
 import { formatMonth } from "@/lib/format";
 import type { PrintData } from "@/lib/print/load";
 import type { ExportDoc } from "./docs";
 import { addSummary, addTable, col, label, stamp, units, type Cell } from "./sheets";
+import { addReportSheets, REPORT_PARTS } from "./report-sheets";
 
 /**
- * The cycle's Excel exports (docs/09-excel-exports.md): the same documents as
- * the PDFs, from the same data (lib/print/load.ts), as workbooks to sort,
- * filter and add up. One workbook per document:
- * - property — the lots (charge, paid, left, status) and the owners;
- * - payments — every payment of the cycle;
- * - expenses — every expense, month by month;
- * - unpaid — the lots still owing, most owed first;
+ * The cycle's Excel exports (docs/09-excel-exports.md), from the same data as
+ * the PDFs (lib/print/load.ts). One workbook per document:
+ * - property, payments, expenses, report — the printed documents themselves,
+ *   laid out as the PDF (lib/export/report-sheets.ts);
+ * - unpaid — the lots still owing, most owed first, to sort and filter;
  * - finances — the treasury: summary, month by month, every movement with
- *   its running balance;
- * - report — all of it.
+ *   its running balance.
  */
 export { EXPORT_DOCS, type ExportDoc } from "./docs";
 
 export interface ExportCtx {
+  t: Dictionary;
   locale: Locale;
   currency: CurrencyCode;
-  residence: string;
-  cycle: { name: string; range: string };
+  residence: { name: string; city: string };
+  cycle: { name: string; status: "DRAFT" | "OPEN" | "CLOSED"; range: string };
   /** The document's name, first line of every sheet. */
   title: string;
 }
 
-type Sheet = "summary" | "lots" | "owners" | "unpaid" | "payments" | "expenses" | "flows" | "movements";
+type Sheet = "summary" | "unpaid" | "flows" | "movements";
 
-const SHEETS: Record<ExportDoc, Sheet[]> = {
-  property: ["lots", "owners"],
-  payments: ["payments"],
-  expenses: ["expenses"],
+const SHEETS: Record<"unpaid" | "finances", Sheet[]> = {
   unpaid: ["unpaid"],
   finances: ["summary", "flows", "movements"],
-  report: ["summary", "lots", "unpaid", "payments", "expenses", "flows", "movements", "owners"],
 };
 
 const NAMES: Record<Sheet, Record<Locale, string>> = {
   summary: { fr: "Synthèse", en: "Summary" },
-  lots: { fr: "Lots", en: "Units" },
-  owners: { fr: "Propriétaires", en: "Owners" },
   unpaid: { fr: "Impayés", en: "Unpaid" },
-  payments: { fr: "Encaissements", en: "Payments" },
-  expenses: { fr: "Dépenses", en: "Expenses" },
   flows: { fr: "Par mois", en: "By month" },
   movements: { fr: "Mouvements", en: "Movements" },
 };
@@ -66,14 +57,19 @@ export async function buildCycleWorkbook(ctx: ExportCtx, data: PrintData, doc: E
   const { locale, currency } = ctx;
   const fr = locale === "fr";
   const word = (code: string | null) => (code ? label(code, locale) : "");
-  const caption = [
-    `${ctx.residence} — ${ctx.title}`,
-    `${ctx.cycle.name} · ${ctx.cycle.range}`,
-    `${fr ? "Généré le" : "Generated on"} ${stamp(locale)} · Résido`,
-  ];
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "Résido";
   workbook.created = new Date();
+  if (doc !== "unpaid" && doc !== "finances") {
+    addReportSheets(workbook, { ...ctx, generatedOn: stamp(locale) }, data, REPORT_PARTS[doc]);
+    return Buffer.from(await workbook.xlsx.writeBuffer());
+  }
+
+  const caption = [
+    `${ctx.residence.name} — ${ctx.title}`,
+    `${ctx.cycle.name} · ${ctx.cycle.range}`,
+    `${fr ? "Généré le" : "Generated on"} ${stamp(locale)} · Résido`,
+  ];
   const table = (sheet: Sheet, columns: typeof LOT_COLS, rows: Cell[][], total?: number[]) =>
     addTable(workbook, { name: NAMES[sheet][locale], caption, columns, rows, currency, locale, total });
 
@@ -148,12 +144,6 @@ export async function buildCycleWorkbook(ctx: ExportCtx, data: PrintData, doc: E
         });
         break;
       }
-      case "lots":
-        table("lots", [...LOT_COLS, col("Modes de paiement", "Payment methods", 22)], lots.map((l) => [
-          ...lotRow(l),
-          l.methods.map((m) => word(m)).join(", "),
-        ]), [4, 5, 6]);
-        break;
       case "unpaid":
         table(
           "unpaid",
@@ -163,61 +153,6 @@ export async function buildCycleWorkbook(ctx: ExportCtx, data: PrintData, doc: E
             .sort((a, b) => b.chargeMillimes - b.paidMillimes - (a.chargeMillimes - a.paidMillimes))
             .map(lotRow),
           [4, 5, 6],
-        );
-        break;
-      case "owners":
-        table(
-          "owners",
-          [
-            col("Nom", "Name", 28),
-            col("Téléphone", "Phone", 18),
-            col("Lots", "Units", 30),
-            col("Nombre de lots", "Number of units", 12),
-            col("Charges", "Charges", 14, "money"),
-            col("Payé", "Paid", 14, "money"),
-            col("Reste", "Left to pay", 14, "money"),
-          ],
-          data.property.ownerItems.map((o) => [
-            o.name,
-            o.phone ?? "",
-            o.lots.map((l) => l.code).join(", "),
-            o.lots.length,
-            units(o.chargedMillimes),
-            units(o.paidMillimes),
-            units(o.chargedMillimes - o.paidMillimes),
-          ]),
-          [4, 5, 6],
-        );
-        break;
-      case "payments":
-        table(
-          "payments",
-          [
-            col("Date", "Date", 12, "date"),
-            col("Lots", "Units", 24),
-            col("Payeur", "Payer", 24),
-            col("Mode", "Method", 14),
-            col("Note", "Note", 32),
-            col("Montant", "Amount", 14, "money"),
-          ],
-          data.payments.map((p) => [p.date, p.lots, p.payer, word(p.method), p.note, units(p.amountMillimes)]),
-          [5],
-        );
-        break;
-      case "expenses":
-        table(
-          "expenses",
-          [
-            col("Mois", "Month", 16),
-            col("Date", "Date", 12, "date"),
-            col("Libellé", "Description", 34),
-            col("Référence", "Reference", 22),
-            col("Montant", "Amount", 14, "money"),
-          ],
-          data.expenseMonths.flatMap((m) =>
-            m.items.map((e) => [formatMonth(m.month, locale), e.date, e.label, e.reference ?? "", units(e.amountMillimes)]),
-          ),
-          [4],
         );
         break;
       case "flows":

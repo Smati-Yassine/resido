@@ -3,12 +3,10 @@ import { notFound, redirect } from "next/navigation";
 import { requireResidenceSession, requireUser } from "@/lib/session";
 import { findResidenceByKey } from "@/lib/domain/residences/repository";
 import * as cyclesRepo from "@/lib/domain/cycles/repository";
-import * as lots from "@/lib/domain/lots/service";
-import { getLotRows } from "@/lib/domain/overview/service";
-import type { AuthorizedSession } from "@/lib/rbac/permissions";
 import { withSlugs, type SluggedCycle } from "@/lib/cycle-slugs";
 
 export { withSlugs, type SluggedCycle };
+export { activeLotsFor, lotRowsFor } from "@/lib/workspace-data";
 import type { Cycle } from "@/lib/domain/cycles/schema";
 import { roleHasPermission, type Permission } from "@/lib/rbac/permissions";
 
@@ -74,16 +72,6 @@ export async function loadWorkspace(
   return { ...loaded, cycle, currency: loaded.residence.currency, href };
 }
 
-/**
- * Per-request memos for what both the residence layout and its pages read —
- * the layout's figures (lot count, unpaid badge) come for free to the page.
- */
-export const lotRowsFor = cache((session: AuthorizedSession, residenceId: string, cycleId: string) =>
-  getLotRows(session, residenceId, cycleId),
-);
-export const activeLotsFor = cache((session: AuthorizedSession, residenceId: string) =>
-  lots.listLots(session, residenceId, { status: "ACTIVE" }),
-);
 
 /**
  * The tab a page shows, from its path (`/finances/payments`, `/settings/cycles`;
