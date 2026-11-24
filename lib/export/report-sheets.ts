@@ -1,5 +1,5 @@
 import type ExcelJS from "exceljs";
-import { interpolate, type Dictionary, type Locale } from "@/lib/i18n/dictionaries";
+import { countText, interpolate, type Dictionary, type Locale } from "@/lib/i18n/dictionaries";
 import type { CurrencyCode } from "@/lib/currency";
 import { formatMonth } from "@/lib/format";
 import { C } from "@/lib/print/pdf/theme";
@@ -145,11 +145,16 @@ function put(cell: ExcelJS.Cell, value: Value, col: Column | undefined, currency
   cell.alignment = { vertical: "middle", horizontal: align, wrapText: kind === undefined };
 }
 
-/** A ledger: its column titles, then groups (a bloc, a month) each with a subtotal, then the total. */
+/**
+ * A ledger laid out as the PDF prints it: its column titles, then groups (a
+ * bloc, a month) each opening with a band that carries its name, its count and
+ * its subtotal, then the total.
+ */
 class Ledger {
   readonly head: number;
   private first = 0;
   private firstGroup = 0;
+  private band: ExcelJS.Row | null = null;
   constructor(
     private sheet: ExcelJS.Worksheet,
     private columns: Column[],
@@ -170,15 +175,20 @@ class Ledger {
     this.head = row.number;
   }
 
-  /** The band opening a group: its name, and how many lines it holds on the right. */
+  /** The band opening a group: its name, how many lines it holds — and, once `subtotal` is called, its sums. */
   group(label: string, detail: string) {
-    const row = this.sheet.addRow([label, ...Array(this.columns.length - 2).fill(null), detail]);
+    const row = this.sheet.addRow([]);
     row.height = 18;
-    row.eachCell({ includeEmpty: true }, (cell, i) => {
+    for (let i = 1; i <= this.columns.length; i++) {
+      const cell = row.getCell(i);
       cell.fill = fill(C.primarySoft);
-      cell.font = i === 1 ? { bold: true, color: { argb: argb(C.night) } } : { bold: true, color: { argb: argb(C.primary) } };
-      cell.alignment = { vertical: "middle", horizontal: i === 1 ? "left" : "right" };
-    });
+      cell.font = { bold: true, color: { argb: argb(C.night) } };
+      cell.alignment = { vertical: "middle" };
+    }
+    row.getCell(1).value = label;
+    row.getCell(2).value = detail;
+    row.getCell(2).font = { bold: true, color: { argb: argb(C.primary) } };
+    this.band = row;
     this.firstGroup = row.number + 1;
     if (!this.first) this.first = this.firstGroup;
   }
@@ -209,18 +219,24 @@ class Ledger {
     });
   }
 
-  /** The group's subtotal: `sum` names the columns added up, `results` their values. */
-  subtotal(cells: Value[], sum: number[], results: number[]) {
+  /**
+   * The group's subtotal, in its band: `sum` names the columns added up,
+   * `results` their values — live SUBTOTAL formulas over the group's lines.
+   */
+  subtotal(sum: number[], results: number[]) {
+    const band = this.band!;
     const to = this.sheet.lastRow!.number;
-    const row = this.sheet.addRow([]);
-    this.sums(this.firstGroup, to, cells, sum, results).forEach((v, i) => {
-      const cell = row.getCell(i + 1);
-      put(cell, v, this.columns[i], this.currency);
-      cell.fill = fill(C.surface2);
-      cell.font = { bold: true };
-      cell.border = { bottom: line(C.line) };
+    sum.forEach((col, at) => {
+      const cell = band.getCell(col + 1);
+      put(
+        cell,
+        { formula: `SUBTOTAL(9,${letter(col + 1)}${this.firstGroup}:${letter(col + 1)}${to})`, result: results[at] },
+        this.columns[col],
+        this.currency,
+      );
+      cell.font = { bold: true, color: { argb: argb(C.night) } };
     });
-    return row;
+    return band;
   }
 
   /** The grand total: SUBTOTAL leaves the subtotals above out of the sum. */
@@ -275,9 +291,17 @@ function addProperty(sheet: ExcelJS.Worksheet, ctx: ReportCtx, data: PrintData, 
     return billed ? [units(charge), units(paid), units(charge - paid)] : [units(charge)];
   };
   const blank = Array(columns.length).fill(null) as Value[];
+  // The collection rate under the statuses, on each bloc's band and the total, as the PDF gives it.
+  const rateCell = (row: ExcelJS.Row, [charge, paid]: number[]) => {
+    const r = row.number;
+    const cell = row.getCell(7);
+    put(cell, { formula: `IF(D${r}=0,0,E${r}/D${r})`, result: charge ? paid / charge : 0 }, columns[6], currency, "percent");
+    cell.alignment = { vertical: "middle", horizontal: "center" };
+    cell.font = { bold: true };
+  };
 
   for (const bloc of data.byBloc) {
-    ledger.group(bloc.name, interpolate(t.lotsCount, { count: bloc.lots.length }));
+    ledger.group(bloc.name || t.noBloc, countText(t, ctx.locale, "lotsCount", bloc.lots.length));
     for (const l of bloc.lots) {
       const r = sheet.lastRow!.number + 1;
       const owed = l.chargeMillimes - l.paidMillimes;
@@ -302,30 +326,16 @@ function addProperty(sheet: ExcelJS.Worksheet, ctx: ReportCtx, data: PrintData, 
         },
       );
     }
-    const cells = [...blank];
-    cells[0] = t.subtotal;
-    cells[1] = bloc.name;
-    ledger.subtotal(cells, money, sums(bloc.lots));
+    const band = ledger.subtotal(money, sums(bloc.lots));
+    if (billed) rateCell(band, sums(bloc.lots));
   }
 
   const all = data.byBloc.flatMap((b) => b.lots);
   const cells = [...blank];
   cells[0] = t.grandTotal;
-  cells[1] = interpolate(t.lotsCount, { count: all.length });
+  cells[1] = countText(t, ctx.locale, "lotsCount", all.length);
   const totalRow = ledger.total(cells, money, sums(all));
-  if (billed) {
-    // The collection rate under the statuses, as the PDF's total line gives it.
-    const r = totalRow.number;
-    const [charge, paid] = sums(all);
-    put(
-      totalRow.getCell(7),
-      { formula: `IF(D${r}=0,0,E${r}/D${r})`, result: charge ? paid / charge : 0 },
-      columns[6],
-      currency,
-      "percent",
-    );
-    totalRow.getCell(7).alignment = { horizontal: "center" };
-  }
+  if (billed) rateCell(totalRow, sums(all));
   printSetup(sheet, ledger.head, true);
 }
 
@@ -355,16 +365,16 @@ function addPayments(sheet: ExcelJS.Worksheet, ctx: ReportCtx, data: PrintData, 
   }
   const sum = (list: PrintPayment[]) => units(list.reduce((n, p) => n + p.amountMillimes, 0));
   for (const [month, list] of months) {
-    ledger.group(capitalize(formatMonth(month, locale)), interpolate(t.paymentsCount, { count: list.length }));
+    ledger.group(capitalize(formatMonth(month, locale)), countText(t, locale, "paymentsCount", list.length));
     for (const p of list) {
       ledger.row([p.date, p.lots, p.payer, t[`method${p.method}`], p.note, units(p.amountMillimes)], (cell, i) => {
         if (i === 1) cell.font = { bold: true };
       });
     }
-    ledger.subtotal([t.subtotal, null, null, null, null, null], [5], [sum(list)]);
+    ledger.subtotal([5], [sum(list)]);
   }
   ledger.total(
-    [t.total, interpolate(t.paymentsCount, { count: data.payments.length }), null, null, null, null],
+    [t.total, countText(t, locale, "paymentsCount", data.payments.length), null, null, null, null],
     [5],
     [sum(data.payments)],
   );
@@ -405,17 +415,17 @@ function addExpenses(sheet: ExcelJS.Worksheet, ctx: ReportCtx, data: PrintData, 
     return;
   }
   for (const mo of months) {
-    ledger.group(capitalize(formatMonth(mo.month, locale)), interpolate(t.expensesCount, { count: mo.items.length }));
+    ledger.group(capitalize(formatMonth(mo.month, locale)), countText(t, locale, "expensesCount", mo.items.length));
     for (const e of mo.items) {
       ledger.row([e.date, e.label, e.reference ?? "", units(e.amountMillimes)], (cell, i) => {
         if (i === 1) cell.font = { bold: true };
       });
     }
-    ledger.subtotal([t.subtotal, null, null, null], [3], [units(mo.totalMillimes)]);
+    ledger.subtotal([3], [units(mo.totalMillimes)]);
   }
   const count = months.reduce((n, m) => n + m.items.length, 0);
   ledger.total(
-    [t.total, interpolate(t.expensesCount, { count }), null, null],
+    [t.total, countText(t, locale, "expensesCount", count), null, null],
     [3],
     [units(months.reduce((n, m) => n + m.totalMillimes, 0))],
   );
@@ -558,7 +568,7 @@ function addSummary(sheet: ExcelJS.Worksheet, ctx: ReportCtx, data: PrintData, t
       { label: t.kpiRate, kind: "percent" },
     ],
     rows: data.blocProgress.map((b) => [
-      b.name,
+      b.name || t.noBloc,
       b.lotCount,
       units(b.expectedMillimes),
       units(b.collectedMillimes),

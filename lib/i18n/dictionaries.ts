@@ -351,11 +351,34 @@ const fr = {
   coverFirstCycle: "Premier cycle",
   coverNoFlows: "Aucun mouvement sur ce cycle.",
   coverLotsPaid: "{paid} / {total} lots réglés",
+  noBloc: "Sans bloc",
+  ratePoints: "{n} pts",
+  continued: "{name} (suite)",
+  coverRateHeadline: "des charges appelées sont encaissées",
+  coverMoreBlocs: "+ {count} autres blocs",
+  coverMoreBlocsOne: "+ {count} autre bloc",
+  coverMoreDebtors: "+ {count} autres",
+  coverMoreDebtorsOne: "+ {count} autre",
+  coverPrevious: "{name} : {value}",
+  coverMonthlyNet: "Entrées et sorties par mois",
+  coverNet: "Résultat du cycle",
+  lotsPaidCount: "{count} payés",
+  lotsPaidCountOne: "{count} payé",
+  lotsPartialCount: "{count} partiels",
+  lotsPartialCountOne: "{count} partiel",
+  lotsUnpaidCount: "{count} impayés",
+  lotsUnpaidCountOne: "{count} impayé",
+  avgPerMonth: "Moyenne par mois",
+  largestExpense: "Plus forte dépense",
+  monthsCount: "{count} mois",
+  monthsCountOne: "{count} mois",
+  draftPrintText: "Ce cycle est en préparation : aucune charge n'est encore appelée, il n'a ni encaissements ni dépenses.",
   seeOwners: "Voir les propriétaires →",
   coOwnedLots: "Lots en copropriété",
   coOwnedCount: "{count} en copropriété",
   topHolders: "Qui possède le plus",
   lotsCount: "{count} lots",
+  lotsCountOne: "{count} lot",
   groupMine: "Ses lots",
   groupFree: "Sans propriétaire",
   groupTaken: "Chez un autre propriétaire",
@@ -473,6 +496,7 @@ const fr = {
   noMovementsYet: "Aucun mouvement pour ce cycle.",
   editStartBalance: "Modifier le solde de départ",
   paymentsCount: "{count} paiements",
+  paymentsCountOne: "{count} paiement",
   startOfCycle: "Départ",
   lots: "Lots",
   payments: "Encaissements",
@@ -684,6 +708,7 @@ const fr = {
   amount: "Montant ({cur})",
   saveExpense: "Enregistrer la dépense",
   expensesCount: "{count} dépenses",
+  expensesCountOne: "{count} dépense",
   noExpensesDraft: "Aucune dépense pour un cycle en préparation.",
   expenseRecorded: "Dépense enregistrée · {amount}",
   editExpense: "Modifier la dépense",
@@ -1106,11 +1131,34 @@ const en: Dictionary = {
   coverFirstCycle: "First cycle",
   coverNoFlows: "No movement in this cycle.",
   coverLotsPaid: "{paid} / {total} units settled",
+  noBloc: "No block",
+  ratePoints: "{n} pts",
+  continued: "{name} (cont.)",
+  coverRateHeadline: "of the billed charges are collected",
+  coverMoreBlocs: "+ {count} more blocks",
+  coverMoreBlocsOne: "+ {count} more block",
+  coverMoreDebtors: "+ {count} more",
+  coverMoreDebtorsOne: "+ {count} more",
+  coverPrevious: "{name}: {value}",
+  coverMonthlyNet: "Money in and out by month",
+  coverNet: "Net for the cycle",
+  lotsPaidCount: "{count} paid",
+  lotsPaidCountOne: "{count} paid",
+  lotsPartialCount: "{count} partly paid",
+  lotsPartialCountOne: "{count} partly paid",
+  lotsUnpaidCount: "{count} unpaid",
+  lotsUnpaidCountOne: "{count} unpaid",
+  avgPerMonth: "Average per month",
+  largestExpense: "Largest expense",
+  monthsCount: "{count} months",
+  monthsCountOne: "{count} month",
+  draftPrintText: "This cycle is in preparation: no charges are billed yet, and it has no payments or expenses.",
   seeOwners: "See owners →",
   coOwnedLots: "Co-owned units",
   coOwnedCount: "{count} co-owned",
   topHolders: "Who owns the most",
   lotsCount: "{count} units",
+  lotsCountOne: "{count} unit",
   groupMine: "Their units",
   groupFree: "Without an owner",
   groupTaken: "Owned by someone else",
@@ -1228,6 +1276,7 @@ const en: Dictionary = {
   noMovementsYet: "No movements in this cycle yet.",
   editStartBalance: "Edit starting balance",
   paymentsCount: "{count} payments",
+  paymentsCountOne: "{count} payment",
   startOfCycle: "Start",
   lots: "Units",
   payments: "Payments",
@@ -1434,6 +1483,7 @@ const en: Dictionary = {
   amount: "Amount ({cur})",
   saveExpense: "Save expense",
   expensesCount: "{count} expenses",
+  expensesCountOne: "{count} expense",
   noExpensesDraft: "No expenses for a cycle in preparation.",
   expenseRecorded: "Expense recorded · {amount}",
   editExpense: "Edit expense",
@@ -1516,6 +1566,28 @@ export const LOCALES = ["fr", "en"] as const;
 export type Locale = (typeof LOCALES)[number];
 
 export const DICTIONARIES: Record<Locale, Dictionary> = { fr, en };
+
+/** The texts that name a count, each with its singular form (`…One`). */
+export type CountKey =
+  | "lotsCount"
+  | "paymentsCount"
+  | "expensesCount"
+  | "monthsCount"
+  | "lotsPaidCount"
+  | "lotsPartialCount"
+  | "lotsUnpaidCount"
+  | "coverMoreBlocs"
+  | "coverMoreDebtors";
+
+/**
+ * A count in words, singular or plural as the language has it: "1 paiement",
+ * "0 paiement", "2 paiements" in French (0 and 1 take the singular); "1 payment",
+ * "0 payments" in English.
+ */
+export function countText(t: Dictionary, locale: Locale, key: CountKey, count: number): string {
+  const one = locale === "fr" ? Math.abs(count) < 2 : count === 1;
+  return interpolate(one ? t[`${key}One`] : t[key], { count });
+}
 
 export function interpolate(template: string, vars: Record<string, string | number>): string {
   return template.replace(/\{(\w+)\}/g, (match, name: string) => (name in vars ? String(vars[name]) : match));

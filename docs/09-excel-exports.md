@@ -90,18 +90,21 @@ it, with the PDF's own words (the dictionary's) and colours
   each with what it means and the previous cycle beside it (to date while a
   cycle runs, as the dashboard compares); the treasury in four lines; the
   collection by bloc; the payment methods; money in, out and balance by month.
-- **Copropriété** — every lot by bloc: owners, phones, charge, paid, left to
-  pay (red when owed), status (coloured like the app's badges), payment
-  methods; a band opening each bloc, its subtotal, the grand total and the
-  collection rate.
-- **Encaissements** / **Dépenses** — month by month, each month's subtotal,
-  then the total; the payments end with the totals by method.
+- **Copropriété** — every lot by bloc (lots whose bloc is unknown last, under
+  "Sans bloc"): owners, phones, charge, paid, left to pay (red when owed),
+  status (coloured like the app's badges), payment methods; each bloc opens
+  with a band carrying its name, its count, its subtotals and its collection
+  rate, as the PDF prints it; then the grand total and the collection rate.
+- **Encaissements** / **Dépenses** — month by month, each month's band with
+  its count and subtotal, then the total; the payments end with the totals by
+  method.
 
 Each page opens with the PDF's header (residence, city, document, cycle,
 status and dates, when it was made); the column titles are frozen and repeat
-on every printed page (A4, one page wide). Left to pay, subtotals and totals
-are live formulas — `SUBTOTAL(9, …)`, so a total never counts the subtotals
-above it — with their values stored for viewers that do not recalculate.
+on every printed page (A4, one page wide). Left to pay, the bands' subtotals
+and the totals are live formulas — `SUBTOTAL(9, …)`, so a total never counts
+the subtotals in the bands above it — with their values stored for viewers
+that do not recalculate.
 
 ### The record sheets
 

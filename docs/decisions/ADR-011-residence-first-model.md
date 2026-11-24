@@ -223,13 +223,26 @@ same tabs and sections, at the modal's full width.
 "Imprimer" button. It fetches `/residences/<r>/print/<doc>` — a route
 handler rendering a real PDF with `@react-pdf/renderer` for the cycle on
 screen — and opens it as a blob in the browser's PDF viewer (downloaded
-instead when pop-ups are blocked). Documents: `property` (every lot by bloc
-with owners, phones, charge, paid, remaining, status and methods; subtotals;
-landscape), `payments` and `expenses` (by month, subtotals, total; payments
-also by method), `finances` (a cover — treasury, waterfall, monthly flows,
-methods, largest expenses — then both lists) and `report` (a simple cover — the
-collection gauge, the four figures each with what it means, the treasury as
-four lines, collection by bloc as a table — then the ledger and both lists).
+instead when pop-ups are blocked). Each list fits on one A4 page:
+`property` (every lot by bloc — lots whose bloc is unknown last, under "Sans
+bloc" — with owners, phones, charge, paid, remaining, status and payment
+methods), `payments` and `expenses` (by month, oldest first). Each opens with
+a strip of its figures; each group's band carries its subtotal, and the list
+ends with its total. `lib/print/pdf/fit.ts` picks the row height (14 pt down
+to 11 pt) and, for a longer list, a second column with the essential columns
+only (down to 7.5 pt rows, 6 pt type); only a list too long even for that
+runs to a second page, laid out the same. Both reports open with one page
+in the same language (`lib/print/pdf/cover.tsx`): a masthead, a headline
+figure, four figures against the previous cycle, then panels of fixed height.
+`finances` opens with the balance and what came in and went out, the
+treasury from opening to balance, the months, payment methods and the
+largest expenses, then both lists. `report` opens with the dashboard — the collection rate against
+the cycle before, collected against what is left, lots by status, the four
+figures against the previous cycle, the treasury, months, collection by bloc,
+the largest balances due, payment methods and largest expenses; every panel
+has a fixed height and fits its rows to it — then the three lists. A cycle in
+preparation prints its ledger alone (charges only) for `property` and
+`report`, and a page saying it is in preparation for the others.
 Pages carry no footer. The PDF palette in `lib/print/pdf/theme.ts`
 mirrors the light tokens (paper is always light); the fonts are static TTF
 instances of Manrope and Fraunces in `lib/print/fonts`, traced into that

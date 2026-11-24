@@ -14,78 +14,6 @@ function arc(cx: number, cy: number, r: number, from: number, to: number) {
   return `M ${a.x.toFixed(2)} ${a.y.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${b.x.toFixed(2)} ${b.y.toFixed(2)}`;
 }
 
-/**
- * The collection gauge of the report's cover: a 270° ring on the night
- * band, the rate in its middle.
- */
-export function Gauge({
-  value,
-  size,
-  label,
-  caption,
-}: {
-  value: number;
-  size: number;
-  label: string;
-  caption: string;
-}) {
-  const stroke = size * 0.085;
-  const r = size / 2 - stroke / 2 - 1;
-  const c = size / 2;
-  const clamped = Math.max(0, Math.min(100, value));
-  const start = -135;
-  const end = start + (270 * clamped) / 100;
-  return (
-    <View style={{ width: size, position: "relative" }}>
-      <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        <Path
-          d={arc(c, c, r, start, 135)}
-          stroke={C.nightLine}
-          strokeWidth={stroke}
-          strokeLinecap="round"
-          fill="none"
-        />
-        {clamped > 0 && (
-          <Path
-            d={arc(c, c, r, start, Math.max(end, start + 0.5))}
-            stroke={C.nightPos}
-            strokeWidth={stroke}
-            strokeLinecap="round"
-            fill="none"
-          />
-        )}
-        {/* Ticks every 25 %. */}
-        {[0, 25, 50, 75, 100].map((tick) => {
-          const deg = start + (270 * tick) / 100;
-          const a = polar(c, c, r - stroke / 2 - 3, deg);
-          const b = polar(c, c, r - stroke / 2 - 7, deg);
-          return <Line key={tick} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={C.nightMuted} strokeWidth={0.8} />;
-        })}
-      </Svg>
-      <View
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: size,
-          height: size,
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <Text style={{ fontFamily: "Fraunces", fontWeight: 700, fontSize: size * 0.24, color: C.onNight }}>
-          {clamped}
-          <Text style={{ fontSize: size * 0.12 }}> %</Text>
-        </Text>
-        <Text style={{ fontSize: 7, color: C.nightInk, marginTop: 2, letterSpacing: 0.4 }}>{label}</Text>
-      </View>
-      <Text style={{ fontSize: 7, fontWeight: 700, color: C.nightPos, textAlign: "center", marginTop: -size * 0.13 }}>
-        {caption}
-      </Text>
-    </View>
-  );
-}
-
 /** A ring split into shares, with the total in the middle. */
 export function Donut({
   parts,
@@ -222,10 +150,13 @@ export function FlowsChart({
   months,
   width,
   height,
+  labelEvery = 1,
 }: {
   months: { label: string; income: number; expense: number; balance: number }[];
   width: number;
   height: number;
+  /** Name one month in this many, when the chart is too narrow to name them all. */
+  labelEvery?: number;
 }) {
   const values = months.flatMap((m) => [m.income, m.expense, m.balance]);
   const min = Math.min(0, ...values);
@@ -289,9 +220,9 @@ export function FlowsChart({
         ))}
       </Svg>
       <View style={{ flexDirection: "row", marginTop: 4 }}>
-        {months.map((m) => (
+        {months.map((m, i) => (
           <Text key={m.label} style={{ width: slot, fontSize: 6.5, color: C.muted, textAlign: "center" }}>
-            {m.label}
+            {(months.length - 1 - i) % labelEvery === 0 ? m.label : ""}
           </Text>
         ))}
       </View>
@@ -318,17 +249,5 @@ export function StackedBar({ parts, height = 7 }: { parts: { value: number; colo
           .filter((p) => p.value > 0)
           .map((p, i) => <View key={i} style={{ width: `${(p.value / total) * 100}%`, backgroundColor: p.color }} />)}
     </View>
-  );
-}
-
-/** Concentric rings in the night band's corner — decoration only. */
-export function Rings({ size }: { size: number }) {
-  const c = size / 2;
-  return (
-    <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      {[0.2, 0.34, 0.48].map((f) => (
-        <Circle key={f} cx={c} cy={c} r={size * f} stroke={C.nightLine} strokeWidth={0.8} fill="none" />
-      ))}
-    </Svg>
   );
 }

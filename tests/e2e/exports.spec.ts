@@ -34,15 +34,16 @@ const num = (value: unknown) =>
 
 /**
  * A printed-report ledger (Copropriété): its lot lines — those with a charge
- * of their own, not a bloc's band or subtotal — and its total line.
+ * of their own —, each bloc's band with its subtotal (a formula), and the total line.
  */
 function ledger(sheet: ExcelJS.Worksheet) {
   const [header, ...body] = rows(sheet);
+  const isFormula = (v: unknown) => !!v && typeof v === "object" && "formula" in v;
   return {
     header,
     lots: body.filter((r) => typeof r[3] === "number"),
     total: body[body.length - 1],
-    subtotals: body.filter((r) => r[0] === "Sous-total"),
+    subtotals: body.slice(0, -1).filter((r) => isFormula(r[3])),
   };
 }
 
@@ -64,7 +65,7 @@ test("every export is a workbook with the sheets it promises", async ({ request 
 });
 
 test("the figures add up: the ledger, unpaid and the treasury's running balance", async ({ request }) => {
-  // The ledger as the PDF prints it: lots by bloc, a subtotal per bloc, then the total.
+  // The ledger as the PDF prints it: lots by bloc, each bloc's band with its subtotal, then the total.
   const { header, lots, total, subtotals } = ledger((await workbook(request, "property")).getWorksheet("Copropriété")!);
   expect(header.slice(0, 7)).toEqual(["LOT", "PROPRIÉTAIRES", "TÉLÉPHONE", "CHARGE", "PAYÉ", "RESTE", "STATUT"]);
   expect(lots).toHaveLength(42); // the seeded residence

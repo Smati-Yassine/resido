@@ -73,7 +73,7 @@ export async function buildCycleWorkbook(ctx: ExportCtx, data: PrintData, doc: E
   const table = (sheet: Sheet, columns: typeof LOT_COLS, rows: Cell[][], total?: number[]) =>
     addTable(workbook, { name: NAMES[sheet][locale], caption, columns, rows, currency, locale, total });
 
-  const lots = data.byBloc.flatMap((b) => b.lots.map((l) => ({ ...l, bloc: b.name })));
+  const lots = data.byBloc.flatMap((b) => b.lots.map((l) => ({ ...l, bloc: b.name || ctx.t.noBloc })));
   const lotRow = (l: (typeof lots)[number]): Cell[] => [
     l.bloc,
     l.code,
